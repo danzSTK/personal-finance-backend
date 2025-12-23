@@ -1,4 +1,15 @@
-export default () => ({
+export interface AppConfig {
+  port: number;
+  database: {
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    dbName: string;
+  };
+}
+
+export default (): AppConfig => ({
   port: parseInt(process.env.PORT!, 10) || 3000,
   database: {
     host: process.env.POSTGRES_HOST || 'localhost',
