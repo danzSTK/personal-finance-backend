@@ -1,14 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConfigModule } from './config/config.module';
+import { ConfigModule } from '../config/config.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { User } from './entities/user.entity';
-import { Account } from './entities/account.entity';
-import { Category } from './entities/category.entity';
-import { Transaction } from './entities/transaction.entity';
-import { AuthProvider } from './entities/auth-provider.entity';
+import { ENTITIES } from '../config/entities';
 
 @Module({
   imports: [
@@ -22,7 +18,7 @@ import { AuthProvider } from './entities/auth-provider.entity';
         username: configService.get('database.username')!,
         password: configService.get('database.password')!,
         database: configService.get('database.dbName')!,
-        entities: [User, Account, Category, Transaction, AuthProvider],
+        entities: ENTITIES,
         synchronize: false,
         logging: true,
       }),
