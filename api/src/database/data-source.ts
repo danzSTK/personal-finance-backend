@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import { join } from 'path';
+import { ENTITIES } from '../config/entities';
 
 // Carrega o .env da raiz
 config({ path: join(process.cwd(), '..', '.env') });
@@ -12,7 +13,7 @@ export const AppDataSource = new DataSource({
   username: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB,
-  entities: [join(__dirname, '../entities/*.entity{.ts,.js}')],
+  entities: ENTITIES,
   migrations: [join(__dirname, './migrations/*{.ts,.js}')],
   synchronize: false,
   logging: true,
