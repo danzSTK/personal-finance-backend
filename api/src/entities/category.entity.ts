@@ -8,10 +8,11 @@ import {
   OneToMany,
   JoinColumn,
   Index,
+  Check,
 } from 'typeorm';
-import { User } from './user.entity';
 import { CategoryType } from '../domains/enums/category-types.enum';
 import { Transaction } from './transaction.entity';
+import { User } from '../modules/users/entities/user.entity';
 
 @Entity('categories')
 @Index('idx_categories_user_name_type_active', ['user_id', 'name', 'type'], {
@@ -21,6 +22,11 @@ import { Transaction } from './transaction.entity';
   where: 'is_active = true',
 })
 @Index('idx_categories_user_active', ['user_id'], { where: 'is_active = true' })
+@Check('CHK_categories_type', `"type" IN ('INCOME', 'EXPENSE')`)
+@Check(
+  'CHK_categories_deactivation',
+  `(is_active = true AND deactivated_at IS NULL) OR (is_active = false AND deactivated_at IS NOT NULL)`,
+)
 export class Category {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -56,7 +62,10 @@ export class Category {
   deactivated_at: Date | null;
 
   @ManyToOne(() => User, (user) => user.categories, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({
+    name: 'user_id',
+    foreignKeyConstraintName: 'FK_categories_user',
+  })
   user: User;
 
   @OneToMany(() => Transaction, (transaction) => transaction.category)

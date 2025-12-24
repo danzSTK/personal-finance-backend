@@ -1,3 +1,4 @@
+import { User } from '../modules/users/entities/user.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -9,10 +10,9 @@ import {
   Index,
   Unique,
 } from 'typeorm';
-import { User } from './user.entity';
 
 @Entity('auth_providers')
-@Unique(['provider', 'provider_user_id'])
+@Unique('UQ_auth_providers', ['provider', 'provider_user_id'])
 @Index('idx_auth_providers_user_id', ['user_id'])
 export class AuthProvider {
   @PrimaryGeneratedColumn('uuid')
@@ -37,6 +37,9 @@ export class AuthProvider {
   updated_at: Date;
 
   @ManyToOne(() => User, (user) => user.authProviders, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({
+    name: 'user_id',
+    foreignKeyConstraintName: 'FK_auth_providers_user',
+  })
   user: User;
 }
