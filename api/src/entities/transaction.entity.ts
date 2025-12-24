@@ -7,10 +7,11 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  Check,
 } from 'typeorm';
-import { User } from './user.entity';
 import { Account } from './account.entity';
 import { Category } from './category.entity';
+import { User } from '../modules/users/entities/user.entity';
 
 @Entity('transactions')
 @Index('idx_transactions_user_date_id', ['user_id', 'date', 'id'], {
@@ -26,6 +27,11 @@ import { Category } from './category.entity';
 @Index('idx_transactions_user_date', ['user_id', 'date'], {
   where: 'is_active = true',
 })
+@Check('CHK_transactions_amount', `amount > 0`)
+@Check(
+  'CHK_transactions_deactivation',
+  `(is_active = true AND deactivated_at IS NULL) OR (is_active = false AND deactivated_at IS NOT NULL)`,
+)
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -61,18 +67,27 @@ export class Transaction {
   deactivated_at: Date | null;
 
   @ManyToOne(() => User, (user) => user.transactions, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({
+    name: 'user_id',
+    foreignKeyConstraintName: 'FK_transactions_user',
+  })
   user: User;
 
   @ManyToOne(() => Account, (account) => account.transactions, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'account_id' })
+  @JoinColumn({
+    name: 'account_id',
+    foreignKeyConstraintName: 'FK_transactions_account',
+  })
   account: Account;
 
   @ManyToOne(() => Category, (category) => category.transactions, {
     onDelete: 'NO ACTION',
   })
-  @JoinColumn({ name: 'category_id' })
+  @JoinColumn({
+    name: 'category_id',
+    foreignKeyConstraintName: 'FK_transactions_category',
+  })
   category: Category;
 }
