@@ -8,11 +8,13 @@ Este documento define as regras de autenticação, identidade e relacionamento e
 
 ### 1.1 User
 Representa a **pessoa** dentro do sistema.
+- status ['PENDING_PROFILE', 'ACTIVE', 'BLOCKED']
 
 - Não representa login
 - Pode existir sem email
 - Pode ter múltiplas formas de autenticação
 - É dono de contas, categorias e transações
+- No status PENDING_PROFILE o usuário pode ter quase nada de informação preenchida pois significa que ele está no estágio inicial do register... Isso significa que ele não pode usar nenhum dado do sistema ou usar features que necessita de seus dados... Isso significa que grande parte do sistema para esse estado estará bloqueado até ele preencher o minímo de dados necessários para utilizar o sistema.
 
 ### 1.2 AuthProvider
 Representa uma **identidade de autenticação**.
