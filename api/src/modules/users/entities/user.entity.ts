@@ -37,20 +37,33 @@ export class User {
     name: 'user_name',
     type: 'varchar',
     length: 255,
-    nullable: false,
-    default: '',
+    nullable: true,
+    default: null,
   })
-  userName: string;
+  userName: string | null;
 
-  @Column({ name: 'first_name', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'first_name',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    default: null,
+  })
   firstName: string | null;
 
-  @Column({ name: 'last_name', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'last_name',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    default: null,
+  })
   lastName: string | null;
 
   @Column({
     type: 'varchar',
     length: 50,
+    nullable: false,
     default: UserStatus.PENDING_PROFILE,
   })
   status: UserStatus;

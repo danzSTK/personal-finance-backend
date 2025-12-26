@@ -1,6 +1,5 @@
 import {
   IsEmail,
-  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
@@ -8,25 +7,25 @@ import {
 } from 'class-validator';
 
 export class CreateUserDto {
+  @IsOptional()
   @IsString({ message: 'O userName deve ser uma string' })
-  @IsNotEmpty({ message: 'O userName não pode estar vazio' })
   @MaxLength(255, { message: 'O userName deve ter no máximo 255 caracteres' })
   @MinLength(3, { message: 'O userName deve ter no mínimo 3 caracteres' })
-  userName: string;
+  userName?: string;
 
-  @IsString({ message: 'O firstName deve ser uma string' })
   @IsOptional()
-  @MaxLength(255, { message: 'O firstName deve ter no máximo 255 caracteres' })
+  @IsString({ message: 'O firstName deve ser uma string' })
   @MinLength(1, { message: 'O firstName deve ter no mínimo 1 caractere' })
+  @MaxLength(255, { message: 'O firstName deve ter no máximo 255 caracteres' })
   firstName?: string;
 
-  @IsString({ message: 'O lastName deve ser uma string' })
   @IsOptional()
-  @MaxLength(255, { message: 'O lastName deve ter no máximo 255 caracteres' })
+  @IsString({ message: 'O lastName deve ser uma string' })
   @MinLength(1, { message: 'O lastName deve ter no mínimo 1 caractere' })
+  @MaxLength(255, { message: 'O lastName deve ter no máximo 255 caracteres' })
   lastName?: string;
 
-  @IsEmail({}, { message: 'Endereço de email inválido' })
   @IsOptional()
+  @IsEmail({}, { message: 'Endereço de email inválido' })
   email?: string;
 }
