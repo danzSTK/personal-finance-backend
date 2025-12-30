@@ -1,6 +1,6 @@
 import { UserStatus } from '../../../domains/enums/user-status.enum';
 import { Account } from '../../../entities/account.entity';
-import { AuthProvider } from '../../../entities/auth-provider.entity';
+import { AuthProvider } from '../../auth/entities/auth-provider.entity';
 import { Category } from '../../../entities/category.entity';
 import { Transaction } from '../../../entities/transaction.entity';
 import {
