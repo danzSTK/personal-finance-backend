@@ -1,5 +1,5 @@
 import { Account } from '../entities/account.entity';
-import { AuthProvider } from '../entities/auth-provider.entity';
+import { AuthProvider } from '../modules/auth/entities/auth-provider.entity';
 import { Category } from '../entities/category.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { User } from '../modules/users/entities/user.entity';

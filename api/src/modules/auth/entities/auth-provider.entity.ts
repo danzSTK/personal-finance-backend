@@ -1,4 +1,5 @@
-import { User } from '../modules/users/entities/user.entity';
+import { AuthProviderType } from '../../../domains/enums/auth-provider.enum';
+import { User } from '../../users/entities/user.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -21,19 +22,29 @@ export class AuthProvider {
   @Column('uuid')
   user_id: string;
 
-  @Column({ type: 'varchar', length: 100 })
-  provider: string;
+  @Column({ type: 'varchar', length: 50, nullable: false })
+  provider: AuthProviderType;
 
-  @Column({ type: 'varchar', length: 255 })
-  provider_user_id: string;
+  @Column({
+    name: 'provider_user_id',
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  providerUserId: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  password_hash: string | null;
+  @Column({
+    name: 'password_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  passwordHash: string | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updated_at: Date;
 
   @ManyToOne(() => User, (user) => user.authProviders, { onDelete: 'CASCADE' })
