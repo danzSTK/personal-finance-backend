@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { join } from 'path';
-import configuration from './configuration';
 import Joi from 'joi';
+import databaseConfig from './database.config';
 
 @Module({
   imports: [
     NestConfigModule.forRoot({
-      load: [configuration],
+      cache: true,
+      load: [databaseConfig],
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
       validationSchema: Joi.object({
@@ -21,6 +22,10 @@ import Joi from 'joi';
         POSTGRES_PASSWORD: Joi.string().required(),
         POSTGRES_DB: Joi.string().required(),
       }),
+      validationOptions: {
+        abortEarly: true,
+        allowUnknown: true,
+      },
     }),
   ],
 })
