@@ -13,7 +13,7 @@ import {
 } from 'typeorm';
 
 @Entity('auth_providers')
-@Unique('UQ_auth_providers', ['provider', 'provider_user_id'])
+@Unique('UQ_auth_providers', ['provider', 'providerUserId'])
 @Index('idx_auth_providers_user_id', ['user_id'])
 export class AuthProvider {
   @PrimaryGeneratedColumn('uuid')
