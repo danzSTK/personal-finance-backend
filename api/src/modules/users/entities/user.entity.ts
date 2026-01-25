@@ -1,4 +1,4 @@
-import { UserStatus } from '../../../domains/enums/user-status.enum';
+import { UserStatus } from '../../../common/models/enums/user-status.enum';
 import { Account } from '../../../entities/account.entity';
 import { AuthProvider } from '../../auth/entities/auth-provider.entity';
 import { Category } from '../../../entities/category.entity';

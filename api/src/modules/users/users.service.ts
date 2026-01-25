@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { Repository } from 'typeorm';
-import { OnboardingProfileDto } from './dto/onboarding-profile.dto';
+import { EntityManager, Repository } from 'typeorm';
+
+interface ICreateUserOptions {
+  manager?: EntityManager;
+}
+
+interface IGetUserByEmailOptions {
+  manager?: EntityManager;
+}
 
 @Injectable()
 export class UsersService {
@@ -12,18 +18,15 @@ export class UsersService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
   ) {}
-  create(createUserDto: CreateUserDto) {
-    const user = this.userRepository.create(createUserDto);
 
-    return this.userRepository.save(user);
-  }
+  async create(createUserDto: CreateUserDto, options?: ICreateUserOptions) {
+    const repository = options?.manager
+      ? options.manager.getRepository(User)
+      : this.userRepository;
 
-  async onboardingProcess(userId: string, data: OnboardingProfileDto) {
-    const user = await this.findOne(userId);
+    const user = repository.create(createUserDto);
 
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado');
-    }
+    return repository.save(user);
   }
 
   findAll() {
@@ -36,23 +39,23 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string) {
-    const user = await this.userRepository.findOneBy({ email });
+  async findByEmail(email: string, options?: IGetUserByEmailOptions) {
+    const repository = options?.manager
+      ? options.manager.getRepository(User)
+      : this.userRepository;
+
+    const user = await repository.findOneBy({ email });
 
     return user;
   }
 
   async findById(id: string) {
-    const user = await this.userRepository.findOneBy({ id });
+    const user = await this.userRepository.findOne({
+      where: {
+        id,
+      },
+    });
 
     return user;
-  }
-
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
   }
 }
