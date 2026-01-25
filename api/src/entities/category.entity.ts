@@ -10,7 +10,7 @@ import {
   Index,
   Check,
 } from 'typeorm';
-import { CategoryType } from '../domains/enums/category-types.enum';
+import { CategoryType } from '../common/models/enums/category-types.enum';
 import { Transaction } from './transaction.entity';
 import { User } from '../modules/users/entities/user.entity';
 

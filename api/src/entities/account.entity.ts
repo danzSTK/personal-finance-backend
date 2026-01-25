@@ -1,4 +1,4 @@
-import { AccountType } from '../domains/enums/account-type.enum';
+import { AccountType } from '../common/models/enums/account-type.enum';
 import {
   Check,
   Column,
