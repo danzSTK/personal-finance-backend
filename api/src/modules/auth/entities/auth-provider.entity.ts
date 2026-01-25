@@ -1,4 +1,4 @@
-import { AuthProviderType } from '../../../domains/enums/auth-provider.enum';
+import { AuthProviderType } from '../../../common/models/enums/auth-provider.enum';
 import { User } from '../../users/entities/user.entity';
 import {
   Entity,

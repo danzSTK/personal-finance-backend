@@ -1,42 +1,73 @@
 import {
   Controller,
-  Get,
   Post,
   Body,
-  Patch,
-  Param,
-  Delete,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Get,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { RegisterDto } from './dto/register.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { User } from '../users/entities/user.entity';
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { type Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post()
-  create(@Body() createAuthDto: CreateAuthDto) {
-    return this.authService.create(createAuthDto);
+  @Post('sign-up')
+  async signUp(@Body() signUpDto: RegisterDto) {
+    return this.authService.signUp(signUpDto);
   }
 
-  @Get()
-  findAll() {
-    return this.authService.findAll();
+  @Post('sign-in')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(LocalAuthGuard)
+  signIn(@CurrentUser() user: User) {
+    return this.authService.signIn(user);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
+  /**
+   * 🚀 ROTA 1: Iniciar login com Google
+   * GET /auth/google
+   *
+   * 🧠 FLUXO:
+   * 1. GoogleAuthGuard redireciona para Google OAuth
+   * 2. Usuário vê tela de consentimento do Google
+   * 3. Após autorizar, Google redireciona para /auth/google/callback
+   */
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuth() {
+    // Guard redireciona automaticamente
+    // Não precisa implementar nada aqui
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
+  /**
+   * 🔄 ROTA 2: Callback do Google
+   * GET /auth/google/callback
+   *
+   * 🧠 FLUXO:
+   * 1. Google redireciona aqui com código
+   * 2. GoogleAuthGuard troca código por accessToken
+   * 3. GoogleStrategy valida e anexa user em req.user
+   * 4. Geramos JWT e redirecionamos para frontend
+   */
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  googleAuthCallback(@CurrentUser() user: User, @Res() res: Response) {
+    // Gerar tokens JWT
+    const tokens = this.authService.signIn(user);
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
+    // Redirecionar para frontend com tokens
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
+
+    return res.redirect(redirectUrl);
   }
 }
