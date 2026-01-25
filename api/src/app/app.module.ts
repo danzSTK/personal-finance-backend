@@ -7,6 +7,11 @@ import { ConfigType } from '@nestjs/config';
 import { ENTITIES } from '../config/entities';
 import { UsersModule } from '../modules/users/users.module';
 import databaseConfig from '../config/database.config';
+import { AuthModule } from '../modules/auth/auth.module';
+import { AuthProviderModule } from '../modules/auth-provider/auth-provider.module';
+import { CommonModule } from '../common/common.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import { RedisOptions } from '../config/redis/redis-options';
 
 @Module({
   imports: [
@@ -26,7 +31,11 @@ import databaseConfig from '../config/database.config';
       }),
       inject: [databaseConfig.KEY],
     }),
+    CacheModule.registerAsync(RedisOptions),
     UsersModule,
+    AuthModule,
+    AuthProviderModule,
+    CommonModule,
   ],
   controllers: [AppController],
   providers: [AppService],
