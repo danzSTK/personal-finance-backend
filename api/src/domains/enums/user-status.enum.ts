@@ -1,5 +1,0 @@
-export enum UserStatus {
-  PENDING_PROFILE = 'PENDING_PROFILE',
-  ACTIVE = 'ACTIVE',
-  BLOCKED = 'BLOCKED',
-}
