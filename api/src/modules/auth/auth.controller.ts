@@ -7,6 +7,7 @@ import {
   UseGuards,
   Get,
   Res,
+  Headers,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -15,10 +16,18 @@ import { User } from '../users/entities/user.entity';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { type Response } from 'express';
+import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
+import { LogoutDto } from './dto/logout.dto';
+import { JwtService } from '@nestjs/jwt';
+import { JwtPayloadDto } from './dto/jwt-payload.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @Post('sign-up')
   async signUp(@Body() signUpDto: RegisterDto) {
@@ -60,14 +69,37 @@ export class AuthController {
    */
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  googleAuthCallback(@CurrentUser() user: User, @Res() res: Response) {
+  async googleAuthCallback(@CurrentUser() user: User, @Res() res: Response) {
     // Gerar tokens JWT
-    const tokens = this.authService.signIn(user);
+    const tokens = await this.authService.signIn(user);
 
     // Redirecionar para frontend com tokens
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
     const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
 
     return res.redirect(redirectUrl);
+  }
+
+  @Post('refresh')
+  @UseGuards(JwtRefreshGuard)
+  async refresh(@CurrentUser() user: { id: string; jti: string }) {
+    return this.authService.rotateTokens(user.id, user.jti);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @CurrentUser() user: User,
+    @Headers('Authorization') authHeader: string,
+    @Body() logoutDto: LogoutDto,
+  ) {
+    const accessToken = authHeader.replace('Bearer ', '');
+
+    const rtPayload = this.jwtService.decode<JwtPayloadDto>(
+      logoutDto.refreshToken,
+    );
+
+    return this.authService.logout(user.id, accessToken, rtPayload.jti);
   }
 }
