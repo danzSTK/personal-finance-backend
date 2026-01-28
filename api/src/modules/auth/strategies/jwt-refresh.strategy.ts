@@ -2,12 +2,11 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { type ConfigType } from '@nestjs/config';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { type Cache } from 'cache-manager';
 import jwtConfig from '../../../config/jwt.config';
 import { type JwtPayloadDto } from '../dto/jwt-payload.dto';
 import { CacheKeys } from '../../../common/utils/cache-keys.factory';
-import { Request } from 'express';
+import { REDIS_CLIENT } from '../../../database/redis/redis.provider';
+import Redis from 'ioredis';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
@@ -17,8 +16,8 @@ export class JwtRefreshStrategy extends PassportStrategy(
   constructor(
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
-    @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
+    @Inject(REDIS_CLIENT)
+    private readonly redis: Redis,
   ) {
     super({
       // O token vem no corpo da requisição: { "refreshToken": "..." }
@@ -28,7 +27,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
     });
   }
 
-  async validate(req: Request, payload: JwtPayloadDto) {
+  async validate(payload: JwtPayloadDto) {
     const userId = payload.sub;
     const jti = payload.jti;
 
@@ -40,7 +39,10 @@ export class JwtRefreshStrategy extends PassportStrategy(
     const key = CacheKeys.auth.refreshToken(userId, jti);
 
     // 2. Busca no Redis
-    const storedToken = await this.cacheManager.get<string>(key);
+    const storedToken = await this.redis.get(key);
+
+    console.log('token key', key);
+    console.log('token value', storedToken);
 
     // 3. Validação Whitelist (Tem que estar no Redis E ser igual)
     if (!storedToken) {

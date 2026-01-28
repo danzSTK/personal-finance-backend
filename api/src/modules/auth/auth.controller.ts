@@ -100,6 +100,6 @@ export class AuthController {
       logoutDto.refreshToken,
     );
 
-    return this.authService.logout(user.id, accessToken, rtPayload.jti);
+    return this.authService.logout(user.id, accessToken, rtPayload?.jti);
   }
 }

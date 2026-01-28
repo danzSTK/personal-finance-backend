@@ -59,6 +59,9 @@ export class AuthService {
     const oldRtKey = CacheKeys.auth.refreshToken(userId, oldJti);
     const isValid = await this.redis.get(oldRtKey);
 
+    console.log('token key', oldRtKey);
+    console.log('token value', isValid);
+
     if (!isValid) {
       await this.invalidAllSessions(userId);
       throw new UnauthorizedException('Potential session hijacking');
@@ -91,6 +94,9 @@ export class AuthService {
   }
 
   async logout(userId: string, accessToken: string, refreshTokenJti: string) {
+    console.log('userId', userId);
+    console.log('accessToken', accessToken);
+    console.log('refreshTokenJti', refreshTokenJti);
     const payloadToken = this.jwtService.decode<JwtPayloadDto>(accessToken);
 
     if (!payloadToken || !payloadToken.exp) {
