@@ -68,7 +68,6 @@ export class UsersService {
     const cachedUser = await this.cacheManager.get<User>(cacheKey);
 
     if (cachedUser) {
-      console.log('User found in cache');
       return cachedUser;
     }
 
@@ -95,7 +94,6 @@ export class UsersService {
     const cachedUser = await this.cacheManager.get<User>(cacheKey);
 
     if (cachedUser) {
-      console.log('User found in cache');
       return cachedUser;
     }
 
@@ -112,17 +110,17 @@ export class UsersService {
     return user;
   }
 
-  async getUserByName(userName: string, options?: IGetUserByNameOptions): Promise<User | null> {
+  async findByUserName(userName: string, options?: IGetUserByNameOptions): Promise<User | null> {
     const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
 
     if (options?.manager) {
-      const user = await repository.find({
+      const user = await repository.findOne({
         where: {
           userName: ILike(userName),
         },
       });
 
-      return user[0];
+      return user;
     }
 
     const cacheKey = CacheKeys.users.byUserName(userName);
@@ -130,11 +128,10 @@ export class UsersService {
     const cachedUser = await this.cacheManager.get<User>(cacheKey);
 
     if (cachedUser) {
-      console.log('User found in cache');
       return cachedUser;
     }
 
-    const user = await repository.find({
+    const user = await repository.findOne({
       where: {
         userName: ILike(userName),
       },
@@ -144,6 +141,6 @@ export class UsersService {
       await this.cacheManager.set(cacheKey, user, 1000 * 60 * 60 * 24);
     }
 
-    return user[0];
+    return user;
   }
 }
