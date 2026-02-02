@@ -31,12 +31,8 @@ export class InitialSchema1766306225658 implements MigrationInterface {
     `);
 
     // Criar índices users
-    await queryRunner.query(
-      `CREATE INDEX "idx_users_status" ON "users" ("status")`,
-    );
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "idx_users_email" ON "users" ("email") WHERE email IS NOT NULL`,
-    );
+    await queryRunner.query(`CREATE INDEX "idx_users_status" ON "users" ("status")`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "idx_users_email" ON "users" ("email") WHERE email IS NOT NULL`);
 
     // Trigger users
     await queryRunner.query(`
@@ -62,9 +58,7 @@ export class InitialSchema1766306225658 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(
-      `CREATE INDEX "idx_auth_providers_user_id" ON "auth_providers" ("user_id")`,
-    );
+    await queryRunner.query(`CREATE INDEX "idx_auth_providers_user_id" ON "auth_providers" ("user_id")`);
 
     await queryRunner.query(`
       CREATE TRIGGER trg_auth_providers_updated_at
@@ -95,12 +89,8 @@ export class InitialSchema1766306225658 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(
-      `CREATE INDEX "idx_accounts_user_id" ON "accounts" ("user_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "idx_accounts_user_active" ON "accounts" ("user_id") WHERE is_active = true`,
-    );
+    await queryRunner.query(`CREATE INDEX "idx_accounts_user_id" ON "accounts" ("user_id")`);
+    await queryRunner.query(`CREATE INDEX "idx_accounts_user_active" ON "accounts" ("user_id") WHERE is_active = true`);
 
     await queryRunner.query(`
       CREATE TRIGGER trg_accounts_updated_at

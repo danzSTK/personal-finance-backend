@@ -1,11 +1,4 @@
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Length,
-} from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { AuthProviderType } from '../../../common/models/enums/auth-provider.enum';
 
 export class CreateAuthProviderDto {

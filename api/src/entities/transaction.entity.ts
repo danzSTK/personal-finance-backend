@@ -66,14 +66,14 @@ export class Transaction {
   @Column({ type: 'timestamptz', nullable: true })
   deactivated_at: Date | null;
 
-  @ManyToOne(() => User, (user) => user.transactions, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, user => user.transactions, { onDelete: 'CASCADE' })
   @JoinColumn({
     name: 'user_id',
     foreignKeyConstraintName: 'FK_transactions_user',
   })
   user: User;
 
-  @ManyToOne(() => Account, (account) => account.transactions, {
+  @ManyToOne(() => Account, account => account.transactions, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({
@@ -82,7 +82,7 @@ export class Transaction {
   })
   account: Account;
 
-  @ManyToOne(() => Category, (category) => category.transactions, {
+  @ManyToOne(() => Category, category => category.transactions, {
     onDelete: 'NO ACTION',
   })
   @JoinColumn({

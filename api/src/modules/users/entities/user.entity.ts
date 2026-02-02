@@ -21,10 +21,7 @@ import {
   where: 'email IS NOT NULL',
   unique: true,
 })
-@Check(
-  'CHK_users_status',
-  `"status" IN ('PENDING_PROFILE', 'ACTIVE', 'BLOCKED')`,
-)
+@Check('CHK_users_status', `"status" IN ('PENDING_PROFILE', 'ACTIVE', 'BLOCKED')`)
 @Unique('UQ_user_name', ['userName'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -74,15 +71,15 @@ export class User {
   @UpdateDateColumn({ type: 'timestamptz' })
   updated_at: Date;
 
-  @OneToMany(() => Account, (account) => account.user)
+  @OneToMany(() => Account, account => account.user)
   accounts: Account[];
 
-  @OneToMany(() => Category, (category) => category.user)
+  @OneToMany(() => Category, category => category.user)
   categories: Category[];
 
-  @OneToMany(() => Transaction, (transaction) => transaction.user)
+  @OneToMany(() => Transaction, transaction => transaction.user)
   transactions: Transaction[];
 
-  @OneToMany(() => AuthProvider, (authProvider) => authProvider.user)
+  @OneToMany(() => AuthProvider, authProvider => authProvider.user)
   authProviders: AuthProvider[];
 }

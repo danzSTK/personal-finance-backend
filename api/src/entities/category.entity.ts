@@ -61,13 +61,13 @@ export class Category {
   @Column({ type: 'timestamptz', nullable: true })
   deactivated_at: Date | null;
 
-  @ManyToOne(() => User, (user) => user.categories, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, user => user.categories, { onDelete: 'CASCADE' })
   @JoinColumn({
     name: 'user_id',
     foreignKeyConstraintName: 'FK_categories_user',
   })
   user: User;
 
-  @OneToMany(() => Transaction, (transaction) => transaction.category)
+  @OneToMany(() => Transaction, transaction => transaction.category)
   transactions: Transaction[];
 }

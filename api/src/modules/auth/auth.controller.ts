@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-  Get,
-  Res,
-  Headers,
-} from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Get, Res, Headers } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -89,16 +79,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(
-    @CurrentUser() user: User,
-    @Headers('Authorization') authHeader: string,
-    @Body() logoutDto: LogoutDto,
-  ) {
+  async logout(@CurrentUser() user: User, @Headers('Authorization') authHeader: string, @Body() logoutDto: LogoutDto) {
     const accessToken = authHeader.replace('Bearer ', '');
 
-    const rtPayload = this.jwtService.decode<JwtPayloadDto>(
-      logoutDto.refreshToken,
-    );
+    const rtPayload = this.jwtService.decode<JwtPayloadDto>(logoutDto.refreshToken);
 
     return this.authService.logout(user.id, accessToken, rtPayload?.jti);
   }

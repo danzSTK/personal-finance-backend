@@ -36,9 +36,7 @@ export class AuthProviderService {
     providerId: string,
     manager?: EntityManager,
   ): Promise<AuthProvider | null> {
-    const repository = manager
-      ? manager.getRepository(AuthProvider)
-      : this.authProviderRepository;
+    const repository = manager ? manager.getRepository(AuthProvider) : this.authProviderRepository;
 
     return repository.findOne({
       where: {
@@ -76,13 +74,8 @@ export class AuthProviderService {
    * @param manager
    * @returns Cria um novo AuthProvider
    */
-  async createAuthProvider(
-    data: CreateAuthProviderDto,
-    manager?: EntityManager,
-  ): Promise<AuthProvider> {
-    const repository = manager
-      ? manager.getRepository(AuthProvider)
-      : this.authProviderRepository;
+  async createAuthProvider(data: CreateAuthProviderDto, manager?: EntityManager): Promise<AuthProvider> {
+    const repository = manager ? manager.getRepository(AuthProvider) : this.authProviderRepository;
 
     const authProvider = repository.create({
       provider: data.provider,

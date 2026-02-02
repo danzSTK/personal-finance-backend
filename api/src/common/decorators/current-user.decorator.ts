@@ -3,15 +3,13 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Request } from 'express';
 import { User } from '../../modules/users/entities/user.entity';
 
-export const CurrentUser = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): User => {
-    const request = ctx.switchToHttp().getRequest<Request>();
-    const user = request.user as User;
+export const CurrentUser = createParamDecorator((data: unknown, ctx: ExecutionContext): User => {
+  const request = ctx.switchToHttp().getRequest<Request>();
+  const user = request.user as User;
 
-    if (!user) {
-      throw new Error('User not found in request');
-    }
+  if (!user) {
+    throw new Error('User not found in request');
+  }
 
-    return user;
-  },
-);
+  return user;
+});
