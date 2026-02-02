@@ -168,7 +168,7 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    const existingUser = await this.usersService.getUserByName(data.userName);
+    const existingUser = await this.usersService.findByUserName(data.userName);
 
     if (existingUser) {
       throw new ConflictException('User name already registered');
