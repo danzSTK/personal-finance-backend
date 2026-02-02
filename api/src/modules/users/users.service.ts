@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, ILike, Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { type Cache } from 'cache-manager';
 import { CacheKeys } from '../../common/utils/cache-keys.factory';
@@ -19,6 +19,10 @@ interface IGetUserByIdOptions {
   manager?: EntityManager;
 }
 
+interface IGetUserByNameOptions {
+  manager?: EntityManager;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -29,9 +33,7 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto, options?: ICreateUserOptions) {
-    const repository = options?.manager
-      ? options.manager.getRepository(User)
-      : this.userRepository;
+    const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
 
     const user = repository.create(createUserDto);
 
@@ -48,10 +50,8 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string, options?: IGetUserByEmailOptions) {
-    const repository = options?.manager
-      ? options.manager.getRepository(User)
-      : this.userRepository;
+  async findByEmail(email: string, options?: IGetUserByEmailOptions): Promise<User | null> {
+    const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
 
     if (options?.manager) {
       const user = await repository.findOne({
@@ -81,10 +81,8 @@ export class UsersService {
     return user;
   }
 
-  async findById(id: string, options?: IGetUserByIdOptions) {
-    const repository = options?.manager
-      ? options.manager.getRepository(User)
-      : this.userRepository;
+  async findById(id: string, options?: IGetUserByIdOptions): Promise<User | null> {
+    const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
 
     if (options?.manager) {
       const user = await repository.findOneBy({ id });
@@ -112,5 +110,40 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async getUserByName(userName: string, options?: IGetUserByNameOptions): Promise<User | null> {
+    const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
+
+    if (options?.manager) {
+      const user = await repository.find({
+        where: {
+          userName: ILike(userName),
+        },
+      });
+
+      return user[0];
+    }
+
+    const cacheKey = CacheKeys.users.byUserName(userName);
+
+    const cachedUser = await this.cacheManager.get<User>(cacheKey);
+
+    if (cachedUser) {
+      console.log('User found in cache');
+      return cachedUser;
+    }
+
+    const user = await repository.find({
+      where: {
+        userName: ILike(userName),
+      },
+    });
+
+    if (user) {
+      await this.cacheManager.set(cacheKey, user, 1000 * 60 * 60 * 24);
+    }
+
+    return user[0];
   }
 }

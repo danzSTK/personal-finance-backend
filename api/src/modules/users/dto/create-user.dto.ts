@@ -1,31 +1,29 @@
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { UserStatus } from '../../../common/models/enums/user-status.enum';
 
 export class CreateUserDto {
   @IsOptional()
-  @IsString({ message: 'O userName deve ser uma string' })
-  @MaxLength(255, { message: 'O userName deve ter no máximo 255 caracteres' })
-  @MinLength(3, { message: 'O userName deve ter no mínimo 3 caracteres' })
+  @IsString()
+  @MaxLength(255)
+  @MinLength(3)
   userName?: string;
 
   @IsOptional()
-  @IsString({ message: 'O firstName deve ser uma string' })
-  @MinLength(1, { message: 'O firstName deve ter no mínimo 1 caractere' })
-  @MaxLength(255, { message: 'O firstName deve ter no máximo 255 caracteres' })
+  @IsString()
+  @MaxLength(255)
   firstName?: string;
 
   @IsOptional()
-  @IsString({ message: 'O lastName deve ser uma string' })
-  @MinLength(1, { message: 'O lastName deve ter no mínimo 1 caractere' })
-  @MaxLength(255, { message: 'O lastName deve ter no máximo 255 caracteres' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
   lastName?: string;
 
   @IsOptional()
-  @IsEmail({}, { message: 'Endereço de email inválido' })
+  @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsEnum(UserStatus)
+  status?: UserStatus;
 }
