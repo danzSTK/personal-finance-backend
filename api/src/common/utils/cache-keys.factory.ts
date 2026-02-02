@@ -2,6 +2,7 @@ export const CacheKeys = {
   users: {
     byId: (userId: string) => `users:id:${userId}`,
     byEmail: (email: string) => `users:email:${email}`,
+    byUserName: (userName: string) => `users:userName:${userName}`,
   },
 
   auth: {

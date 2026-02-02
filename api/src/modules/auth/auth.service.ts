@@ -5,26 +5,26 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { User } from '../users/entities/user.entity';
+import { User } from '@/modules/users/entities/user.entity';
 
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
-import jwtConfig from '../../config/jwt.config';
+import { UsersService } from '@/modules/users/users.service';
+import jwtConfig from '@/config/jwt.config';
 import { type ConfigType } from '@nestjs/config';
 
-import { AuthProviderService } from '../auth-provider/auth-provider.service';
-import { AuthProviderType } from '../../common/models/enums/auth-provider.enum';
-import { IHashService } from '../../common/models/interfaces/hash.service.interface';
+import { AuthProviderService } from '@/modules/auth-provider/auth-provider.service';
+import { AuthProviderType } from '@/common/models/enums/auth-provider.enum';
+import { IHashService } from '@/common/models/interfaces/hash.service.interface';
 import { RegisterDto } from './dto/register.dto';
-import { UserStatus } from '../../common/models/enums/user-status.enum';
+import { UserStatus } from '@/common/models/enums/user-status.enum';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { GoogleUserProfileDto } from '../auth-provider/dto/google-user-profile.dto';
 import { type Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
-import { CacheKeys } from '../../common/utils/cache-keys.factory';
+import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { JwtPayloadDto } from './dto/jwt-payload.dto';
 import { randomUUID } from 'node:crypto';
-import { REDIS_CLIENT } from '../../database/redis/redis.provider';
+import { REDIS_CLIENT } from '@/database/redis/redis.provider';
 import Redis from 'ioredis';
 import ms, { StringValue } from 'ms';
 
@@ -68,10 +68,7 @@ export class AuthService {
     }
 
     const sessionkey = CacheKeys.auth.userSessions(userId);
-    await Promise.all([
-      this.redis.del(oldRtKey),
-      this.redis.srem(sessionkey, oldJti),
-    ]);
+    await Promise.all([this.redis.del(oldRtKey), this.redis.srem(sessionkey, oldJti)]);
 
     return this.generateToken(user);
   }
@@ -82,14 +79,9 @@ export class AuthService {
     const activeSessionsJtis = await this.redis.smembers(sessionKey);
 
     if (activeSessionsJtis.length > 0) {
-      const rtKeys = activeSessionsJtis.map((jti) =>
-        CacheKeys.auth.refreshToken(userId, jti),
-      );
+      const rtKeys = activeSessionsJtis.map(jti => CacheKeys.auth.refreshToken(userId, jti));
 
-      await Promise.all([
-        ...rtKeys.map((key) => this.redis.del(key)),
-        this.redis.del(sessionKey),
-      ]);
+      await Promise.all([...rtKeys.map(key => this.redis.del(key)), this.redis.del(sessionKey)]);
     }
   }
 
@@ -129,24 +121,14 @@ export class AuthService {
    * chamado pelo LocalStrategy
    */
 
-  async validateUserCredentials(
-    email: string,
-    password: string,
-  ): Promise<User | null> {
-    const localProvider =
-      await this.authProviderService.findByProviderAndProviderId(
-        AuthProviderType.EMAIL,
-        email,
-      );
+  async validateUserCredentials(email: string, password: string): Promise<User | null> {
+    const localProvider = await this.authProviderService.findByProviderAndProviderId(AuthProviderType.EMAIL, email);
 
     if (!localProvider || !localProvider.passwordHash) {
       return null;
     }
 
-    const isPasswordValid = await this.hashService.compare(
-      password,
-      localProvider.passwordHash,
-    );
+    const isPasswordValid = await this.hashService.compare(password, localProvider.passwordHash);
 
     if (!isPasswordValid) {
       return null;
@@ -155,9 +137,7 @@ export class AuthService {
     const user = await this.usersService.findById(localProvider.user_id);
 
     if (!user) {
-      throw new InternalServerErrorException(
-        'User not found for valid credentials',
-      );
+      throw new InternalServerErrorException('User not found for valid credentials');
     }
 
     if (user.status === UserStatus.BLOCKED) {
@@ -179,19 +159,24 @@ export class AuthService {
    *    c. Se não → cria novo User + AuthProvider
    */
   async signUp(data: RegisterDto) {
-    const existingProvider =
-      await this.authProviderService.findByProviderAndProviderId(
-        AuthProviderType.EMAIL,
-        data.email,
-      );
+    const existingProvider = await this.authProviderService.findByProviderAndProviderId(
+      AuthProviderType.EMAIL,
+      data.email,
+    );
 
     if (existingProvider) {
       throw new ConflictException('Email already registered');
     }
 
+    const existingUser = await this.usersService.findByUserName(data.userName);
+
+    if (existingUser) {
+      throw new ConflictException('User name already registered');
+    }
+
     const passwordHash = await this.hashService.hash(data.password);
 
-    const result = await this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async manager => {
       let user = await this.usersService.findByEmail(data.email);
 
       if (user) {
@@ -217,6 +202,7 @@ export class AuthService {
           firstName: data.firstName,
           lastName: data.lastName,
           userName: data.userName,
+          status: UserStatus.ACTIVE,
         },
         {
           manager,
@@ -256,37 +242,28 @@ export class AuthService {
    *    c. Se não → cria novo User + AuthProvider GOOGLE
    */
 
-  async validateOrCreateGoogleUser(
-    googleUserDto: GoogleUserProfileDto,
-  ): Promise<User> {
+  async validateOrCreateGoogleUser(googleUserDto: GoogleUserProfileDto): Promise<User> {
     const { googleId, email, name } = googleUserDto;
 
-    const existingAuthProvider =
-      await this.authProviderService.findByProviderAndProviderId(
-        AuthProviderType.GOOGLE,
-        googleId,
-      );
+    const existingAuthProvider = await this.authProviderService.findByProviderAndProviderId(
+      AuthProviderType.GOOGLE,
+      googleId,
+    );
 
     if (existingAuthProvider) {
-      const user = await this.usersService.findById(
-        existingAuthProvider.user_id,
-      );
+      const user = await this.usersService.findById(existingAuthProvider.user_id);
 
       if (!user) {
-        throw new InternalServerErrorException(
-          'User linked to Google AuthProvider not found',
-        );
+        throw new InternalServerErrorException('User linked to Google AuthProvider not found');
       }
 
       return user;
     }
 
     // 2️⃣ Transaction: criar/vincular User + AuthProvider
-    const result = await this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async manager => {
       // 2.1 Verificar se existe User com esse email
-      let user = email
-        ? await this.usersService.findByEmail(email, { manager })
-        : null;
+      let user = email ? await this.usersService.findByEmail(email, { manager }) : null;
 
       // ✅ CENÁRIO: Usuário já tem conta (ex: email/senha), agora quer vincular Google
       if (user) {
@@ -362,9 +339,7 @@ export class AuthService {
     const rtKey = CacheKeys.auth.refreshToken(user.id, refreshTokenPayload.jti);
     const sessionKey = CacheKeys.auth.userSessions(user.id);
 
-    const rtTokenTtl = this.getSeconds(
-      this.jwtConfiguration.refreshExpiresIn as StringValue,
-    );
+    const rtTokenTtl = this.getSeconds(this.jwtConfiguration.refreshExpiresIn as StringValue);
 
     await Promise.all([
       this.redis.setex(rtKey, rtTokenTtl, '1'),

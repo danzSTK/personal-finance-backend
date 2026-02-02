@@ -9,9 +9,7 @@ import { AuthService } from '../auth.service';
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
     @Inject(googleOauthConfig.KEY)
-    private readonly googleOauthConfiguration: ConfigType<
-      typeof googleOauthConfig
-    >,
+    private readonly googleOauthConfiguration: ConfigType<typeof googleOauthConfig>,
     private readonly authService: AuthService,
   ) {
     super({
@@ -30,24 +28,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
    * 5. validate() é chamado com os dados
    * 6. Retorno é anexado em req.user
    */
-  async validate(
-    accessToken: string,
-    refreshToken: string,
-    profile: Profile,
-    done: VerifyCallback,
-  ): Promise<any> {
+  async validate(accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback): Promise<any> {
     try {
       const { id, emails, displayName } = profile;
 
       const email = emails?.[0].value;
 
       if (!email) {
-        return done(
-          new UnauthorizedException(
-            'Google account must have a verified email address',
-          ),
-          false,
-        );
+        return done(new UnauthorizedException('Google account must have a verified email address'), false);
       }
 
       const user = await this.authService.validateOrCreateGoogleUser({

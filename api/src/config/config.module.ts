@@ -15,9 +15,7 @@ import redisConfig from './redis/redis.config';
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
       validationSchema: Joi.object({
-        NODE_ENV: Joi.string()
-          .valid('development', 'production', 'test')
-          .default('development'),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
         PORT: Joi.number().default(3000),
         POSTGRES_HOST: Joi.string().default('localhost'),
         POSTGRES_PORT: Joi.number().default(5432),
@@ -34,9 +32,7 @@ import redisConfig from './redis/redis.config';
         // google oauth
         GOOGLE_CLIENT_ID: Joi.string().required(),
         GOOGLE_CLIENT_SECRET: Joi.string().required(),
-        GOOGLE_CALLBACK_URL: Joi.string()
-          .uri()
-          .default('http://localhost:3000/auth/google/callback'),
+        GOOGLE_CALLBACK_URL: Joi.string().uri().default('http://localhost:3000/auth/google/callback'),
 
         // frontend url
         FRONTEND_URL: Joi.string().uri().default('http://localhost:3001'),

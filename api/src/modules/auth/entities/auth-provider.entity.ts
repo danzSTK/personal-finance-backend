@@ -47,7 +47,7 @@ export class AuthProvider {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updated_at: Date;
 
-  @ManyToOne(() => User, (user) => user.authProviders, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, user => user.authProviders, { onDelete: 'CASCADE' })
   @JoinColumn({
     name: 'user_id',
     foreignKeyConstraintName: 'FK_auth_providers_user',

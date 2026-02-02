@@ -17,10 +17,7 @@ import { User } from '../modules/users/entities/user.entity';
 @Entity('accounts')
 @Index('idx_accounts_user_id', ['user_id'])
 @Index('idx_accounts_user_active', ['user_id'], { where: 'is_active = true' })
-@Check(
-  'CHK_accounts_type',
-  `"account_type" IN ('SAVINGS', 'CHECKING', 'CREDIT_CARD', 'CASH')`,
-)
+@Check('CHK_accounts_type', `"account_type" IN ('SAVINGS', 'CHECKING', 'CREDIT_CARD', 'CASH')`)
 @Check(
   'CHK_accounts_deactivation',
   `(is_active = true AND deactivated_at IS NULL) OR (is_active = false AND deactivated_at IS NOT NULL)`,
@@ -53,10 +50,10 @@ export class Account {
   @Column({ type: 'timestamptz', nullable: true })
   deactivated_at: Date | null;
 
-  @ManyToOne(() => User, (user) => user.accounts, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, user => user.accounts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'FK_accounts_user' })
   user: User;
 
-  @OneToMany(() => Transaction, (transaction) => transaction.account)
+  @OneToMany(() => Transaction, transaction => transaction.account)
   transactions: Transaction[];
 }
