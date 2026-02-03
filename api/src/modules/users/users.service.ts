@@ -63,18 +63,19 @@ export class UsersService {
       return user;
     }
 
-    const cacheKey = CacheKeys.users.byEmail(email);
+    const indexKey = CacheKeys.users.byEmailIndex(email);
+    const cachedUserId = await this.cacheManager.get<string>(indexKey);
 
-    const cachedUser = await this.cacheManager.get<User>(cacheKey);
-
-    if (cachedUser) {
-      return cachedUser;
+    if (cachedUserId) {
+      return this.findById(cachedUserId, options);
     }
 
-    const user = await repository.findOneBy({ email });
+    const user = await repository.findOne({ where: { email } });
 
     if (user) {
-      await this.cacheManager.set(cacheKey, user, 1000 * 60 * 60 * 24);
+      await this.cacheManager.set(CacheKeys.users.byId(user.id), user, 1000 * 60 * 60 * 24);
+
+      await this.cacheManager.set(indexKey, user.id, 1000 * 60 * 60 * 24);
     }
 
     return user;
@@ -123,12 +124,12 @@ export class UsersService {
       return user;
     }
 
-    const cacheKey = CacheKeys.users.byUserName(userName);
+    const indexKey = CacheKeys.users.byUserNameIndex(userName);
 
-    const cachedUser = await this.cacheManager.get<User>(cacheKey);
+    const cachedUserId = await this.cacheManager.get<string>(indexKey);
 
-    if (cachedUser) {
-      return cachedUser;
+    if (cachedUserId) {
+      return this.findById(cachedUserId, options);
     }
 
     const user = await repository.findOne({
@@ -138,7 +139,9 @@ export class UsersService {
     });
 
     if (user) {
-      await this.cacheManager.set(cacheKey, user, 1000 * 60 * 60 * 24);
+      await this.cacheManager.set(CacheKeys.users.byId(user.id), user, 1000 * 60 * 60 * 24);
+
+      await this.cacheManager.set(indexKey, user.id, 1000 * 60 * 60 * 24);
     }
 
     return user;
