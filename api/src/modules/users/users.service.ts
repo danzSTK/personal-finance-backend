@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { EntityManager, ILike, Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { type Cache } from 'cache-manager';
 import { CacheKeys } from '../../common/utils/cache-keys.factory';
@@ -32,10 +32,23 @@ export class UsersService {
     private cacheManager: Cache,
   ) {}
 
+  private readonly cacheTTL = 1000 * 60 * 60 * 24;
+
   async create(createUserDto: CreateUserDto, options?: ICreateUserOptions) {
+    const newUserPayload: CreateUserDto = {
+      ...createUserDto,
+    };
     const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
 
-    const user = repository.create(createUserDto);
+    if (createUserDto.userName) {
+      newUserPayload.userName = createUserDto.userName.trim().toLowerCase();
+    }
+
+    if (createUserDto.email) {
+      newUserPayload.email = createUserDto.email.trim().toLowerCase();
+    }
+
+    const user = repository.create(newUserPayload);
 
     return repository.save(user);
   }
@@ -46,37 +59,6 @@ export class UsersService {
 
   async findOne(userId: string) {
     const user = await this.findById(userId);
-
-    return user;
-  }
-
-  async findByEmail(email: string, options?: IGetUserByEmailOptions): Promise<User | null> {
-    const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
-
-    if (options?.manager) {
-      const user = await repository.findOne({
-        where: {
-          email,
-        },
-      });
-
-      return user;
-    }
-
-    const indexKey = CacheKeys.users.byEmailIndex(email);
-    const cachedUserId = await this.cacheManager.get<string>(indexKey);
-
-    if (cachedUserId) {
-      return this.findById(cachedUserId, options);
-    }
-
-    const user = await repository.findOne({ where: { email } });
-
-    if (user) {
-      await this.cacheManager.set(CacheKeys.users.byId(user.id), user, 1000 * 60 * 60 * 24);
-
-      await this.cacheManager.set(indexKey, user.id, 1000 * 60 * 60 * 24);
-    }
 
     return user;
   }
@@ -105,7 +87,47 @@ export class UsersService {
     });
 
     if (user) {
-      await this.cacheManager.set(cacheKey, user, 1000 * 60 * 60 * 24);
+      await this.cacheManager.set(cacheKey, user, this.cacheTTL);
+    }
+
+    return user;
+  }
+
+  async findByEmail(email: string, options?: IGetUserByEmailOptions): Promise<User | null> {
+    const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
+
+    if (options?.manager) {
+      const user = await repository.findOne({
+        where: {
+          email,
+        },
+      });
+
+      return user;
+    }
+
+    const indexKey = CacheKeys.users.byEmailIndex(email);
+    const cachedUserId = await this.cacheManager.get<string>(indexKey);
+
+    if (cachedUserId) {
+      const user = await this.findById(cachedUserId, options);
+
+      if (!user) {
+        await this.cacheManager.del(indexKey);
+
+        return null;
+      }
+
+      return user;
+    }
+
+    const user = await repository.findOne({ where: { email } });
+
+    if (user) {
+      await Promise.all([
+        this.cacheManager.set(CacheKeys.users.byId(user.id), user, this.cacheTTL),
+        this.cacheManager.set(indexKey, user.id, this.cacheTTL),
+      ]);
     }
 
     return user;
@@ -117,31 +139,40 @@ export class UsersService {
     if (options?.manager) {
       const user = await repository.findOne({
         where: {
-          userName: ILike(userName),
+          userName: userName,
         },
       });
 
       return user;
     }
 
-    const indexKey = CacheKeys.users.byUserNameIndex(userName);
+    const normalizedUserName = userName.trim().toLowerCase();
+    const indexKey = CacheKeys.users.byUserNameIndex(normalizedUserName);
 
     const cachedUserId = await this.cacheManager.get<string>(indexKey);
 
     if (cachedUserId) {
-      return this.findById(cachedUserId, options);
+      const user = await this.findById(cachedUserId, options);
+
+      if (!user) {
+        await this.cacheManager.del(indexKey);
+
+        return null;
+      }
+
+      return user;
     }
 
     const user = await repository.findOne({
       where: {
-        userName: ILike(userName),
+        userName: normalizedUserName,
       },
     });
 
     if (user) {
-      await this.cacheManager.set(CacheKeys.users.byId(user.id), user, 1000 * 60 * 60 * 24);
+      await this.cacheManager.set(CacheKeys.users.byId(user.id), user, this.cacheTTL);
 
-      await this.cacheManager.set(indexKey, user.id, 1000 * 60 * 60 * 24);
+      await this.cacheManager.set(indexKey, user.id, this.cacheTTL);
     }
 
     return user;

@@ -77,12 +77,15 @@ export class AuthProviderService {
   async createAuthProvider(data: CreateAuthProviderDto, manager?: EntityManager): Promise<AuthProvider> {
     const repository = manager ? manager.getRepository(AuthProvider) : this.authProviderRepository;
 
-    const authProvider = repository.create({
-      provider: data.provider,
-      providerUserId: data.providerUserId,
-      passwordHash: data.passwordHash || null,
-      user_id: data.user_id,
-    });
+    const newAuthProviderPayload: CreateAuthProviderDto = {
+      ...data,
+    };
+
+    if (data.provider === AuthProviderType.EMAIL) {
+      newAuthProviderPayload.providerUserId = data.providerUserId.trim().toLowerCase();
+    }
+
+    const authProvider = repository.create(newAuthProviderPayload);
 
     return repository.save(authProvider);
   }
