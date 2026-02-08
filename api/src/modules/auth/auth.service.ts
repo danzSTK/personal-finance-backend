@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { User } from '@/modules/users/entities/user.entity';
@@ -84,6 +85,19 @@ export class AuthService {
 
       await Promise.all([...rtKeys.map(key => this.redis.del(key)), this.redis.del(sessionKey)]);
     }
+  }
+
+  async revokeSession(userId: string, jti: string) {
+    const sessionKey = CacheKeys.auth.userSessions(userId);
+    const rtKey = CacheKeys.auth.refreshToken(userId, jti);
+
+    const existsRt = await this.redis.exists(rtKey);
+
+    if (!existsRt) {
+      return new NotFoundException('Session not found');
+    }
+
+    await Promise.all([this.redis.del(rtKey), this.redis.srem(sessionKey, jti)]);
   }
 
   async logout(userId: string, accessToken: string, refreshTokenJti: string) {
@@ -311,7 +325,7 @@ export class AuthService {
     return result;
   }
 
-  async getActiveSession(userId: string): Promise<ActiveSession[]> {
+  async getActiveSessions(userId: string): Promise<ActiveSession[]> {
     const sessionKey = CacheKeys.auth.userSessions(userId);
 
     const jtis = await this.redis.smembers(sessionKey);

@@ -1,6 +1,6 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Strategy } from 'passport-jwt';
 import { type ConfigType } from '@nestjs/config';
 import jwtConfig from '../../../config/jwt.config';
 import { type JwtPayloadDto } from '../dto/jwt-payload.dto';
@@ -18,7 +18,10 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   ) {
     super({
       // O token vem no corpo da requisição: { "refreshToken": "..." }
-      jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
+      jwtFromRequest: req => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+        return req?.cookies?.refreshToken || null;
+      },
       ignoreExpiration: false,
       secretOrKey: jwtConfiguration.refreshSecret,
     });
