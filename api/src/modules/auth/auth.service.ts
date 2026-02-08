@@ -27,6 +27,7 @@ import { randomUUID } from 'node:crypto';
 import { REDIS_CLIENT } from '@/database/redis/redis.provider';
 import Redis from 'ioredis';
 import ms, { StringValue } from 'ms';
+import { ActiveSession, SessionMetadata } from '@/common/models/interfaces/sessions.interface';
 
 @Injectable()
 export class AuthService {
@@ -49,7 +50,7 @@ export class AuthService {
     private readonly redis: Redis,
   ) {}
 
-  async rotateTokens(userId: string, oldJti: string) {
+  async rotateTokens(userId: string, oldJti: string, sessionMetadata: SessionMetadata) {
     const user = await this.usersService.findById(userId);
 
     if (!user) {
@@ -70,7 +71,7 @@ export class AuthService {
     const sessionkey = CacheKeys.auth.userSessions(userId);
     await Promise.all([this.redis.del(oldRtKey), this.redis.srem(sessionkey, oldJti)]);
 
-    return this.generateToken(user);
+    return this.generateToken(user, sessionMetadata);
   }
 
   async invalidAllSessions(userId: string) {
@@ -158,7 +159,7 @@ export class AuthService {
    *    b. Se sim → vincula AuthProvider ao User existente
    *    c. Se não → cria novo User + AuthProvider
    */
-  async signUp(data: RegisterDto) {
+  async signUp(data: RegisterDto, sessionMetadata: SessionMetadata) {
     const existingProvider = await this.authProviderService.findByProviderAndProviderId(
       AuthProviderType.EMAIL,
       data.email,
@@ -222,12 +223,12 @@ export class AuthService {
       return user;
     });
 
-    return this.generateToken(result);
+    return this.generateToken(result, sessionMetadata);
   }
 
   // Guard Gerencia o fluxo de login
-  signIn(user: User) {
-    return this.generateToken(user);
+  signIn(user: User, sessionMetadata: SessionMetadata) {
+    return this.generateToken(user, sessionMetadata);
   }
 
   /**
@@ -310,7 +311,33 @@ export class AuthService {
     return result;
   }
 
-  async generateToken(user: User) {
+  async getActiveSession(userId: string): Promise<ActiveSession[]> {
+    const sessionKey = CacheKeys.auth.userSessions(userId);
+
+    const jtis = await this.redis.smembers(sessionKey);
+
+    if (jtis.length === 0) return [];
+
+    const rtKeys = jtis.map(jti => CacheKeys.auth.refreshToken(userId, jti));
+
+    const sessionsData = await this.redis.mget(...rtKeys);
+
+    return sessionsData
+      .map((data, index) => {
+        if (!data) return null;
+
+        const metadata = JSON.parse(data) as SessionMetadata;
+
+        return {
+          jti: jtis[index],
+          ...metadata,
+        };
+      })
+      .filter((session): session is ActiveSession => session !== null);
+  }
+
+  async generateToken(user: User, sessionMetadata: SessionMetadata) {
+    console.log('metadata', sessionMetadata);
     const accessTokenPayload: JwtPayloadDto = {
       jti: randomUUID(),
       sub: user.id,
@@ -341,8 +368,10 @@ export class AuthService {
 
     const rtTokenTtl = this.getSeconds(this.jwtConfiguration.refreshExpiresIn as StringValue);
 
+    const rtValue = JSON.stringify(sessionMetadata);
+
     await Promise.all([
-      this.redis.setex(rtKey, rtTokenTtl, '1'),
+      this.redis.setex(rtKey, rtTokenTtl, rtValue),
       this.redis.sadd(sessionKey, refreshTokenPayload.jti),
       this.redis.expire(sessionKey, rtTokenTtl),
     ]);
