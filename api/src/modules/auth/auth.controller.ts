@@ -11,6 +11,8 @@ import { LogoutDto } from './dto/logout.dto';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayloadDto } from './dto/jwt-payload.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { type SessionMetadata } from '@/common/models/interfaces/sessions.interface';
+import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -20,15 +22,15 @@ export class AuthController {
   ) {}
 
   @Post('sign-up')
-  async signUp(@Body() signUpDto: RegisterDto) {
-    return this.authService.signUp(signUpDto);
+  async signUp(@Body() signUpDto: RegisterDto, @CurrentSessionInfo() sessionInfo: SessionMetadata) {
+    return this.authService.signUp(signUpDto, sessionInfo);
   }
 
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
-  signIn(@CurrentUser() user: User) {
-    return this.authService.signIn(user);
+  signIn(@CurrentUser() user: User, @CurrentSessionInfo() sessionInfo: SessionMetadata) {
+    return this.authService.signIn(user, sessionInfo);
   }
 
   /**
@@ -59,9 +61,13 @@ export class AuthController {
    */
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  async googleAuthCallback(@CurrentUser() user: User, @Res() res: Response) {
+  async googleAuthCallback(
+    @CurrentUser() user: User,
+    @Res() res: Response,
+    @CurrentSessionInfo() sessionInfo: SessionMetadata,
+  ) {
     // Gerar tokens JWT
-    const tokens = await this.authService.signIn(user);
+    const tokens = await this.authService.signIn(user, sessionInfo);
 
     // Redirecionar para frontend com tokens
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
@@ -72,8 +78,8 @@ export class AuthController {
 
   @Post('refresh')
   @UseGuards(JwtRefreshGuard)
-  async refresh(@CurrentUser() user: { id: string; jti: string }) {
-    return this.authService.rotateTokens(user.id, user.jti);
+  async refresh(@CurrentUser() user: { id: string; jti: string }, @CurrentSessionInfo() sessionInfo: SessionMetadata) {
+    return this.authService.rotateTokens(user.id, user.jti, sessionInfo);
   }
 
   @UseGuards(JwtAuthGuard)

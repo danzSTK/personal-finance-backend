@@ -1,8 +1,8 @@
 export const CacheKeys = {
   users: {
     byId: (userId: string) => `users:id:${userId}`,
-    byEmail: (email: string) => `users:email:${email}`,
-    byUserName: (userName: string) => `users:userName:${userName}`,
+    byEmailIndex: (email: string) => `users:email-index:${email}`,
+    byUserNameIndex: (userName: string) => `users:username-index:${userName}`,
   },
 
   auth: {
