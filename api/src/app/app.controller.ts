@@ -1,7 +1,6 @@
-import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { type Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 
 @Controller('health')
 export class AppController {
@@ -10,7 +9,6 @@ export class AppController {
     private readonly cacheManager: Cache,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
   @Get('redis')
   async checkRedis() {
     try {
