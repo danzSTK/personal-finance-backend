@@ -1,12 +1,13 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Strategy } from 'passport-jwt';
 import { type ConfigType } from '@nestjs/config';
 import jwtConfig from '../../../config/jwt.config';
 import { type JwtPayloadDto } from '../dto/jwt-payload.dto';
 import { CacheKeys } from '../../../common/utils/cache-keys.factory';
 import { REDIS_CLIENT } from '../../../database/redis/redis.provider';
 import Redis from 'ioredis';
+import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -17,8 +18,10 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     private readonly redis: Redis,
   ) {
     super({
-      // O token vem no corpo da requisição: { "refreshToken": "..." }
-      jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
+      // O token vem no header cookie da requisição
+      jwtFromRequest: (req: AuthRequest) => {
+        return req?.cookies?.refreshToken || null;
+      },
       ignoreExpiration: false,
       secretOrKey: jwtConfiguration.refreshSecret,
     });

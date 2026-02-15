@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { User } from '@/modules/users/entities/user.entity';
@@ -13,10 +14,10 @@ import jwtConfig from '@/config/jwt.config';
 import { type ConfigType } from '@nestjs/config';
 
 import { AuthProviderService } from '@/modules/auth-provider/auth-provider.service';
-import { AuthProviderType } from '@/common/models/enums/auth-provider.enum';
-import { IHashService } from '@/common/models/interfaces/hash.service.interface';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { IHashService, ActiveSession, SessionMetadata } from '@/common/models/interfaces';
 import { RegisterDto } from './dto/register.dto';
-import { UserStatus } from '@/common/models/enums/user-status.enum';
+
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { GoogleUserProfileDto } from '../auth-provider/dto/google-user-profile.dto';
@@ -27,7 +28,6 @@ import { randomUUID } from 'node:crypto';
 import { REDIS_CLIENT } from '@/database/redis/redis.provider';
 import Redis from 'ioredis';
 import ms, { StringValue } from 'ms';
-import { ActiveSession, SessionMetadata } from '@/common/models/interfaces/sessions.interface';
 
 @Injectable()
 export class AuthService {
@@ -84,6 +84,19 @@ export class AuthService {
 
       await Promise.all([...rtKeys.map(key => this.redis.del(key)), this.redis.del(sessionKey)]);
     }
+  }
+
+  async revokeSession(userId: string, jti: string) {
+    const sessionKey = CacheKeys.auth.userSessions(userId);
+    const rtKey = CacheKeys.auth.refreshToken(userId, jti);
+
+    const existsRt = await this.redis.exists(rtKey);
+
+    if (!existsRt) {
+      throw new NotFoundException('Session not found');
+    }
+
+    await Promise.all([this.redis.del(rtKey), this.redis.srem(sessionKey, jti)]);
   }
 
   async logout(userId: string, accessToken: string, refreshTokenJti: string) {
@@ -311,7 +324,7 @@ export class AuthService {
     return result;
   }
 
-  async getActiveSession(userId: string): Promise<ActiveSession[]> {
+  async getActiveSessions(userId: string): Promise<ActiveSession[]> {
     const sessionKey = CacheKeys.auth.userSessions(userId);
 
     const jtis = await this.redis.smembers(sessionKey);
