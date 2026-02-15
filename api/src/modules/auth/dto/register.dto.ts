@@ -9,6 +9,7 @@ export class RegisterDto {
     minLength: 3,
     maxLength: 100,
   })
+  @TrimAndLowerCase()
   @IsString()
   @IsNotEmpty({ message: 'Username should not be empty.' })
   @Length(3, 100, {
