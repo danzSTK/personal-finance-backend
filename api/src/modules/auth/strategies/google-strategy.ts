@@ -28,6 +28,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
    * 5. validate() é chamado com os dados
    * 6. Retorno é anexado em req.user
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async validate(accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback): Promise<any> {
     try {
       const { id, emails, displayName } = profile;
