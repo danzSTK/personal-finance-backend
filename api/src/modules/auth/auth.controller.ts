@@ -12,6 +12,7 @@ import {
   Param,
   Req,
   UnauthorizedException,
+  Inject,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -19,12 +20,12 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
-import { type Request, type Response } from 'express';
+import { type Response } from 'express';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayloadDto } from './dto/jwt-payload.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { type SessionMetadata } from '@/common/models/interfaces/sessions.interface';
+import { type SessionMetadata } from '@/common/models/interfaces';
 import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
 import {
   ApiTags,
@@ -36,6 +37,11 @@ import {
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import { LoginEmailDto } from './dto/login-email.dto';
+import jwtConfig from '../../config/jwt.config';
+import { type ConfigType } from '@nestjs/config';
+import ms, { StringValue } from 'ms';
+import { AUTH_CONSTANTS } from '@/common/models/constants';
+import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -43,6 +49,9 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
+
+    @Inject(jwtConfig.KEY)
+    private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
   ) {}
 
   @Get('me')
@@ -94,6 +103,14 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'Usuário criado com sucesso',
+    headers: {
+      'Set-Cookie': {
+        description:
+          'Cookie HttpOnly contendo o refresh token. Ex.: refreshToken=<token>; HttpOnly; Path=/; Max-Age=604800;',
+        schema: { type: 'string' },
+        example: 'refreshToken=abc123; Path=/; HttpOnly; Secure; SameSite=Lax',
+      },
+    },
     schema: {
       type: 'object',
       properties: {
@@ -103,8 +120,15 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Dados de registro inválidos' })
   @ApiResponse({ status: 409, description: 'E-mail ou username já cadastrado' })
-  async signUp(@Body() signUpDto: RegisterDto, @CurrentSessionInfo() sessionInfo: SessionMetadata) {
-    return this.authService.signUp(signUpDto, sessionInfo);
+  async signUp(
+    @Body() signUpDto: RegisterDto,
+    @CurrentSessionInfo() sessionInfo: SessionMetadata,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const tokens = await this.authService.signUp(signUpDto, sessionInfo);
+
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+    return { accessToken: tokens.accessToken };
   }
 
   @Post('sign-in')
@@ -126,8 +150,10 @@ export class AuthController {
     },
     headers: {
       'Set-Cookie': {
-        description: 'Cookie HttpOnly contendo o refresh token',
+        description:
+          'Cookie HttpOnly contendo o refresh token. Ex.: refreshToken=<token>; HttpOnly; Path=/; Max-Age=604800;',
         schema: { type: 'string' },
+        example: 'refreshToken=abc123; Path=/; HttpOnly; Secure; SameSite=Lax',
       },
     },
   })
@@ -186,15 +212,17 @@ export class AuthController {
   @ApiExcludeEndpoint()
   async googleAuthCallback(
     @CurrentUser() user: User,
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
   ) {
     // Gerar tokens JWT
     const tokens = await this.authService.signIn(user, sessionInfo);
 
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+
     // Redirecionar para frontend com tokens
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
+    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}`;
 
     return res.redirect(redirectUrl);
   }
@@ -311,23 +339,31 @@ export class AuthController {
   async logout(
     @CurrentUser() user: User,
     @Headers('Authorization') authHeader: string,
-    @Req() req: Request,
+    @Req() req: AuthRequest,
     @Res({
       passthrough: true,
     })
     res: Response,
   ) {
     const accessToken = authHeader.replace('Bearer ', '');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const refreshToken = req.cookies['refreshToken'];
+
+    const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken || typeof refreshToken !== 'string') {
+      console.warn('[AuthController, logout] Refresh token not found');
+      this.clearRefreshTokenCookie(res);
       throw new UnauthorizedException('Refresh token not found');
     }
 
     const rtPayload = this.jwtService.decode<JwtPayloadDto>(refreshToken);
 
-    await this.authService.logout(user.id, accessToken, rtPayload?.jti);
+    if (!rtPayload || !rtPayload.jti) {
+      console.warn('[AuthController, logout] Refresh token invalid or expired or not found');
+      this.clearRefreshTokenCookie(res);
+      throw new UnauthorizedException('Refresh token invalid or expired or not found');
+    }
+
+    await this.authService.logout(user.id, accessToken, rtPayload.jti);
 
     this.clearRefreshTokenCookie(res);
 
@@ -337,20 +373,16 @@ export class AuthController {
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {
-    const expiresAt = new Date();
-
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie(AUTH_CONSTANTS.cookies.refreshTokenKey, refreshToken, {
       httpOnly: true,
-      secure: true,
+      secure: AUTH_CONSTANTS.cookies.secure,
       sameSite: 'lax',
       path: '/auth',
-      expires: expiresAt,
+      maxAge: ms(this.jwtConfiguration.refreshExpiresIn as StringValue),
     });
   }
 
   private clearRefreshTokenCookie(res: Response) {
-    res.clearCookie('refreshToken', { path: '/auth' });
+    res.clearCookie(AUTH_CONSTANTS.cookies.refreshTokenKey, { path: '/auth' });
   }
 }
