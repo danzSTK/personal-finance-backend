@@ -7,6 +7,7 @@ import { type JwtPayloadDto } from '../dto/jwt-payload.dto';
 import { CacheKeys } from '../../../common/utils/cache-keys.factory';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 import { RedisService } from '../../../database/redis/redis.service';
+import { SessionMetadata } from '../../../common/models/interfaces';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -37,7 +38,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     const key = CacheKeys.auth.refreshToken(userId, jti);
 
     // 2. Busca no Redis
-    const storedToken = await this.redisService.get<string>(key);
+    const storedToken = await this.redisService.get<SessionMetadata>(key);
 
     // 3. Validação Whitelist (Tem que estar no Redis E ser igual)
     if (!storedToken) {
