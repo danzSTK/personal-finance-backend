@@ -26,7 +26,6 @@
     "migration:show": "npm run typeorm -- migration:show -d src/database/data-source.ts"
   },
   "dependencies": {
-    "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -37,8 +36,6 @@
     "@nestjs/swagger": "^11.2.6",
     "@nestjs/typeorm": "^11.0.0",
     "bcryptjs": "^3.0.3",
-    "cache-manager": "^7.2.8",
-    "cache-manager-redis-yet": "^5.1.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "cookie-parser": "^1.4.7",
