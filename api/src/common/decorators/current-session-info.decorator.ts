@@ -1,39 +1,42 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { SessionMetadata } from '../models/interfaces/sessions.interface';
 import { Request } from 'express';
-import { UAParser } from 'ua-parser-js';
-import * as geoIP from 'geoip-lite';
+import { GeoIpLiteProvider } from '../../shared/session-tracking/providers/geoip-lite.provider';
+import { UAParserProvider } from '../../shared/session-tracking/providers/ua-parser.provider';
 
-export const CurrentSessionInfo = createParamDecorator((data: unknown, ctx: ExecutionContext): SessionMetadata => {
-  const request = ctx.switchToHttp().getRequest<Request>();
+export const CurrentSessionInfo = createParamDecorator(
+  async (data: unknown, ctx: ExecutionContext): Promise<SessionMetadata> => {
+    const request = ctx.switchToHttp().getRequest<Request>();
 
-  const ipRaw =
-    request.headers['x-forwarded-for'] || request.headers['cf-connecting-ip'] || request.socket.remoteAddress || '';
+    const geoService = new GeoIpLiteProvider();
+    const uaParser = new UAParserProvider();
 
-  const ip = Array.isArray(ipRaw) ? ipRaw[0].trim() : ipRaw?.trim();
+    const ipRaw =
+      request.headers['x-forwarded-for'] || request.headers['cf-connecting-ip'] || request.socket.remoteAddress || '';
 
-  const uaString = request.headers['user-agent'];
-  const parsedUa = new UAParser(uaString);
-  const result = parsedUa.getResult();
+    const ip = Array.isArray(ipRaw) ? ipRaw[0].trim() : ipRaw?.trim();
 
-  const browser = result.browser.name || 'Unknown';
-  const os = result.os.name || 'Unknown';
-  const deviceModel = result.device.model || 'Unknown';
+    const uaString = request.headers['user-agent'];
+    const parsedUa = await uaParser.parse(uaString ?? '');
+    const geo = await geoService.lookup(ip);
 
-  const geo = geoIP.lookup(ip);
+    const browser = parsedUa?.browser || 'Unknown';
+    const os = parsedUa?.os || 'Unknown';
+    const deviceModel = parsedUa?.device || 'Unknown';
 
-  let location = 'Unknown';
+    let location = 'Unknown';
 
-  if (geo) {
-    location = [geo.city, geo.region, geo.country].filter(Boolean).join(', ');
-  }
+    if (geo) {
+      location = [geo.city, geo.region, geo.country].filter(Boolean).join(', ');
+    }
 
-  return {
-    browser: `${browser} ${result.browser.version || ''}`,
-    os: `${os} ${result.os.version || ''}`,
-    device: deviceModel,
-    ip: ip || 'Unknown',
-    location,
-    loginAt: new Date().toISOString(),
-  };
-});
+    return {
+      browser: `${browser} ${parsedUa?.browserVersion || ''}`,
+      os: `${os} ${parsedUa?.osVersion || ''}`,
+      device: deviceModel,
+      ip: ip || 'Unknown',
+      location,
+      loginAt: new Date().toISOString(),
+    };
+  },
+);
