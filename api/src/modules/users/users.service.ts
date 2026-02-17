@@ -1,11 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { EntityManager, Repository } from 'typeorm';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { type Cache } from 'cache-manager';
 import { CacheKeys } from '../../common/utils/cache-keys.factory';
+import { RedisService } from '../../database/redis/redis.service';
 
 interface ICreateUserOptions {
   manager?: EntityManager;
@@ -28,8 +27,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
-    @Inject(CACHE_MANAGER)
-    private cacheManager: Cache,
+    private readonly redisService: RedisService,
   ) {}
 
   private readonly cacheTTL = 1000 * 60 * 60 * 24;
@@ -74,7 +72,7 @@ export class UsersService {
 
     const cacheKey = CacheKeys.users.byId(id);
 
-    const cachedUser = await this.cacheManager.get<User>(cacheKey);
+    const cachedUser = await this.redisService.get<User>(cacheKey);
 
     if (cachedUser) {
       return cachedUser;
@@ -87,7 +85,7 @@ export class UsersService {
     });
 
     if (user) {
-      await this.cacheManager.set(cacheKey, user, this.cacheTTL);
+      await this.redisService.set(cacheKey, user, this.cacheTTL);
     }
 
     return user;
@@ -107,13 +105,13 @@ export class UsersService {
     }
 
     const indexKey = CacheKeys.users.byEmailIndex(email);
-    const cachedUserId = await this.cacheManager.get<string>(indexKey);
+    const cachedUserId = await this.redisService.get<string>(indexKey);
 
     if (cachedUserId) {
       const user = await this.findById(cachedUserId, options);
 
       if (!user) {
-        await this.cacheManager.del(indexKey);
+        await this.redisService.del(indexKey);
 
         return null;
       }
@@ -125,8 +123,8 @@ export class UsersService {
 
     if (user) {
       await Promise.all([
-        this.cacheManager.set(CacheKeys.users.byId(user.id), user, this.cacheTTL),
-        this.cacheManager.set(indexKey, user.id, this.cacheTTL),
+        this.redisService.set(CacheKeys.users.byId(user.id), user, this.cacheTTL),
+        this.redisService.set(indexKey, user.id, this.cacheTTL),
       ]);
     }
 
@@ -149,13 +147,13 @@ export class UsersService {
     const normalizedUserName = userName.trim().toLowerCase();
     const indexKey = CacheKeys.users.byUserNameIndex(normalizedUserName);
 
-    const cachedUserId = await this.cacheManager.get<string>(indexKey);
+    const cachedUserId = await this.redisService.get<string>(indexKey);
 
     if (cachedUserId) {
       const user = await this.findById(cachedUserId, options);
 
       if (!user) {
-        await this.cacheManager.del(indexKey);
+        await this.redisService.del(indexKey);
 
         return null;
       }
@@ -170,9 +168,9 @@ export class UsersService {
     });
 
     if (user) {
-      await this.cacheManager.set(CacheKeys.users.byId(user.id), user, this.cacheTTL);
+      await this.redisService.set(CacheKeys.users.byId(user.id), user, this.cacheTTL);
 
-      await this.cacheManager.set(indexKey, user.id, this.cacheTTL);
+      await this.redisService.set(indexKey, user.id, this.cacheTTL);
     }
 
     return user;

@@ -21,13 +21,11 @@ import { RegisterDto } from './dto/register.dto';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { GoogleUserProfileDto } from '../auth-provider/dto/google-user-profile.dto';
-import { type Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { JwtPayloadDto } from './dto/jwt-payload.dto';
 import { randomUUID } from 'node:crypto';
-import { REDIS_CLIENT } from '@/database/redis/redis.provider';
-import Redis from 'ioredis';
 import ms, { StringValue } from 'ms';
+import { RedisService } from '../../database/redis/redis.service';
 
 @Injectable()
 export class AuthService {
@@ -43,11 +41,7 @@ export class AuthService {
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
 
-    @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
-
-    @Inject(REDIS_CLIENT)
-    private readonly redis: Redis,
+    private readonly redisService: RedisService,
   ) {}
 
   async rotateTokens(userId: string, oldJti: string, sessionMetadata: SessionMetadata) {
@@ -58,10 +52,7 @@ export class AuthService {
     }
 
     const oldRtKey = CacheKeys.auth.refreshToken(userId, oldJti);
-    const isValid = await this.redis.get(oldRtKey);
-
-    console.log('token key', oldRtKey);
-    console.log('token value', isValid);
+    const isValid = await this.redisService.get<string>(oldRtKey);
 
     if (!isValid) {
       await this.invalidAllSessions(userId);
@@ -69,7 +60,7 @@ export class AuthService {
     }
 
     const sessionkey = CacheKeys.auth.userSessions(userId);
-    await Promise.all([this.redis.del(oldRtKey), this.redis.srem(sessionkey, oldJti)]);
+    await Promise.all([this.redisService.del(oldRtKey), this.redisService.srem(sessionkey, oldJti)]);
 
     return this.generateToken(user, sessionMetadata);
   }
@@ -77,12 +68,12 @@ export class AuthService {
   async invalidAllSessions(userId: string) {
     const sessionKey = CacheKeys.auth.userSessions(userId);
 
-    const activeSessionsJtis = await this.redis.smembers(sessionKey);
+    const activeSessionsJtis = await this.redisService.smembers(sessionKey);
 
     if (activeSessionsJtis.length > 0) {
       const rtKeys = activeSessionsJtis.map(jti => CacheKeys.auth.refreshToken(userId, jti));
 
-      await Promise.all([...rtKeys.map(key => this.redis.del(key)), this.redis.del(sessionKey)]);
+      await Promise.all([...rtKeys.map(key => this.redisService.del(key)), this.redisService.del(sessionKey)]);
     }
   }
 
@@ -90,19 +81,16 @@ export class AuthService {
     const sessionKey = CacheKeys.auth.userSessions(userId);
     const rtKey = CacheKeys.auth.refreshToken(userId, jti);
 
-    const existsRt = await this.redis.exists(rtKey);
+    const existsRt = await this.redisService.exists(rtKey);
 
     if (!existsRt) {
       throw new NotFoundException('Session not found');
     }
 
-    await Promise.all([this.redis.del(rtKey), this.redis.srem(sessionKey, jti)]);
+    await Promise.all([this.redisService.del(rtKey), this.redisService.srem(sessionKey, jti)]);
   }
 
   async logout(userId: string, accessToken: string, refreshTokenJti: string) {
-    console.log('userId', userId);
-    console.log('accessToken', accessToken);
-    console.log('refreshTokenJti', refreshTokenJti);
     const payloadToken = this.jwtService.decode<JwtPayloadDto>(accessToken);
 
     if (!payloadToken || !payloadToken.exp) {
@@ -121,9 +109,9 @@ export class AuthService {
     const ttl = remainingTime > 0 ? remainingTime : 1;
 
     await Promise.all([
-      this.redis.setex(blacklistKey, ttl, '1'),
-      this.redis.del(rtKey),
-      this.redis.srem(sessionKey, refreshTokenJti),
+      this.redisService.setex(blacklistKey, ttl, '1'),
+      this.redisService.del(rtKey),
+      this.redisService.srem(sessionKey, refreshTokenJti),
     ]);
 
     return true;
@@ -327,13 +315,13 @@ export class AuthService {
   async getActiveSessions(userId: string): Promise<ActiveSession[]> {
     const sessionKey = CacheKeys.auth.userSessions(userId);
 
-    const jtis = await this.redis.smembers(sessionKey);
+    const jtis = await this.redisService.smembers(sessionKey);
 
     if (jtis.length === 0) return [];
 
     const rtKeys = jtis.map(jti => CacheKeys.auth.refreshToken(userId, jti));
 
-    const sessionsData = await this.redis.mget(...rtKeys);
+    const sessionsData = await this.redisService.mget(...rtKeys);
 
     return sessionsData
       .map((data, index) => {
@@ -384,9 +372,9 @@ export class AuthService {
     const rtValue = JSON.stringify(sessionMetadata);
 
     await Promise.all([
-      this.redis.setex(rtKey, rtTokenTtl, rtValue),
-      this.redis.sadd(sessionKey, refreshTokenPayload.jti),
-      this.redis.expire(sessionKey, rtTokenTtl),
+      this.redisService.setex(rtKey, rtTokenTtl, rtValue),
+      this.redisService.sadd(sessionKey, refreshTokenPayload.jti),
+      this.redisService.expire(sessionKey, rtTokenTtl),
     ]);
 
     return tokens;

@@ -5,17 +5,15 @@ import { type ConfigType } from '@nestjs/config';
 import jwtConfig from '../../../config/jwt.config';
 import { type JwtPayloadDto } from '../dto/jwt-payload.dto';
 import { CacheKeys } from '../../../common/utils/cache-keys.factory';
-import { REDIS_CLIENT } from '../../../database/redis/redis.provider';
-import Redis from 'ioredis';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
+import { RedisService } from '../../../database/redis/redis.service';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
-    @Inject(REDIS_CLIENT)
-    private readonly redis: Redis,
+    private readonly redisService: RedisService,
   ) {
     super({
       // O token vem no header cookie da requisição
@@ -39,10 +37,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     const key = CacheKeys.auth.refreshToken(userId, jti);
 
     // 2. Busca no Redis
-    const storedToken = await this.redis.get(key);
-
-    console.log('token key', key);
-    console.log('token value', storedToken);
+    const storedToken = await this.redisService.get<string>(key);
 
     // 3. Validação Whitelist (Tem que estar no Redis E ser igual)
     if (!storedToken) {

@@ -7,15 +7,13 @@ import { JwtPayloadDto } from '../dto/jwt-payload.dto';
 import { UserStatus } from '../../../common/models/enums/user-status.enum';
 import { UsersService } from '../../users/users.service';
 import { User } from '../../users/entities/user.entity';
-import { REDIS_CLIENT } from '../../../database/redis/redis.provider';
-import Redis from 'ioredis';
 import { CacheKeys } from '../../../common/utils/cache-keys.factory';
+import { RedisService } from '../../../database/redis/redis.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
-    @Inject(REDIS_CLIENT)
-    private readonly redis: Redis,
+    private readonly redisService: RedisService,
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
 
@@ -30,7 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayloadDto): Promise<User> {
-    const isBlackListed = await this.redis.exists(CacheKeys.auth.blackList(payload.jti));
+    const isBlackListed = await this.redisService.exists(CacheKeys.auth.blackList(payload.jti));
 
     if (isBlackListed) {
       throw new UnauthorizedException('Token has been revoked');
