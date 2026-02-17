@@ -5,7 +5,7 @@ import Joi from 'joi';
 import databaseConfig from './database.config';
 import jwtConfig from './jwt.config';
 import googleOauthConfig from './google-oauth.config';
-import redisConfig from './redis/redis.config';
+import redisConfig from './redis.config';
 
 @Module({
   imports: [

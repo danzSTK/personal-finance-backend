@@ -1,20 +1,16 @@
-import { Controller, Get, Inject } from '@nestjs/common';
-import { type Cache } from 'cache-manager';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Controller, Get } from '@nestjs/common';
+import { RedisService } from '../database/redis/redis.service';
 
 @Controller('health')
 export class AppController {
-  constructor(
-    @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
-  ) {}
+  constructor(private readonly redisService: RedisService) {}
 
   @Get('redis')
   async checkRedis() {
     try {
       // Tenta salvar e recuperar um valor
-      await this.cacheManager.set('test_key', 'test_value', 10000);
-      const value = await this.cacheManager.get('test_key');
+      await this.redisService.set('test_key', 'test_value', 10000);
+      const value = await this.redisService.get<string>('test_key');
 
       return {
         status: 'ok',

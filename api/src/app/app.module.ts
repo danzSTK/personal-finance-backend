@@ -10,8 +10,6 @@ import databaseConfig from '../config/database.config';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { AuthProviderModule } from '@/modules/auth-provider/auth-provider.module';
 import { CommonModule } from '@/common/common.module';
-import { CacheModule } from '@nestjs/cache-manager';
-import { RedisOptions } from '@/config/redis/redis-options';
 import { RedisModule } from '@/database/redis/redis.module';
 
 @Module({
@@ -32,7 +30,6 @@ import { RedisModule } from '@/database/redis/redis.module';
       }),
       inject: [databaseConfig.KEY],
     }),
-    CacheModule.registerAsync(RedisOptions),
     RedisModule,
     UsersModule,
     AuthModule,
