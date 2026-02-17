@@ -42,6 +42,7 @@ import { type ConfigType } from '@nestjs/config';
 import ms, { StringValue } from 'ms';
 import { AUTH_CONSTANTS } from '@/common/models/constants';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -94,6 +95,12 @@ export class AuthController {
     return clearPayloadReturn;
   }
 
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: 3,
+    },
+  })
   @Post('sign-up')
   @ApiOperation({
     summary: 'Registrar novo usuário',
@@ -131,6 +138,12 @@ export class AuthController {
     return { accessToken: tokens.accessToken };
   }
 
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: 5,
+    },
+  })
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
@@ -182,6 +195,12 @@ export class AuthController {
    * 2. Usuário vê tela de consentimento do Google
    * 3. Após autorizar, Google redireciona para /auth/google/callback
    */
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: 5,
+    },
+  })
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({
@@ -278,6 +297,12 @@ export class AuthController {
     await this.authService.revokeSession(user.id, jti);
   }
 
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: 5,
+    },
+  })
   @Post('refresh')
   @UseGuards(JwtRefreshGuard)
   @ApiOperation({
@@ -376,7 +401,7 @@ export class AuthController {
     res.cookie(AUTH_CONSTANTS.cookies.refreshTokenKey, refreshToken, {
       httpOnly: true,
       secure: AUTH_CONSTANTS.cookies.secure,
-      sameSite: 'lax',
+      sameSite: 'none', // TODO: change to 'lax'
       path: '/auth',
       maxAge: ms(this.jwtConfiguration.refreshExpiresIn as StringValue),
     });

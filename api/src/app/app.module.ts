@@ -11,6 +11,12 @@ import { AuthModule } from '@/modules/auth/auth.module';
 import { AuthProviderModule } from '@/modules/auth-provider/auth-provider.module';
 import { CommonModule } from '@/common/common.module';
 import { RedisModule } from '@/database/redis/redis.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import throttleConfig from '@/config/trottle.config';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { APP_GUARD } from '@nestjs/core';
+import { RedisService } from '../database/redis/redis.service';
+import { SessionModule } from '../shared/session-tracking/session-metadata.module';
 
 @Module({
   imports: [
@@ -30,13 +36,34 @@ import { RedisModule } from '@/database/redis/redis.module';
       }),
       inject: [databaseConfig.KEY],
     }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [throttleConfig.KEY, RedisService],
+      useFactory: (throttlerConfig: ConfigType<typeof throttleConfig>, redisService: RedisService) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: throttlerConfig.default.ttl,
+            limit: throttlerConfig.default.limit,
+          },
+        ],
+        storage: new ThrottlerStorageRedisService(redisService.getClient()),
+      }),
+    }),
     RedisModule,
     UsersModule,
     AuthModule,
     AuthProviderModule,
     CommonModule,
+    SessionModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

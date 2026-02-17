@@ -6,12 +6,13 @@ import databaseConfig from './database.config';
 import jwtConfig from './jwt.config';
 import googleOauthConfig from './google-oauth.config';
 import redisConfig from './redis.config';
+import throttleConfig from './trottle.config';
 
 @Module({
   imports: [
     NestConfigModule.forRoot({
       cache: true,
-      load: [databaseConfig, jwtConfig, googleOauthConfig, redisConfig],
+      load: [databaseConfig, jwtConfig, googleOauthConfig, redisConfig, throttleConfig],
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
       validationSchema: Joi.object({
@@ -42,6 +43,12 @@ import redisConfig from './redis.config';
         REDIS_PORT: Joi.number().default(6379),
         REDIS_PASSWORD: Joi.string().required(),
         REDIS_TTL: Joi.number().default(3600),
+
+        // throttle
+        THROTTLE_DEFAULT_TTL: Joi.number().default(60000),
+        THROTTLE_DEFAULT_LIMIT: Joi.number().default(20),
+        THROTTLE_AUTH_TTL: Joi.number().default(60000),
+        THROTTLE_AUTH_LIMIT: Joi.number().default(5),
       }),
       validationOptions: {
         abortEarly: true,
