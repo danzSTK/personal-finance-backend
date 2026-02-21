@@ -12,6 +12,12 @@ export class HealthController {
     private redis: RedisHealthIndicator,
   ) {}
 
+  @Get('liveness')
+  @HealthCheck()
+  liveness() {
+    return this.health.check([]);
+  }
+
   @Get('readiness')
   @HealthCheck()
   @SkipThrottle({ default: true })

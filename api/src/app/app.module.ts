@@ -17,6 +17,7 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { APP_GUARD } from '@nestjs/core';
 import { RedisService } from '../database/redis/redis.service';
 import { SessionModule } from '../shared/session-tracking/session-metadata.module';
+import { HealthModule } from '../modules/health/health.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { SessionModule } from '../shared/session-tracking/session-metadata.modul
     AuthProviderModule,
     CommonModule,
     SessionModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [

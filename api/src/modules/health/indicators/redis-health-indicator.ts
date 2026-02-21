@@ -10,12 +10,10 @@ export class RedisHealthIndicator extends HealthIndicator {
 
   async isHealthy(key: string): Promise<HealthIndicatorResult> {
     try {
-      await this.redisService.set('__health__', '1', 5);
-      const val = await this.redisService.get('__health__');
-      const isHealthy = val === '1';
+      const pong = await this.redisService.getClient().ping();
+      const isHealthy = pong === 'PONG';
 
       return this.getStatus(key, isHealthy, {
-        value: val,
         message: isHealthy ? 'Redis is healthy' : 'Redis is not healthy',
       });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
