@@ -52,7 +52,7 @@ export class AuthService {
     }
 
     const oldRtKey = CacheKeys.auth.refreshToken(userId, oldJti);
-    const isValid = await this.redisService.get<string>(oldRtKey);
+    const isValid = await this.redisService.get<SessionMetadata>(oldRtKey);
 
     if (!isValid) {
       await this.invalidAllSessions(userId);
