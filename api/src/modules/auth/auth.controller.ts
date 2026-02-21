@@ -43,6 +43,7 @@ import ms, { StringValue } from 'ms';
 import { AUTH_CONSTANTS } from '@/common/models/constants';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 import { Throttle } from '@nestjs/throttler';
+import appConfig from '../../config/app.config';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -53,6 +54,9 @@ export class AuthController {
 
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
+
+    @Inject(appConfig.KEY)
+    private readonly appConfiguration: ConfigType<typeof appConfig>,
   ) {}
 
   @Get('me')
@@ -97,8 +101,9 @@ export class AuthController {
 
   @Throttle({
     default: {
-      ttl: 60000,
-      limit: 3,
+      ttl: AUTH_CONSTANTS.throttles.signup.ttl,
+      limit: AUTH_CONSTANTS.throttles.signup.limit,
+      blockDuration: AUTH_CONSTANTS.throttles.signup.blockDuration,
     },
   })
   @Post('sign-up')
@@ -140,8 +145,9 @@ export class AuthController {
 
   @Throttle({
     default: {
-      ttl: 60000,
-      limit: 5,
+      ttl: AUTH_CONSTANTS.throttles.signin.ttl,
+      limit: AUTH_CONSTANTS.throttles.signin.limit,
+      blockDuration: AUTH_CONSTANTS.throttles.signin.blockDuration,
     },
   })
   @Post('sign-in')
@@ -197,8 +203,9 @@ export class AuthController {
    */
   @Throttle({
     default: {
-      ttl: 60000,
-      limit: 5,
+      ttl: AUTH_CONSTANTS.throttles.signin.ttl,
+      limit: AUTH_CONSTANTS.throttles.signin.limit,
+      blockDuration: AUTH_CONSTANTS.throttles.signin.blockDuration,
     },
   })
   @Get('google')
@@ -240,7 +247,7 @@ export class AuthController {
     this.setRefreshTokenCookie(res, tokens.refreshToken);
 
     // Redirecionar para frontend com tokens
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const frontendUrl = this.appConfiguration.frontendUrl;
     const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}`;
 
     return res.redirect(redirectUrl);
