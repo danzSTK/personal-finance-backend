@@ -3,16 +3,23 @@ import { AppModule } from './app/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const isProduction = process.env.NODE_ENV === 'production';
 
   app.enableCors({
-    origin: true,
+    origin: isProduction ? process.env.FRONTEND_URL : true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 
+  app.use(
+    helmet({
+      hsts: isProduction,
+    }),
+  );
   app.use(cookieParser());
 
   app.useGlobalPipes(

@@ -12,11 +12,12 @@ import { AuthProviderModule } from '@/modules/auth-provider/auth-provider.module
 import { CommonModule } from '@/common/common.module';
 import { RedisModule } from '@/database/redis/redis.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import throttleConfig from '@/config/trottle.config';
+import throttleConfig from '@/config/throttle.config';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { APP_GUARD } from '@nestjs/core';
 import { RedisService } from '../database/redis/redis.service';
 import { SessionModule } from '../shared/session-tracking/session-metadata.module';
+import { HealthModule } from '../modules/health/health.module';
 
 @Module({
   imports: [
@@ -43,8 +44,8 @@ import { SessionModule } from '../shared/session-tracking/session-metadata.modul
         throttlers: [
           {
             name: 'default',
-            ttl: throttlerConfig.default.ttl,
-            limit: throttlerConfig.default.limit,
+            ttl: throttlerConfig.default.ttl ?? 60000,
+            limit: throttlerConfig.default.limit ?? 20,
           },
         ],
         storage: new ThrottlerStorageRedisService(redisService.getClient()),
@@ -56,6 +57,7 @@ import { SessionModule } from '../shared/session-tracking/session-metadata.modul
     AuthProviderModule,
     CommonModule,
     SessionModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [

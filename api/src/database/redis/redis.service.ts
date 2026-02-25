@@ -18,11 +18,17 @@ export class RedisService {
     const data = await this.redis.get(key);
     if (!data) return null;
 
-    try {
-      return JSON.parse(data) as T;
-    } catch {
-      return data as unknown as T;
+    const isJsonObject = (data.startsWith('{') && data.endsWith('}')) || (data.startsWith('[') && data.endsWith(']'));
+
+    if (isJsonObject) {
+      try {
+        return JSON.parse(data) as T;
+      } catch {
+        return data as unknown as T;
+      }
     }
+
+    return data as unknown as T;
   }
 
   async set(key: string, value: unknown, ttlMs?: number): Promise<void> {
