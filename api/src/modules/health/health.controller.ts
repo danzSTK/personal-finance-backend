@@ -14,6 +14,7 @@ export class HealthController {
 
   @Get('liveness')
   @HealthCheck()
+  @SkipThrottle({ default: true })
   liveness() {
     return this.health.check([]);
   }

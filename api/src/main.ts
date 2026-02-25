@@ -10,7 +10,7 @@ async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
 
   app.enableCors({
-    origin: isProduction ? process.env.FRONTEND_URL : '*',
+    origin: isProduction ? process.env.FRONTEND_URL : true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });

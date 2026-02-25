@@ -16,9 +16,14 @@ export class RedisHealthIndicator extends HealthIndicator {
       return this.getStatus(key, isHealthy, {
         message: isHealthy ? 'Redis is healthy' : 'Redis is not healthy',
       });
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_) {
-      throw new HealthCheckError('Redis is not healthy', this.getStatus(key, false));
+    } catch (error) {
+      throw new HealthCheckError(
+        'Redis is not healthy',
+        this.getStatus(key, false, {
+          message: 'Redis is not healthy',
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
     }
   }
 }
