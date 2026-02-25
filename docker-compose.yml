@@ -1,27 +1,54 @@
 services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: personal-finance-api
+    restart: always
+    env_file: .env
+    environment:
+      # Sobrescreve o .env: dentro do Docker, os hosts são os nomes dos serviços
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+    ports:
+      - "3000:3000"
+    mem_limit: 512m
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - app-network
   postgres:
     image: postgres:16
     container_name: personal-finance-db
+    restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+    mem_limit: 256m
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
 
   redis:
     image: redis:7-alpine
     container_name: personal-finance-redis
     restart: always
     # O comando abaixo ativa o AOF (Append Only File) para persistência
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
-    ports:
-      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    mem_limit: 256m
     volumes:
       - redisdata:/data
+    networks:
+      - app-network
 
 volumes:
   pgdata:
   redisdata:
+
+networks:
+  app-network:
+    driver: bridge
+
