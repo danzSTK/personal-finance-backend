@@ -6,7 +6,7 @@ import databaseConfig from './database.config';
 import jwtConfig from './jwt.config';
 import googleOauthConfig from './google-oauth.config';
 import redisConfig from './redis.config';
-import throttleConfig from './trottle.config';
+import throttleConfig from './throttle.config';
 import appConfig from './app.config';
 
 @Module({
@@ -49,12 +49,12 @@ import appConfig from './app.config';
         THROTTLE_DEFAULT_TTL: Joi.number().default(60000),
         THROTTLE_DEFAULT_LIMIT: Joi.number().default(20),
 
-        THROTTLE_AUTH_SIGNIN_TTL: Joi.number().required(),
-        THROTTLE_AUTH_SIGNIN_LIMIT: Joi.number().required(),
-        THROTTLE_AUTH_SIGNIN_BLOCKED_TTL: Joi.number().required(),
-        THROTTLE_AUTH_SIGNUP_TTL: Joi.number().required(),
-        THROTTLE_AUTH_SIGNUP_LIMIT: Joi.number().required(),
-        THROTTLE_AUTH_SIGNUP_BLOCKED_TTL: Joi.number().required(),
+        THROTTLE_AUTH_SIGNIN_TTL: Joi.number().optional(),
+        THROTTLE_AUTH_SIGNIN_LIMIT: Joi.number().optional(),
+        THROTTLE_AUTH_SIGNIN_BLOCKED_TTL: Joi.number().optional(),
+        THROTTLE_AUTH_SIGNUP_TTL: Joi.number().optional(),
+        THROTTLE_AUTH_SIGNUP_LIMIT: Joi.number().optional(),
+        THROTTLE_AUTH_SIGNUP_BLOCKED_TTL: Joi.number().optional(),
       }),
       validationOptions: {
         abortEarly: true,
