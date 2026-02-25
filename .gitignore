@@ -5,6 +5,8 @@
 postgres_data/
 *.log
 
+docker-compose.override.yml
+
 # Node / Nest (quando entrar)
 node_modules/
 dist/
