@@ -44,6 +44,7 @@ import { AUTH_CONSTANTS } from '@/common/models/constants';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 import { Throttle } from '@nestjs/throttler';
 import appConfig from '../../config/app.config';
+import { type RefreshStrategyResponse } from './interfaces/refresh-strategy-response.interface';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -76,7 +77,7 @@ export class AuthController {
         lastName: { type: 'string', example: 'Silva', nullable: true },
         firstName: { type: 'string', example: 'João', nullable: true },
         userName: { type: 'string', example: 'john_doe', nullable: true },
-        email: { type: 'string', example: 'joao.silva@email.com', nullable: true },
+        email: { type: 'string', example: 'joao.silva@email.com' },
         status: { type: 'string', example: 'active' },
         createdAt: { type: 'string', format: 'date-time' },
         updatedAt: { type: 'string', format: 'date-time' },
@@ -192,15 +193,6 @@ export class AuthController {
     return { accessToken: tokens.accessToken };
   }
 
-  /**
-   * 🚀 ROTA 1: Iniciar login com Google
-   * GET /auth/google
-   *
-   * 🧠 FLUXO:
-   * 1. GoogleAuthGuard redireciona para Google OAuth
-   * 2. Usuário vê tela de consentimento do Google
-   * 3. Após autorizar, Google redireciona para /auth/google/callback
-   */
   @Throttle({
     default: {
       ttl: AUTH_CONSTANTS.throttles.signin.ttl,
@@ -335,14 +327,18 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado' })
   async refresh(
-    @CurrentUser() user: { id: string; jti: string },
+    @CurrentUser() refreshStrategyResponse: RefreshStrategyResponse,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
     @Res({
       passthrough: true,
     })
     res: Response,
   ) {
-    const tokens = await this.authService.rotateTokens(user.id, user.jti, sessionInfo);
+    const tokens = await this.authService.rotateTokens(
+      refreshStrategyResponse.id,
+      refreshStrategyResponse.oldRefreshTokenJti,
+      sessionInfo,
+    );
 
     this.setRefreshTokenCookie(res, tokens.refreshToken);
 
