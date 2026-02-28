@@ -17,9 +17,8 @@ export class JwtPayloadDto {
   @ApiProperty({
     description: 'E-mail do usuário',
     example: 'joao.silva@email.com',
-    nullable: true,
   })
-  email: string | null;
+  email: string;
 
   @ApiProperty({
     description: 'Status atual do usuário',
