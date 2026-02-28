@@ -1,5 +1,5 @@
 export class GoogleUserProfileDto {
   googleId: string;
-  email?: string;
+  email: string;
   name: string;
 }

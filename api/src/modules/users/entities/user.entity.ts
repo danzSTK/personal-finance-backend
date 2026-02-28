@@ -17,18 +17,15 @@ import {
 
 @Entity('users')
 @Index('idx_users_status', ['status'])
-@Index('idx_users_email', ['email'], {
-  where: 'email IS NOT NULL',
-  unique: true,
-})
+@Index('idx_users_email', ['email'], { unique: true })
 @Check('CHK_users_status', `"status" IN ('PENDING_PROFILE', 'ACTIVE', 'BLOCKED')`)
 @Unique('UQ_user_name', ['userName'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  email: string | null;
+  @Column({ type: 'varchar', length: 255, nullable: false })
+  email: string;
 
   @Column({
     name: 'user_name',
