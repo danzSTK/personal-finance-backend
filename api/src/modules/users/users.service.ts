@@ -93,18 +93,19 @@ export class UsersService {
 
   async findByEmail(email: string, options?: IGetUserByEmailOptions): Promise<User | null> {
     const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (options?.manager) {
       const user = await repository.findOne({
         where: {
-          email,
+          email: normalizedEmail,
         },
       });
 
       return user;
     }
 
-    const indexKey = CacheKeys.users.byEmailIndex(email);
+    const indexKey = CacheKeys.users.byEmailIndex(normalizedEmail);
     const cachedUserId = await this.redisService.get<string>(indexKey);
 
     if (cachedUserId) {
@@ -119,7 +120,7 @@ export class UsersService {
       return user;
     }
 
-    const user = await repository.findOne({ where: { email } });
+    const user = await repository.findOne({ where: { email: normalizedEmail } });
 
     if (user) {
       await Promise.all([
@@ -133,18 +134,18 @@ export class UsersService {
 
   async findByUserName(userName: string, options?: IGetUserByNameOptions): Promise<User | null> {
     const repository = options?.manager ? options.manager.getRepository(User) : this.userRepository;
+    const normalizedUserName = userName.trim().toLowerCase();
 
     if (options?.manager) {
       const user = await repository.findOne({
         where: {
-          userName: userName,
+          userName: normalizedUserName,
         },
       });
 
       return user;
     }
 
-    const normalizedUserName = userName.trim().toLowerCase();
     const indexKey = CacheKeys.users.byUserNameIndex(normalizedUserName);
 
     const cachedUserId = await this.redisService.get<string>(indexKey);
