@@ -2,9 +2,12 @@ import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import { join } from 'path';
 import { ENTITIES } from '../config/entities';
+import { AppStatus } from '../common/models/enums';
 
 // Carrega o .env da raiz
-config({ path: join(process.cwd(), '..', '.env') });
+if (process.env.NODE_ENV !== AppStatus.PRODUCTION) {
+  config({ path: join(process.cwd(), '..', '.env') });
+}
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -16,5 +19,5 @@ export const AppDataSource = new DataSource({
   entities: ENTITIES,
   migrations: [join(__dirname, './migrations/*{.ts,.js}')],
   synchronize: false,
-  logging: true,
+  logging: process.env.NODE_ENV === AppStatus.PRODUCTION ? ['error'] : true,
 });
