@@ -3,7 +3,7 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: api
+    container_name: personal-finance-api
     restart: always
     env_file: .env
     environment:
