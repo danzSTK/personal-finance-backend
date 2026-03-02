@@ -294,12 +294,15 @@ export class AuthService {
         },
       );
 
-      await this.authProviderService.createAuthProvider({
-        provider: AuthProviderType.GOOGLE,
-        providerUserId: googleId,
-        user_id: user.id,
-        passwordHash: null,
-      });
+      await this.authProviderService.createAuthProvider(
+        {
+          provider: AuthProviderType.GOOGLE,
+          providerUserId: googleId,
+          user_id: user.id,
+          passwordHash: null,
+        },
+        manager,
+      );
 
       return user;
     });
