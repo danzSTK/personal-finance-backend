@@ -4,10 +4,11 @@ import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { AppStatus } from './common/models/enums';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = process.env.NODE_ENV === AppStatus.PRODUCTION;
 
   app.enableCors({
     origin: isProduction ? process.env.FRONTEND_URL : true,

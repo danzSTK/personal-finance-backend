@@ -1,8 +1,11 @@
+import { AppStatus } from '../enums';
+
 export const AUTH_CONSTANTS = {
   cookies: {
     refreshTokenKey: 'refreshToken',
     accessTokenKey: 'accessToken',
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === AppStatus.PRODUCTION,
+    sameSite: process.env.NODE_ENV === AppStatus.PRODUCTION ? 'lax' : 'none',
   },
   throttles: {
     signin: {
