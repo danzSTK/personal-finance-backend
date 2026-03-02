@@ -408,7 +408,7 @@ export class AuthController {
     res.cookie(AUTH_CONSTANTS.cookies.refreshTokenKey, refreshToken, {
       httpOnly: true,
       secure: AUTH_CONSTANTS.cookies.secure,
-      sameSite: 'none', // TODO: change to 'lax'
+      sameSite: AUTH_CONSTANTS.cookies.sameSite,
       path: '/auth',
       maxAge: ms(this.jwtConfiguration.refreshExpiresIn as StringValue),
     });
