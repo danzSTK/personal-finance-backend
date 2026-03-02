@@ -8,6 +8,7 @@ import { CacheKeys } from '../../../common/utils/cache-keys.factory';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 import { RedisService } from '../../../database/redis/redis.service';
 import { SessionMetadata } from '../../../common/models/interfaces';
+import { RefreshStrategyResponse } from '../interfaces/refresh-strategy-response.interface';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -26,7 +27,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     });
   }
 
-  async validate(payload: JwtPayloadDto) {
+  async validate(payload: JwtPayloadDto): Promise<RefreshStrategyResponse> {
     const userId = payload.sub;
     const jti = payload.jti;
 
@@ -48,9 +49,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     // Retorna o usuário + JTI para podermos apagar esse token depois (rotação)
     return {
       id: userId,
-      email: payload.email,
-      jti: jti,
-      status: payload.status,
+      oldRefreshTokenJti: jti,
     };
   }
 }

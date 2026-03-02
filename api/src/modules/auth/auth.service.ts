@@ -170,12 +170,6 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    const existingUser = await this.usersService.findByUserName(data.userName);
-
-    if (existingUser) {
-      throw new ConflictException('User name already registered');
-    }
-
     const passwordHash = await this.hashService.hash(data.password);
 
     const result = await this.dataSource.transaction(async manager => {
@@ -195,6 +189,12 @@ export class AuthService {
         );
 
         return user;
+      }
+
+      const existingUsername = await this.usersService.findByUserName(data.userName, { manager });
+
+      if (existingUsername) {
+        throw new ConflictException('User name already registered');
       }
 
       // ✅ CENÁRIO: Novo usuário, criar User + AuthProvider EMAIL
@@ -262,12 +262,9 @@ export class AuthService {
       return user;
     }
 
-    // 2️⃣ Transaction: criar/vincular User + AuthProvider
     const result = await this.dataSource.transaction(async manager => {
-      // 2.1 Verificar se existe User com esse email
-      let user = email ? await this.usersService.findByEmail(email, { manager }) : null;
+      let user = await this.usersService.findByEmail(email, { manager });
 
-      // ✅ CENÁRIO: Usuário já tem conta (ex: email/senha), agora quer vincular Google
       if (user) {
         await this.authProviderService.createAuthProvider(
           {
@@ -282,8 +279,6 @@ export class AuthService {
         return user;
       }
 
-      // 2.2 Criar novo User (primeira vez no sistema)
-      // Extrair firstName e lastName do displayName
       const nameParts = name.split(' ');
       const firstName = nameParts[0];
       const lastName = nameParts.slice(1).join(' ') || '';
