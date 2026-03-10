@@ -1,13 +1,27 @@
 import { Module } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { UsersController } from './users.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { UserOrmEntity } from './infrastructure/persistence/user-orm-entity';
+import { UsersController } from './presentation/http/users.controller';
+import { UserRepository } from './infrastructure/persistence/user.repository';
+import { IUserRepository } from './domain/repositories/user.respository.interface';
+import { CreateUserUseCase } from './application/use-cases/create-user/create-user.use-case';
+import { FindUserByIdUseCase } from './application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { FindUserByEmailUseCase } from './application/use-cases/find-by-user-email/find-user-by-email.use-case';
+import { FindUserByUserNameUseCase } from './application/use-cases/find-by-user-name/find-by-user-name.use-case';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])],
+  imports: [TypeOrmModule.forFeature([UserOrmEntity])],
   controllers: [UsersController],
-  providers: [UsersService],
-  exports: [UsersService],
+  providers: [
+    {
+      provide: IUserRepository,
+      useClass: UserRepository,
+    },
+    CreateUserUseCase,
+    FindUserByIdUseCase,
+    FindUserByEmailUseCase,
+    FindUserByUserNameUseCase,
+  ],
+  exports: [IUserRepository, CreateUserUseCase, FindUserByIdUseCase, FindUserByEmailUseCase, FindUserByUserNameUseCase],
 })
 export class UsersModule {}

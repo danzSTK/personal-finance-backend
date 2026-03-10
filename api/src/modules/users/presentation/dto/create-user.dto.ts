@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { UserStatus } from '../../../common/models/enums/user-status.enum';
+import { UserStatus } from '../../../../common/models/enums';
 
 export class CreateUserDto {
   @IsOptional()
@@ -19,11 +19,9 @@ export class CreateUserDto {
   @MaxLength(255)
   lastName?: string;
 
-  @IsOptional()
   @IsEmail()
-  email?: string;
+  email: string;
 
-  @IsOptional()
   @IsEnum(UserStatus)
-  status?: UserStatus;
+  status: UserStatus;
 }
