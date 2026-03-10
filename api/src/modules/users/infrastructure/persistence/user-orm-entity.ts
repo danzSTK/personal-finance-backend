@@ -1,8 +1,3 @@
-import { UserStatus } from '../../../common/models/enums/user-status.enum';
-import { Account } from '../../../entities/account.entity';
-import { AuthProvider } from '../../auth/entities/auth-provider.entity';
-import { Category } from '../../../entities/category.entity';
-import { Transaction } from '../../../entities/transaction.entity';
 import {
   Entity,
   Index,
@@ -14,13 +9,18 @@ import {
   Check,
   Unique,
 } from 'typeorm';
+import { UserStatus } from '../../../../common/models/enums';
+import { Account } from '../../../../entities/account.entity';
+import { Category } from '../../../../entities/category.entity';
+import { Transaction } from '../../../../entities/transaction.entity';
+import { AuthProvider } from '../../../auth/entities/auth-provider.entity';
 
 @Entity('users')
 @Index('idx_users_status', ['status'])
 @Index('idx_users_email', ['email'], { unique: true })
 @Check('CHK_users_status', `"status" IN ('PENDING_PROFILE', 'ACTIVE', 'BLOCKED')`)
 @Unique('UQ_user_name', ['userName'])
-export class User {
+export class UserOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

@@ -1,0 +1,13 @@
+import { User } from '../../../domain/entities/user.entity';
+import { IRepositoryOptions, IUserRepository } from '../../../domain/repositories/user.respository.interface';
+import { Email } from '../../../domain/value-objects/email.value-object';
+
+export class FindUserByEmailUseCase {
+  constructor(private readonly userRepository: IUserRepository) {}
+
+  async execute(email: string, options?: IRepositoryOptions): Promise<User | null> {
+    const emailVO = Email.create(email);
+
+    return this.userRepository.findByEmail(emailVO, options);
+  }
+}
