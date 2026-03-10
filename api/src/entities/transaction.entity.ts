@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { Account } from './account.entity';
 import { Category } from './category.entity';
-import { User } from '../modules/users/entities/user.entity';
+import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
 
 @Entity('transactions')
 @Index('idx_transactions_user_date_id', ['user_id', 'date', 'id'], {
@@ -66,12 +66,12 @@ export class Transaction {
   @Column({ type: 'timestamptz', nullable: true })
   deactivated_at: Date | null;
 
-  @ManyToOne(() => User, user => user.transactions, { onDelete: 'CASCADE' })
+  @ManyToOne(() => UserOrmEntity, user => user.transactions, { onDelete: 'CASCADE' })
   @JoinColumn({
     name: 'user_id',
     foreignKeyConstraintName: 'FK_transactions_user',
   })
-  user: User;
+  user: UserOrmEntity;
 
   @ManyToOne(() => Account, account => account.transactions, {
     onDelete: 'CASCADE',

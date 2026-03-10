@@ -12,7 +12,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Transaction } from './transaction.entity';
-import { User } from '../modules/users/entities/user.entity';
+import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
 
 @Entity('accounts')
 @Index('idx_accounts_user_id', ['user_id'])
@@ -50,9 +50,9 @@ export class Account {
   @Column({ type: 'timestamptz', nullable: true })
   deactivated_at: Date | null;
 
-  @ManyToOne(() => User, user => user.accounts, { onDelete: 'CASCADE' })
+  @ManyToOne(() => UserOrmEntity, user => user.accounts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'FK_accounts_user' })
-  user: User;
+  user: UserOrmEntity;
 
   @OneToMany(() => Transaction, transaction => transaction.account)
   transactions: Transaction[];
