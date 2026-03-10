@@ -5,19 +5,19 @@ import jwtConfig from '../../../config/jwt.config';
 import type { ConfigType } from '@nestjs/config';
 import { JwtPayloadDto } from '../dto/jwt-payload.dto';
 import { UserStatus } from '../../../common/models/enums/user-status.enum';
-import { UsersService } from '../../users/users.service';
-import { User } from '../../users/entities/user.entity';
+
+import { User } from '../../users/domain/entities/user.entity';
 import { CacheKeys } from '../../../common/utils/cache-keys.factory';
 import { RedisService } from '../../../database/redis/redis.service';
+import { FindUserByIdUseCase } from '../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
+    private readonly findUserByIdUseCase: FindUserByIdUseCase,
     private readonly redisService: RedisService,
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
-
-    private readonly userService: UsersService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -34,7 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Token has been revoked');
     }
 
-    const user = await this.userService.findById(payload.sub);
+    const user = await this.findUserByIdUseCase.execute(payload.sub);
 
     if (!user) {
       throw new UnauthorizedException('Invalid token: user not found');
