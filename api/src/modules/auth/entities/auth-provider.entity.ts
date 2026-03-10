@@ -1,5 +1,5 @@
 import { AuthProviderType } from '../../../common/models/enums/auth-provider.enum';
-import { User } from '../../users/entities/user.entity';
+import { UserOrmEntity } from '../../users/infrastructure/persistence/user-orm-entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -47,10 +47,10 @@ export class AuthProvider {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updated_at: Date;
 
-  @ManyToOne(() => User, user => user.authProviders, { onDelete: 'CASCADE' })
+  @ManyToOne(() => UserOrmEntity, user => user.authProviders, { onDelete: 'CASCADE' })
   @JoinColumn({
     name: 'user_id',
     foreignKeyConstraintName: 'FK_auth_providers_user',
   })
-  user: User;
+  user: UserOrmEntity;
 }

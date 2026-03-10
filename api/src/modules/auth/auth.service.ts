@@ -6,10 +6,9 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { User } from '@/modules/users/entities/user.entity';
+import { User } from '../users/domain/entities/user.entity';
 
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
-import { UsersService } from '@/modules/users/users.service';
 import jwtConfig from '@/config/jwt.config';
 import { type ConfigType } from '@nestjs/config';
 
@@ -26,11 +25,19 @@ import { JwtPayloadDto } from './dto/jwt-payload.dto';
 import { randomUUID } from 'node:crypto';
 import ms, { StringValue } from 'ms';
 import { RedisService } from '../../database/redis/redis.service';
+import { FindUserByIdUseCase } from '../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { FindUserByEmailUseCase } from '../users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
+import { CreateUserUseCase } from '../users/application/use-cases/create-user/create-user.use-case';
+import { FindUserByUserNameUseCase } from '../users/application/use-cases/find-by-user-name/find-by-user-name.use-case';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UsersService,
+    private readonly findUserByIdUseCase: FindUserByIdUseCase,
+    private readonly findUserByEmailUseCase: FindUserByEmailUseCase,
+    private readonly createUserUseCase: CreateUserUseCase,
+    private readonly findUserByUsernameUseCase: FindUserByUserNameUseCase,
+
     private readonly jwtService: JwtService,
     private readonly authProviderService: AuthProviderService,
 
@@ -45,7 +52,7 @@ export class AuthService {
   ) {}
 
   async rotateTokens(userId: string, oldJti: string, sessionMetadata: SessionMetadata) {
-    const user = await this.usersService.findById(userId);
+    const user = await this.findUserByIdUseCase.execute(userId);
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -136,7 +143,7 @@ export class AuthService {
       return null;
     }
 
-    const user = await this.usersService.findById(localProvider.user_id);
+    const user = await this.findUserByIdUseCase.execute(localProvider.user_id);
 
     if (!user) {
       throw new InternalServerErrorException('User not found for valid credentials');
@@ -173,7 +180,7 @@ export class AuthService {
     const passwordHash = await this.hashService.hash(data.password);
 
     const result = await this.dataSource.transaction(async manager => {
-      let user = await this.usersService.findByEmail(data.email);
+      let user = await this.findUserByEmailUseCase.execute(data.email, { manager });
 
       if (user) {
         // ✅ CENÁRIO: Usuário já tem conta (ex: Google), agora quer adicionar login por email
@@ -191,14 +198,14 @@ export class AuthService {
         return user;
       }
 
-      const existingUsername = await this.usersService.findByUserName(data.userName, { manager });
+      const existingUsername = await this.findUserByUsernameUseCase.execute(data.userName, { manager });
 
       if (existingUsername) {
         throw new ConflictException('User name already registered');
       }
 
       // ✅ CENÁRIO: Novo usuário, criar User + AuthProvider EMAIL
-      user = await this.usersService.create(
+      user = await this.createUserUseCase.execute(
         {
           email: data.email,
           firstName: data.firstName,
@@ -253,7 +260,7 @@ export class AuthService {
     );
 
     if (existingAuthProvider) {
-      const user = await this.usersService.findById(existingAuthProvider.user_id);
+      const user = await this.findUserByIdUseCase.execute(existingAuthProvider.user_id);
 
       if (!user) {
         throw new InternalServerErrorException('User linked to Google AuthProvider not found');
@@ -263,7 +270,7 @@ export class AuthService {
     }
 
     const result = await this.dataSource.transaction(async manager => {
-      let user = await this.usersService.findByEmail(email, { manager });
+      let user = await this.findUserByEmailUseCase.execute(email, { manager });
 
       if (user) {
         await this.authProviderService.createAuthProvider(
@@ -283,11 +290,12 @@ export class AuthService {
       const firstName = nameParts[0];
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      user = await this.usersService.create(
+      user = await this.createUserUseCase.execute(
         {
           email,
           firstName,
           lastName,
+          status: UserStatus.PENDING_PROFILE,
         },
         {
           manager,
@@ -340,14 +348,14 @@ export class AuthService {
     const accessTokenPayload: JwtPayloadDto = {
       jti: randomUUID(),
       sub: user.id,
-      email: user.email,
+      email: user.email.value,
       status: user.status,
     };
 
     const refreshTokenPayload: JwtPayloadDto = {
       jti: randomUUID(),
       sub: user.id,
-      email: user.email,
+      email: user.email.value,
       status: user.status,
     };
 
