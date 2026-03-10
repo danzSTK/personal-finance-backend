@@ -2,6 +2,6 @@ import { Account } from '../entities/account.entity';
 import { AuthProvider } from '../modules/auth/entities/auth-provider.entity';
 import { Category } from '../entities/category.entity';
 import { Transaction } from '../entities/transaction.entity';
-import { User } from '../modules/users/entities/user.entity';
+import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
 
-export const ENTITIES = [User, Account, Category, Transaction, AuthProvider];
+export const ENTITIES = [UserOrmEntity, Account, Category, Transaction, AuthProvider];
