@@ -5,13 +5,11 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { CreateAuthProviderDto } from './dto/create-auth-provider.dto';
 
-import { UsersService } from '../users/users.service';
 @Injectable()
 export class AuthProviderService {
   constructor(
     @InjectRepository(AuthProvider)
     private readonly authProviderRepository: Repository<AuthProvider>,
-    private readonly userService: UsersService,
 
     @InjectDataSource()
     private readonly dataSource: DataSource,
