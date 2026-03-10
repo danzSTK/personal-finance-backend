@@ -12,7 +12,7 @@ import {
 } from 'typeorm';
 import { CategoryType } from '../common/models/enums/category-types.enum';
 import { Transaction } from './transaction.entity';
-import { User } from '../modules/users/entities/user.entity';
+import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
 
 @Entity('categories')
 @Index('idx_categories_user_name_type_active', ['user_id', 'name', 'type'], {
@@ -61,12 +61,12 @@ export class Category {
   @Column({ type: 'timestamptz', nullable: true })
   deactivated_at: Date | null;
 
-  @ManyToOne(() => User, user => user.categories, { onDelete: 'CASCADE' })
+  @ManyToOne(() => UserOrmEntity, user => user.categories, { onDelete: 'CASCADE' })
   @JoinColumn({
     name: 'user_id',
     foreignKeyConstraintName: 'FK_categories_user',
   })
-  user: User;
+  user: UserOrmEntity;
 
   @OneToMany(() => Transaction, transaction => transaction.category)
   transactions: Transaction[];
