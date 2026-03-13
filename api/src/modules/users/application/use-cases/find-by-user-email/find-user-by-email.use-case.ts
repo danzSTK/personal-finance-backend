@@ -1,7 +1,9 @@
+import { Injectable } from '@nestjs/common';
 import { User } from '../../../domain/entities/user.entity';
 import { IRepositoryOptions, IUserRepository } from '../../../domain/repositories/user.respository.interface';
 import { Email } from '../../../domain/value-objects/email.value-object';
 
+@Injectable()
 export class FindUserByEmailUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
 
