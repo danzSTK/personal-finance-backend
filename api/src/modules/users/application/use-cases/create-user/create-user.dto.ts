@@ -1,4 +1,10 @@
-import { UserStatus } from '../../../../../common/models/enums';
+import { AuthProviderType, UserStatus } from '../../../../../common/models/enums';
+
+export interface CreateUserAuthProviderInput {
+  provider: AuthProviderType;
+  providerUserId: string;
+  passwordHash: string | null;
+}
 
 export interface CreateUserUseCaseDto {
   userName?: string;
@@ -6,4 +12,5 @@ export interface CreateUserUseCaseDto {
   lastName?: string;
   email: string;
   status: UserStatus;
+  authProviders?: CreateUserAuthProviderInput[];
 }
