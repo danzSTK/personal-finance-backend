@@ -1,25 +1,17 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { User } from '../users/domain/entities/user.entity';
 
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import jwtConfig from '@/config/jwt.config';
 import { type ConfigType } from '@nestjs/config';
 
-import { AuthProviderService } from '@/modules/auth-provider/auth-provider.service';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
 import { IHashService, ActiveSession, SessionMetadata } from '@/common/models/interfaces';
 import { RegisterDto } from './dto/register.dto';
 
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { GoogleUserProfileDto } from '../auth-provider/dto/google-user-profile.dto';
+import { GoogleUserProfileDto } from './dto/google-user-profile.dto';
 import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { JwtPayloadDto } from './dto/jwt-payload.dto';
 import { randomUUID } from 'node:crypto';
@@ -29,6 +21,8 @@ import { FindUserByIdUseCase } from '../users/application/use-cases/find-user-by
 import { FindUserByEmailUseCase } from '../users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
 import { CreateUserUseCase } from '../users/application/use-cases/create-user/create-user.use-case';
 import { FindUserByUserNameUseCase } from '../users/application/use-cases/find-by-user-name/find-by-user-name.use-case';
+import { IUserRepository } from '../users/domain/repositories/user.respository.interface';
+import { HashedPassword } from '../users/domain/value-objects/hashed-password.value-object';
 
 @Injectable()
 export class AuthService {
@@ -37,9 +31,9 @@ export class AuthService {
     private readonly findUserByEmailUseCase: FindUserByEmailUseCase,
     private readonly createUserUseCase: CreateUserUseCase,
     private readonly findUserByUsernameUseCase: FindUserByUserNameUseCase,
+    private readonly userRepository: IUserRepository,
 
     private readonly jwtService: JwtService,
-    private readonly authProviderService: AuthProviderService,
 
     private readonly hashService: IHashService,
     @InjectDataSource()
@@ -131,27 +125,23 @@ export class AuthService {
    */
 
   async validateUserCredentials(email: string, password: string): Promise<User | null> {
-    const localProvider = await this.authProviderService.findByProviderAndProviderId(AuthProviderType.EMAIL, email);
-
-    if (!localProvider || !localProvider.passwordHash) {
-      return null;
-    }
-
-    const isPasswordValid = await this.hashService.compare(password, localProvider.passwordHash);
-
-    if (!isPasswordValid) {
-      return null;
-    }
-
-    const user = await this.findUserByIdUseCase.execute(localProvider.user_id);
+    const user = await this.findUserByEmailUseCase.execute(email);
 
     if (!user) {
-      throw new InternalServerErrorException('User not found for valid credentials');
-    }
-
-    if (user.status === UserStatus.BLOCKED) {
       return null;
     }
+
+    const credentialsProvider = user.getCredentialsAuthProvider();
+
+    if (!credentialsProvider) {
+      return null;
+    }
+
+    const isValid = await this.hashService.compare(password, credentialsProvider.passwordHash.value);
+
+    if (!isValid) return null;
+
+    if (user.status === UserStatus.BLOCKED) return null;
 
     return user;
   }
@@ -168,34 +158,26 @@ export class AuthService {
    *    c. Se não → cria novo User + AuthProvider
    */
   async signUp(data: RegisterDto, sessionMetadata: SessionMetadata) {
-    const existingProvider = await this.authProviderService.findByProviderAndProviderId(
-      AuthProviderType.EMAIL,
-      data.email,
-    );
-
-    if (existingProvider) {
-      throw new ConflictException('Email already registered');
-    }
-
     const passwordHash = await this.hashService.hash(data.password);
 
     const result = await this.dataSource.transaction(async manager => {
-      let user = await this.findUserByEmailUseCase.execute(data.email, { manager });
+      const user = await this.findUserByEmailUseCase.execute(data.email, { manager });
 
       if (user) {
         // ✅ CENÁRIO: Usuário já tem conta (ex: Google), agora quer adicionar login por email
         // adicionar authProvider EMAIL ao User existente
-        await this.authProviderService.createAuthProvider(
-          {
-            passwordHash,
-            provider: AuthProviderType.EMAIL,
-            user_id: user.id,
-            providerUserId: data.email,
-          },
-          manager,
+        if (user.hasAuthProvider(AuthProviderType.EMAIL, data.email)) {
+          throw new ConflictException('Email already registered');
+        }
+
+        user.addAuthProvider(
+          crypto.randomUUID(),
+          AuthProviderType.EMAIL,
+          data.email,
+          HashedPassword.createFromHash(passwordHash),
         );
 
-        return user;
+        return this.userRepository.save(user, { manager });
       }
 
       const existingUsername = await this.findUserByUsernameUseCase.execute(data.userName, { manager });
@@ -205,30 +187,25 @@ export class AuthService {
       }
 
       // ✅ CENÁRIO: Novo usuário, criar User + AuthProvider EMAIL
-      user = await this.createUserUseCase.execute(
+      return this.createUserUseCase.execute(
         {
           email: data.email,
           firstName: data.firstName,
           lastName: data.lastName,
           userName: data.userName,
           status: UserStatus.ACTIVE,
+          authProviders: [
+            {
+              provider: AuthProviderType.EMAIL,
+              providerUserId: data.email,
+              passwordHash: passwordHash,
+            },
+          ],
         },
         {
           manager,
         },
       );
-
-      await this.authProviderService.createAuthProvider(
-        {
-          passwordHash,
-          provider: AuthProviderType.EMAIL,
-          user_id: user.id,
-          providerUserId: data.email,
-        },
-        manager,
-      );
-
-      return user;
     });
 
     return this.generateToken(result, sessionMetadata);
@@ -254,68 +231,37 @@ export class AuthService {
   async validateOrCreateGoogleUser(googleUserDto: GoogleUserProfileDto): Promise<User> {
     const { googleId, email, name } = googleUserDto;
 
-    const existingAuthProvider = await this.authProviderService.findByProviderAndProviderId(
-      AuthProviderType.GOOGLE,
-      googleId,
-    );
+    const existingAuthProvider = await this.userRepository.findByAuthProvider(AuthProviderType.GOOGLE, googleId);
 
     if (existingAuthProvider) {
-      const user = await this.findUserByIdUseCase.execute(existingAuthProvider.user_id);
-
-      if (!user) {
-        throw new InternalServerErrorException('User linked to Google AuthProvider not found');
-      }
-
-      return user;
+      return existingAuthProvider;
     }
 
-    const result = await this.dataSource.transaction(async manager => {
-      let user = await this.findUserByEmailUseCase.execute(email, { manager });
+    return this.dataSource.transaction(async manager => {
+      const user = await this.findUserByEmailUseCase.execute(email, { manager });
 
       if (user) {
-        await this.authProviderService.createAuthProvider(
+        user.addAuthProvider(randomUUID(), AuthProviderType.GOOGLE, googleId, null);
+
+        return this.userRepository.save(user, { manager });
+      }
+
+      const [firstName, ...rest] = name.split(' ');
+
+      return this.createUserUseCase.execute({
+        email,
+        firstName,
+        lastName: rest.join(' ') || '',
+        status: UserStatus.PENDING_PROFILE,
+        authProviders: [
           {
             provider: AuthProviderType.GOOGLE,
             providerUserId: googleId,
             passwordHash: null,
-            user_id: user.id,
           },
-          manager,
-        );
-
-        return user;
-      }
-
-      const nameParts = name.split(' ');
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(' ') || '';
-
-      user = await this.createUserUseCase.execute(
-        {
-          email,
-          firstName,
-          lastName,
-          status: UserStatus.PENDING_PROFILE,
-        },
-        {
-          manager,
-        },
-      );
-
-      await this.authProviderService.createAuthProvider(
-        {
-          provider: AuthProviderType.GOOGLE,
-          providerUserId: googleId,
-          user_id: user.id,
-          passwordHash: null,
-        },
-        manager,
-      );
-
-      return user;
+        ],
+      });
     });
-
-    return result;
   }
 
   async getActiveSessions(userId: string): Promise<ActiveSession[]> {
