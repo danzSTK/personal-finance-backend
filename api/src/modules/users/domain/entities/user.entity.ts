@@ -1,7 +1,11 @@
-import { UserStatus } from '../../../../common/models/enums';
+import { ConflictException } from '@nestjs/common';
+import { AuthProviderType, UserStatus } from '../../../../common/models/enums';
 import { Email } from '../value-objects/email.value-object';
+import { HashedPassword } from '../value-objects/hashed-password.value-object';
 import { UserName } from '../value-objects/user-name.value-object';
 import { AuthProvider } from './auth-provider.entity';
+import { CredentialsAuthProvider } from './credentials-auth-provider.entity';
+import { AuthProviderFactory } from '../factories/auth-provider.factory';
 
 export interface UserProps {
   userName: UserName | null;
@@ -9,9 +13,9 @@ export interface UserProps {
   lastName: string | null;
   email: Email;
   status: UserStatus;
+  authProviders: AuthProvider[];
   createdAt: Date;
   updatedAt: Date;
-  authProvider: AuthProvider[];
 }
 
 export class User {
@@ -40,6 +44,10 @@ export class User {
     return this.props.status;
   }
 
+  get authProviders(): ReadonlyArray<AuthProvider> {
+    return this.props.authProviders;
+  }
+
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -48,8 +56,45 @@ export class User {
     return this.props.updatedAt;
   }
 
-  get authProvider(): AuthProvider[] {
-    return this.props.authProvider;
+  hasAuthProvider(provider: AuthProviderType, providerUserId: string): boolean {
+    return this.props.authProviders.some(authProvider => authProvider.isSameProvider(provider, providerUserId));
+  }
+
+  getAuthProvider(provider: AuthProviderType, providerUserId: string): AuthProvider | null {
+    return this.props.authProviders.find(ap => ap.isSameProvider(provider, providerUserId)) ?? null;
+  }
+
+  getCredentialsAuthProvider(): CredentialsAuthProvider | null {
+    return (
+      (this.props.authProviders.find(ap => ap.provider === AuthProviderType.EMAIL) as CredentialsAuthProvider | null) ??
+      null
+    );
+  }
+
+  addAuthProvider(
+    id: string,
+    provider: AuthProviderType,
+    providerUserId: string,
+    passwordHash: HashedPassword | null,
+  ): void {
+    if (this.hasAuthProvider(provider, providerUserId)) {
+      throw new ConflictException(`Auth provider ${provider} with user id ${providerUserId} already exists`);
+    }
+
+    const authProvider = AuthProviderFactory.create(
+      {
+        provider,
+        providerUserId,
+        passwordHash,
+        userId: this.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      id,
+    );
+
+    this.props.authProviders.push(authProvider);
+    this.props.updatedAt = new Date();
   }
 
   static create(props: UserProps, id: string) {
