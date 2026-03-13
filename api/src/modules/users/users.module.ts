@@ -8,9 +8,10 @@ import { CreateUserUseCase } from './application/use-cases/create-user/create-us
 import { FindUserByIdUseCase } from './application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { FindUserByEmailUseCase } from './application/use-cases/find-by-user-email/find-user-by-email.use-case';
 import { FindUserByUserNameUseCase } from './application/use-cases/find-by-user-name/find-by-user-name.use-case';
+import { AuthProviderOrmEntity } from './infrastructure/persistence/auth-provider-orm.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserOrmEntity])],
+  imports: [TypeOrmModule.forFeature([UserOrmEntity, AuthProviderOrmEntity])],
   controllers: [UsersController],
   providers: [
     {
