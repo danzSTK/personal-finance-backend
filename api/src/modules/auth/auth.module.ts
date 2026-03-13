@@ -5,7 +5,6 @@ import { UsersModule } from '../users/users.module';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import jwtConfig from '../../config/jwt.config';
-import { AuthProviderModule } from '../auth-provider/auth-provider.module';
 import { CommonModule } from '../../common/common.module';
 import { PassportModule } from '@nestjs/passport';
 import { LocalStrategy } from './strategies/local.strategy';
@@ -15,7 +14,6 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 
 @Module({
   imports: [
-    UsersModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [jwtConfig.KEY],
@@ -31,7 +29,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
         },
       }),
     }),
-    AuthProviderModule,
+    UsersModule,
     CommonModule,
     PassportModule,
   ],
