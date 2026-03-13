@@ -9,6 +9,7 @@ import { UserMapper } from '../mappers/user.mapper';
 import { Injectable } from '@nestjs/common';
 import { Email } from '../../domain/value-objects/email.value-object';
 import { UserName } from '../../domain/value-objects/user-name.value-object';
+import { AuthProviderType } from '../../../../common/models/enums';
 
 @Injectable()
 export class UserRepository implements IUserRepository {
@@ -28,6 +29,7 @@ export class UserRepository implements IUserRepository {
         where: {
           id,
         },
+        relations: ['authProviders'],
       });
 
       if (!userOrm) {
@@ -43,11 +45,12 @@ export class UserRepository implements IUserRepository {
     if (cached) {
       return User.create(
         {
-          email: Email.create(cached.email.toString()),
+          email: Email.reconstitute(cached.email.toString()),
           userName: cached.userName ? UserName.create(cached.userName.toString()) : null,
           firstName: cached.firstName,
           lastName: cached.lastName,
           status: cached.status,
+          authProviders: [],
           createdAt: cached.createdAt,
           updatedAt: cached.updatedAt,
         },
@@ -93,6 +96,7 @@ export class UserRepository implements IUserRepository {
         where: {
           email: email.value,
         },
+        relations: ['authProviders'],
       });
 
       if (!userOrm) {
@@ -121,6 +125,7 @@ export class UserRepository implements IUserRepository {
       where: {
         email: email.value,
       },
+      relations: ['authProviders'],
     });
 
     if (!userOrm) {
@@ -158,6 +163,7 @@ export class UserRepository implements IUserRepository {
         where: {
           userName: userName.value,
         },
+        relations: ['authProviders'],
       });
 
       if (!userOrm) {
@@ -186,6 +192,7 @@ export class UserRepository implements IUserRepository {
       where: {
         userName: userName.value,
       },
+      relations: ['authProviders'],
     });
 
     if (!userOrm) {
@@ -214,6 +221,30 @@ export class UserRepository implements IUserRepository {
     return user;
   }
 
+  async findByAuthProvider(
+    provider: AuthProviderType,
+    providerUserId: string,
+    options?: IRepositoryOptions,
+  ): Promise<User | null> {
+    const repository = options?.manager ? options.manager.getRepository(UserOrmEntity) : this.userRepository;
+
+    const useOrm = await repository.findOne({
+      where: {
+        authProviders: {
+          provider,
+          providerUserId,
+        },
+      },
+      relations: ['authProviders'],
+    });
+
+    if (!useOrm) {
+      return null;
+    }
+
+    return UserMapper.toDomain(useOrm);
+  }
+
   async save(user: User, options?: IRepositoryOptions): Promise<User> {
     const repo = options?.manager ? options.manager.getRepository(UserOrmEntity) : this.userRepository;
 
@@ -235,6 +266,11 @@ export class UserRepository implements IUserRepository {
       saved.userName ? this.redis.del(CacheKeys.users.byUserNameIndex(saved.userName)) : Promise.resolve(),
     ]);
 
-    return UserMapper.toDomain(saved as UserOrmEntity);
+    const savedFresh = await repo.findOne({
+      where: { id: saved.id },
+      relations: ['authProviders'],
+    });
+
+    return UserMapper.toDomain(savedFresh as UserOrmEntity);
   }
 }
