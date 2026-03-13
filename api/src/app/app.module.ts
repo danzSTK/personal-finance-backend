@@ -8,7 +8,6 @@ import { ENTITIES } from '@/config/entities';
 import { UsersModule } from '@/modules/users/users.module';
 import databaseConfig from '../config/database.config';
 import { AuthModule } from '@/modules/auth/auth.module';
-import { AuthProviderModule } from '@/modules/auth-provider/auth-provider.module';
 import { CommonModule } from '@/common/common.module';
 import { RedisModule } from '@/database/redis/redis.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -54,7 +53,6 @@ import { HealthModule } from '../modules/health/health.module';
     RedisModule,
     UsersModule,
     AuthModule,
-    AuthProviderModule,
     CommonModule,
     SessionModule,
     HealthModule,
