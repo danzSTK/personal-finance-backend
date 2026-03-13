@@ -1,7 +1,9 @@
 import { User } from '../../domain/entities/user.entity';
 import { Email } from '../../domain/value-objects/email.value-object';
 import { UserName } from '../../domain/value-objects/user-name.value-object';
+import { AuthProviderOrmEntity } from '../persistence/auth-provider-orm.entity';
 import { UserOrmEntity } from '../persistence/user-orm-entity';
+import { AuthProviderMapper } from './auth-provider.mapper';
 
 export class UserMapper {
   // ORM -> Domain (Usado no repository ao buscar do banco)
@@ -13,6 +15,7 @@ export class UserMapper {
         firstName: entity.firstName,
         lastName: entity.lastName,
         status: entity.status,
+        authProviders: entity.authProviders?.map(ap => AuthProviderMapper.toDomain(ap)) ?? [],
         createdAt: entity.created_at,
         updatedAt: entity.updated_at,
       },
@@ -30,6 +33,7 @@ export class UserMapper {
       status: user.status,
       created_at: user.createdAt,
       updated_at: user.updatedAt,
+      authProviders: user.authProviders.map(ap => AuthProviderMapper.toOrm(ap, user.id)) as AuthProviderOrmEntity[],
     };
   }
 }
