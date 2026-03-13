@@ -24,21 +24,25 @@ export abstract class AuthProvider {
     return this.props.provider === provider && this.props.providerUserId === providerUserId;
   }
 
-  get provider() {
+  get provider(): AuthProviderType {
     return this.props.provider;
   }
 
-  get providerUserId() {
+  get providerUserId(): string {
     return this.props.providerUserId;
   }
 
-  get userId() {
+  get passwordHash(): HashedPassword | null {
+    return this.props.passwordHash;
+  }
+
+  get userId(): string {
     return this.props.userId;
   }
-  get createdAt() {
+  get createdAt(): Date {
     return this.props.createdAt;
   }
-  get updatedAt() {
+  get updatedAt(): Date {
     return this.props.updatedAt;
   }
 }
