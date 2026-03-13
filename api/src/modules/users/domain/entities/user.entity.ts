@@ -1,6 +1,7 @@
 import { UserStatus } from '../../../../common/models/enums';
 import { Email } from '../value-objects/email.value-object';
 import { UserName } from '../value-objects/user-name.value-object';
+import { AuthProvider } from './auth-provider.entity';
 
 export interface UserProps {
   userName: UserName | null;
@@ -10,6 +11,7 @@ export interface UserProps {
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;
+  authProvider: AuthProvider[];
 }
 
 export class User {
@@ -46,7 +48,24 @@ export class User {
     return this.props.updatedAt;
   }
 
+  get authProvider(): AuthProvider[] {
+    return this.props.authProvider;
+  }
+
   static create(props: UserProps, id: string) {
     return new User(props, id);
+  }
+
+  get jsonObject() {
+    return {
+      id: this.id,
+      userName: this.userName?.value,
+      firstName: this.firstName,
+      lastName: this.lastName,
+      email: this.email.value,
+      status: this.status,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }
