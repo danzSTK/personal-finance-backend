@@ -5,6 +5,9 @@ import { Email } from '../../../domain/value-objects/email.value-object';
 import { UserName } from '../../../domain/value-objects/user-name.value-object';
 import { User } from '../../../domain/entities/user.entity';
 import { UserStatus } from '../../../../../common/models/enums';
+import { AuthProvider } from '../../../domain/entities/auth-provider.entity';
+import { HashedPassword } from '../../../domain/value-objects/hashed-password.value-object';
+import { AuthProviderFactory } from '../../../domain/factories/auth-provider.factory';
 
 @Injectable()
 export class CreateUserUseCase {
@@ -31,6 +34,23 @@ export class CreateUserUseCase {
       }
     }
 
+    const userId = crypto.randomUUID();
+    const authProviders: AuthProvider[] = (data.authProviders ?? []).map(ap => {
+      const passwordHash = ap.passwordHash ? HashedPassword.createFromHash(ap.passwordHash) : null;
+
+      return AuthProviderFactory.create(
+        {
+          provider: ap.provider,
+          providerUserId: ap.providerUserId,
+          passwordHash,
+          userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        crypto.randomUUID(),
+      );
+    });
+
     const user = User.create(
       {
         email,
@@ -38,6 +58,7 @@ export class CreateUserUseCase {
         firstName: data.firstName ?? null,
         lastName: data.lastName ?? null,
         status: data.status ?? UserStatus.PENDING_PROFILE,
+        authProviders,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
