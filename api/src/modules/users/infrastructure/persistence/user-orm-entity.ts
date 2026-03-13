@@ -13,7 +13,7 @@ import { UserStatus } from '../../../../common/models/enums';
 import { Account } from '../../../../entities/account.entity';
 import { Category } from '../../../../entities/category.entity';
 import { Transaction } from '../../../../entities/transaction.entity';
-import { AuthProvider } from '../../../auth/entities/auth-provider.entity';
+import { AuthProviderOrmEntity } from './auth-provider-orm.entity';
 
 @Entity('users')
 @Index('idx_users_status', ['status'])
@@ -77,6 +77,6 @@ export class UserOrmEntity {
   @OneToMany(() => Transaction, transaction => transaction.user)
   transactions: Transaction[];
 
-  @OneToMany(() => AuthProvider, authProvider => authProvider.user)
-  authProviders: AuthProvider[];
+  @OneToMany(() => AuthProviderOrmEntity, authProvider => authProvider.user, { cascade: ['insert', 'update'] })
+  authProviders: AuthProviderOrmEntity[];
 }
