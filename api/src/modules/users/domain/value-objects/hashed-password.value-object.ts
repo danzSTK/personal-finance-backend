@@ -15,6 +15,10 @@ export class HashedPassword {
     return new HashedPassword(hashedPassword);
   }
 
+  static reconstitute(hashedPassword: string): HashedPassword {
+    return new HashedPassword(hashedPassword);
+  }
+
   get value(): string {
     return this._value;
   }

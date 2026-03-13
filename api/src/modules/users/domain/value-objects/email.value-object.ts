@@ -26,6 +26,10 @@ export class Email {
     return new Email(normalized);
   }
 
+  static reconstitute(email: string): Email {
+    return new Email(email);
+  }
+
   get value(): string {
     return this._value;
   }
