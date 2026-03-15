@@ -62,7 +62,7 @@ export class CreateUserUseCase {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      crypto.randomUUID(),
+      userId,
     );
 
     return this.userRepository.save(user, options);
