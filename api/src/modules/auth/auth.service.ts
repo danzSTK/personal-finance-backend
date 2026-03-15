@@ -171,7 +171,7 @@ export class AuthService {
         }
 
         user.addAuthProvider(
-          crypto.randomUUID(),
+          randomUUID(),
           AuthProviderType.EMAIL,
           data.email,
           HashedPassword.createFromHash(passwordHash),
