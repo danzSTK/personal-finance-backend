@@ -1,14 +1,12 @@
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { CreateUserUseCase } from '../../application/use-cases/create-user/create-user.use-case';
-import { FindUserByUserNameUseCase } from '../../application/use-cases/find-by-user-name/find-by-user-name.use-case';
 import { FindUserByIdUseCase } from '../../application/use-cases/find-user-by-id/find-user-by-id.use-case';
 
 @Controller('users')
 export class UsersController {
   constructor(
     private readonly createUserUseCase: CreateUserUseCase,
-    private readonly findByUserNameUseCase: FindUserByUserNameUseCase,
     private readonly findByUserIdUseCase: FindUserByIdUseCase,
   ) {}
 
