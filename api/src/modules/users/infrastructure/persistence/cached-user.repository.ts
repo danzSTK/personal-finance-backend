@@ -42,7 +42,7 @@ export class CachedUserRepository implements IUserRepository {
   private readonly cacheTtl = 1000 * 60 * 5;
   async findById(id: string, options?: IRepositoryOptions): Promise<User | null> {
     if (options?.manager) {
-      return this.userRepository.findById(id);
+      return this.userRepository.findById(id, { manager: options.manager });
     }
 
     const cacheKey = CacheKeys.users.byId(id);
@@ -65,7 +65,7 @@ export class CachedUserRepository implements IUserRepository {
 
   async findByEmail(email: Email, options?: IRepositoryOptions): Promise<User | null> {
     if (options?.manager) {
-      return this.userRepository.findByEmail(email);
+      return this.userRepository.findByEmail(email, { manager: options.manager });
     }
 
     const cacheKey = CacheKeys.users.byEmailIndex(email.value);
@@ -99,7 +99,7 @@ export class CachedUserRepository implements IUserRepository {
 
   async findByUserName(userName: UserName, options?: IRepositoryOptions): Promise<User | null> {
     if (options?.manager) {
-      return this.userRepository.findByUserName(userName);
+      return this.userRepository.findByUserName(userName, { manager: options.manager });
     }
 
     const cacheKey = CacheKeys.users.byUserNameIndex(userName.value);
