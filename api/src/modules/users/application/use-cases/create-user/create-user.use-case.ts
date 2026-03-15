@@ -8,6 +8,7 @@ import { UserStatus } from '../../../../../common/models/enums';
 import { AuthProvider } from '../../../domain/entities/auth-provider.entity';
 import { HashedPassword } from '../../../domain/value-objects/hashed-password.value-object';
 import { AuthProviderFactory } from '../../../domain/factories/auth-provider.factory';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class CreateUserUseCase {
@@ -34,7 +35,7 @@ export class CreateUserUseCase {
       }
     }
 
-    const userId = crypto.randomUUID();
+    const userId = randomUUID();
     const authProviders: AuthProvider[] = (data.authProviders ?? []).map(ap => {
       const passwordHash = ap.passwordHash ? HashedPassword.createFromHash(ap.passwordHash) : null;
 
@@ -47,7 +48,7 @@ export class CreateUserUseCase {
           createdAt: new Date(),
           updatedAt: new Date(),
         },
-        crypto.randomUUID(),
+        randomUUID(),
       );
     });
 
