@@ -9,6 +9,7 @@ import { FindUserByEmailUseCase } from './application/use-cases/find-by-user-ema
 import { FindUserByUserNameUseCase } from './application/use-cases/find-by-user-name/find-by-user-name.use-case';
 import { AuthProviderOrmEntity } from './infrastructure/persistence/auth-provider-orm.entity';
 import { CachedUserRepository } from './infrastructure/persistence/cached-user.repository';
+import { UserRepository } from './infrastructure/persistence/user.repository';
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserOrmEntity, AuthProviderOrmEntity])],
@@ -18,6 +19,7 @@ import { CachedUserRepository } from './infrastructure/persistence/cached-user.r
       provide: IUserRepository,
       useClass: CachedUserRepository,
     },
+    UserRepository,
     CreateUserUseCase,
     FindUserByIdUseCase,
     FindUserByEmailUseCase,
