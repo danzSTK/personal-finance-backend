@@ -1,9 +1,5 @@
 When performing a code review, respond in Português.
 
-
-When performing a code review, respond in Português.
-
-
 # Instruções de Revisão de Código — Sistema de Finanças Pessoais
 # Lead Developer Mode | NestJS + DDD + SOLID + GoF
 
