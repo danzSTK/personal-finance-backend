@@ -248,19 +248,22 @@ export class AuthService {
 
       const [firstName, ...rest] = name.split(' ');
 
-      return this.createUserUseCase.execute({
-        email,
-        firstName,
-        lastName: rest.join(' ') || '',
-        status: UserStatus.PENDING_PROFILE,
-        authProviders: [
-          {
-            provider: AuthProviderType.GOOGLE,
-            providerUserId: googleId,
-            passwordHash: null,
-          },
-        ],
-      });
+      return this.createUserUseCase.execute(
+        {
+          email,
+          firstName,
+          lastName: rest.join(' ') || '',
+          status: UserStatus.PENDING_PROFILE,
+          authProviders: [
+            {
+              provider: AuthProviderType.GOOGLE,
+              providerUserId: googleId,
+              passwordHash: null,
+            },
+          ],
+        },
+        { manager },
+      );
     });
   }
 
