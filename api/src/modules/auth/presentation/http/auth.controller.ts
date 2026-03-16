@@ -14,19 +14,9 @@ import {
   UnauthorizedException,
   Inject,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../users/domain/entities/user.entity';
-import { LocalAuthGuard } from './guards/local-auth.guard';
-import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { type Response } from 'express';
-import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
-import { JwtService } from '@nestjs/jwt';
-import { JwtPayloadDto } from './dto/jwt-payload.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { type SessionMetadata } from '@/common/models/interfaces';
-import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
+import { type ConfigType } from '@nestjs/config';
+import ms, { StringValue } from 'ms';
 import {
   ApiTags,
   ApiOperation,
@@ -36,22 +26,39 @@ import {
   ApiParam,
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
-import { LoginEmailDto } from './dto/login-email.dto';
-import jwtConfig from '../../config/jwt.config';
-import { type ConfigType } from '@nestjs/config';
-import ms, { StringValue } from 'ms';
-import { AUTH_CONSTANTS } from '@/common/models/constants';
-import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 import { Throttle } from '@nestjs/throttler';
-import appConfig from '../../config/app.config';
-import { type RefreshStrategyResponse } from './interfaces/refresh-strategy-response.interface';
+import jwtConfig from '../../../../config/jwt.config';
+import appConfig from '../../../../config/app.config';
+import { AUTH_CONSTANTS } from '@/common/models/constants';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
+import { type SessionMetadata } from '@/common/models/interfaces';
+import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
+import { User } from '../../../users/domain/entities/user.entity';
+import { SignUpUseCase } from '../../application/use-cases/sign-up/sign-up.use-case';
+import { SignInUseCase } from '../../application/use-cases/sign-in/sign-in.use-case';
+import { LogoutUseCase } from '../../application/use-cases/logout/logout.use-case';
+import { RefreshTokensUseCase } from '../../application/use-cases/refresh-tokens/refresh-tokens.use-case';
+import { GetActiveSessionsUseCase } from '../../application/use-cases/get-active-sessions/get-active-sessions.use-case';
+import { RevokeSessionUseCase } from '../../application/use-cases/revoke-session/revoke-session.use-case';
+import { LocalAuthGuard } from '../../infrastructure/guards/local-auth.guard';
+import { GoogleAuthGuard } from '../../infrastructure/guards/google-auth.guard';
+import { JwtRefreshGuard } from '../../infrastructure/guards/jwt-refresh.guard';
+import { JwtAuthGuard } from '../../infrastructure/guards/jwt-auth.guard';
+import { type RefreshStrategyResponse } from '../../infrastructure/strategies/refresh-strategy-response.interface';
+import { RegisterDto } from '../dto/register.dto';
+import { LoginEmailDto } from '../dto/login-email.dto';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly authService: AuthService,
-    private readonly jwtService: JwtService,
+    private readonly signUpUseCase: SignUpUseCase,
+    private readonly signInUseCase: SignInUseCase,
+    private readonly logoutUseCase: LogoutUseCase,
+    private readonly refreshTokensUseCase: RefreshTokensUseCase,
+    private readonly getActiveSessionsUseCase: GetActiveSessionsUseCase,
+    private readonly revokeSessionUseCase: RevokeSessionUseCase,
 
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
@@ -86,7 +93,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
   getMe(@CurrentUser() user: User) {
-    const clearPayloadReturn = {
+    return {
       id: user.id,
       lastName: user.lastName,
       firstName: user.firstName,
@@ -96,8 +103,6 @@ export class AuthController {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
-
-    return clearPayloadReturn;
   }
 
   @Throttle({
@@ -138,9 +143,17 @@ export class AuthController {
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.authService.signUp(signUpDto, sessionInfo);
+    const tokens = await this.signUpUseCase.execute({
+      email: signUpDto.email,
+      password: signUpDto.password,
+      firstName: signUpDto.firstName,
+      lastName: signUpDto.lastName,
+      userName: signUpDto.userName,
+      sessionMetadata: sessionInfo,
+    });
 
     this.setRefreshTokenCookie(res, tokens.refreshToken);
+
     return { accessToken: tokens.accessToken };
   }
 
@@ -181,12 +194,14 @@ export class AuthController {
   async signIn(
     @CurrentUser() user: User,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
-    @Res({
-      passthrough: true,
-    })
-    res: Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.authService.signIn(user, sessionInfo);
+    const tokens = await this.signInUseCase.execute({
+      userId: user.id,
+      email: user.email.value,
+      status: user.status,
+      sessionMetadata: sessionInfo,
+    });
 
     this.setRefreshTokenCookie(res, tokens.refreshToken);
 
@@ -212,7 +227,6 @@ export class AuthController {
   })
   async googleAuth() {
     // Guard redireciona automaticamente
-    // Não precisa implementar nada aqui
   }
 
   /**
@@ -233,12 +247,15 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
   ) {
-    // Gerar tokens JWT
-    const tokens = await this.authService.signIn(user, sessionInfo);
+    const tokens = await this.signInUseCase.execute({
+      userId: user.id,
+      email: user.email.value,
+      status: user.status,
+      sessionMetadata: sessionInfo,
+    });
 
     this.setRefreshTokenCookie(res, tokens.refreshToken);
 
-    // Redirecionar para frontend com tokens
     const frontendUrl = this.appConfiguration.frontendUrl;
     const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}`;
 
@@ -273,7 +290,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
   async getSessions(@CurrentUser() user: User) {
-    return this.authService.getActiveSessions(user.id);
+    return this.getActiveSessionsUseCase.execute(user.id);
   }
 
   @Delete('sessions/:jti')
@@ -293,7 +310,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
   @ApiResponse({ status: 404, description: 'Sessão não encontrada' })
   async revokeSession(@CurrentUser() user: User, @Param('jti') jti: string) {
-    await this.authService.revokeSession(user.id, jti);
+    await this.revokeSessionUseCase.execute({ userId: user.id, jti });
   }
 
   @Throttle({
@@ -329,16 +346,13 @@ export class AuthController {
   async refresh(
     @CurrentUser() refreshStrategyResponse: RefreshStrategyResponse,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
-    @Res({
-      passthrough: true,
-    })
-    res: Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.authService.rotateTokens(
-      refreshStrategyResponse.id,
-      refreshStrategyResponse.oldRefreshTokenJti,
-      sessionInfo,
-    );
+    const tokens = await this.refreshTokensUseCase.execute({
+      userId: refreshStrategyResponse.id,
+      oldJti: refreshStrategyResponse.oldRefreshTokenJti,
+      sessionMetadata: sessionInfo,
+    });
 
     this.setRefreshTokenCookie(res, tokens.refreshToken);
 
@@ -368,36 +382,21 @@ export class AuthController {
     @CurrentUser() user: User,
     @Headers('Authorization') authHeader: string,
     @Req() req: AuthRequest,
-    @Res({
-      passthrough: true,
-    })
-    res: Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const accessToken = authHeader.replace('Bearer ', '');
-
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken || typeof refreshToken !== 'string') {
-      console.warn('[AuthController, logout] Refresh token not found');
       this.clearRefreshTokenCookie(res);
       throw new UnauthorizedException('Refresh token not found');
     }
 
-    const rtPayload = this.jwtService.decode<JwtPayloadDto>(refreshToken);
-
-    if (!rtPayload || !rtPayload.jti) {
-      console.warn('[AuthController, logout] Refresh token invalid or expired or not found');
-      this.clearRefreshTokenCookie(res);
-      throw new UnauthorizedException('Refresh token invalid or expired or not found');
-    }
-
-    await this.authService.logout(user.id, accessToken, rtPayload.jti);
+    await this.logoutUseCase.execute({ userId: user.id, accessToken, refreshToken });
 
     this.clearRefreshTokenCookie(res);
 
-    return {
-      message: 'Logged out successfully',
-    };
+    return { message: 'Logged out successfully' };
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {

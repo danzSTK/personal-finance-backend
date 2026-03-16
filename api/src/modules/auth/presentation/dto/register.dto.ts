@@ -1,5 +1,5 @@
 import { IsEmail, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
-import { TrimAndLowerCase } from '../../../common/decorators/normalize-string.decorator';
+import { TrimAndLowerCase } from '../../../../common/decorators/normalize-string.decorator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {

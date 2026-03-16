@@ -1,5 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
-import { TrimAndLowerCase } from '../../../common/decorators/normalize-string.decorator';
+import { TrimAndLowerCase } from '../../../../common/decorators/normalize-string.decorator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginEmailDto {

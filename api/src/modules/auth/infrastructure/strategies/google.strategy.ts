@@ -1,16 +1,16 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
-import googleOauthConfig from '../../../config/google-oauth.config';
 import { type ConfigType } from '@nestjs/config';
-import { AuthService } from '../auth.service';
+import googleOauthConfig from '../../../../config/google-oauth.config';
+import { OAuthCallbackUseCase } from '../../application/use-cases/oauth-callback/oauth-callback.use-case';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
     @Inject(googleOauthConfig.KEY)
     private readonly googleOauthConfiguration: ConfigType<typeof googleOauthConfig>,
-    private readonly authService: AuthService,
+    private readonly oauthCallbackUseCase: OAuthCallbackUseCase,
   ) {
     super({
       clientID: googleOauthConfiguration.clientID,
@@ -19,6 +19,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       scope: ['email', 'profile'],
     });
   }
+
   /**
    * 🧠 FLUXO:
    * 1. Usuário autoriza no Google
@@ -28,8 +29,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
    * 5. validate() é chamado com os dados
    * 6. Retorno é anexado em req.user
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async validate(accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback): Promise<any> {
+  async validate(accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback): Promise<void> {
     try {
       const { id, emails, displayName } = profile;
 
@@ -39,7 +39,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         return done(new UnauthorizedException('Google account must have a verified email address'), false);
       }
 
-      const user = await this.authService.validateOrCreateGoogleUser({
+      const user = await this.oauthCallbackUseCase.execute({
         googleId: id,
         email,
         name: displayName,

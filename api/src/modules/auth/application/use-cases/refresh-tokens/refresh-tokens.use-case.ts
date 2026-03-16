@@ -1,0 +1,37 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
+import { GenerateTokenUseCase } from '../generate-token/generate-token.use-case';
+import { type GenerateTokenResult } from '../generate-token/generate-token.dto';
+import { type RefreshTokensUseCaseDto } from './refresh-tokens.dto';
+
+@Injectable()
+export class RefreshTokensUseCase {
+  constructor(
+    private readonly findUserByIdUseCase: FindUserByIdUseCase,
+    private readonly sessionRepository: ISessionRepository,
+    private readonly generateTokenUseCase: GenerateTokenUseCase,
+  ) {}
+
+  async execute(data: RefreshTokensUseCaseDto): Promise<GenerateTokenResult> {
+    const { userId, oldJti, sessionMetadata } = data;
+
+    const user = await this.findUserByIdUseCase.execute(userId);
+
+    const storedSession = await this.sessionRepository.getSession(userId, oldJti);
+
+    if (!storedSession) {
+      await this.sessionRepository.revokeAllSessions(userId);
+      throw new UnauthorizedException('Potential session hijacking');
+    }
+
+    await this.sessionRepository.revokeSession(userId, oldJti);
+
+    return this.generateTokenUseCase.execute({
+      userId: user.id,
+      email: user.email.value,
+      status: user.status,
+      sessionMetadata,
+    });
+  }
+}
