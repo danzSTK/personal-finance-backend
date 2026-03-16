@@ -30,13 +30,17 @@ export class SignUpUseCase {
     const passwordHash = await this.hashService.hash(data.password);
 
     const result = await this.dataSource.transaction(async manager => {
+      const existingEmailProvider = await this.userRepository.findByAuthProvider(AuthProviderType.EMAIL, data.email, {
+        manager,
+      });
+
+      if (existingEmailProvider) {
+        throw new ConflictException('Email already registered');
+      }
+
       const user = await this.findUserByEmailUseCase.execute(data.email, { manager });
 
       if (user) {
-        if (user.hasAuthProvider(AuthProviderType.EMAIL, data.email)) {
-          throw new ConflictException('Email already registered');
-        }
-
         user.addAuthProvider(
           randomUUID(),
           AuthProviderType.EMAIL,
