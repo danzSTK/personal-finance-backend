@@ -1,21 +1,19 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import jwtConfig from '../../../config/jwt.config';
-import type { ConfigType } from '@nestjs/config';
-import { JwtPayloadDto } from '../dto/jwt-payload.dto';
-import { UserStatus } from '../../../common/models/enums/user-status.enum';
-
-import { User } from '../../users/domain/entities/user.entity';
-import { CacheKeys } from '../../../common/utils/cache-keys.factory';
-import { RedisService } from '../../../database/redis/redis.service';
-import { FindUserByIdUseCase } from '../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { type ConfigType } from '@nestjs/config';
+import jwtConfig from '../../../../config/jwt.config';
+import { UserStatus } from '../../../../common/models/enums/user-status.enum';
+import { User } from '../../../users/domain/entities/user.entity';
+import { FindUserByIdUseCase } from '../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { ISessionRepository } from '../../domain/repositories/session.repository.interface';
+import { type JwtPayloadDto } from '../../presentation/dto/jwt-payload.dto';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly findUserByIdUseCase: FindUserByIdUseCase,
-    private readonly redisService: RedisService,
+    private readonly sessionRepository: ISessionRepository,
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
   ) {
@@ -28,9 +26,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayloadDto): Promise<User> {
-    const isBlackListed = await this.redisService.exists(CacheKeys.auth.blackList(payload.jti));
+    if (!payload.jti) {
+      throw new UnauthorizedException('Token identifier (jti) missing');
+    }
 
-    if (isBlackListed) {
+    const isBlacklisted = await this.sessionRepository.isAccessTokenBlacklisted(payload.jti);
+
+    if (isBlacklisted) {
       throw new UnauthorizedException('Token has been revoked');
     }
 

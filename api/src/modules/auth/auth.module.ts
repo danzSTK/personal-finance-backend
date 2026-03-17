@@ -1,16 +1,36 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { UsersModule } from '../users/users.module';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigType } from '@nestjs/config';
-import jwtConfig from '../../config/jwt.config';
-import { CommonModule } from '../../common/common.module';
 import { PassportModule } from '@nestjs/passport';
-import { LocalStrategy } from './strategies/local.strategy';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { GoogleStrategy } from './strategies/google-strategy';
-import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import jwtConfig from '../../config/jwt.config';
+import { UsersModule } from '../users/users.module';
+import { CommonModule } from '../../common/common.module';
+
+// Domain
+import { ISessionRepository } from './domain/repositories/session.repository.interface';
+
+// Application — Use Cases
+import { GenerateTokenUseCase } from './application/use-cases/generate-token/generate-token.use-case';
+import { SignUpUseCase } from './application/use-cases/sign-up/sign-up.use-case';
+import { SignInUseCase } from './application/use-cases/sign-in/sign-in.use-case';
+import { LogoutUseCase } from './application/use-cases/logout/logout.use-case';
+import { RefreshTokensUseCase } from './application/use-cases/refresh-tokens/refresh-tokens.use-case';
+import { GetActiveSessionsUseCase } from './application/use-cases/get-active-sessions/get-active-sessions.use-case';
+import { RevokeSessionUseCase } from './application/use-cases/revoke-session/revoke-session.use-case';
+import { ValidateCredentialsUseCase } from './application/use-cases/validate-credentials/validate-credentials.use-case';
+import { OAuthCallbackUseCase } from './application/use-cases/oauth-callback/oauth-callback.use-case';
+
+// Infrastructure — Persistence
+import { RedisSessionRepository } from './infrastructure/persistence/redis-session.repository';
+
+// Infrastructure — Strategies
+import { LocalStrategy } from './infrastructure/strategies/local.strategy';
+import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
+import { JwtRefreshStrategy } from './infrastructure/strategies/jwt-refresh.strategy';
+import { GoogleStrategy } from './infrastructure/strategies/google.strategy';
+
+// Presentation
+import { AuthController } from './presentation/http/auth.controller';
 
 @Module({
   imports: [
@@ -34,7 +54,30 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
     PassportModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, GoogleStrategy, JwtRefreshStrategy],
-  exports: [AuthService],
+  providers: [
+    // Repository binding
+    {
+      provide: ISessionRepository,
+      useClass: RedisSessionRepository,
+    },
+
+    // Use Cases
+    GenerateTokenUseCase,
+    SignUpUseCase,
+    SignInUseCase,
+    LogoutUseCase,
+    RefreshTokensUseCase,
+    GetActiveSessionsUseCase,
+    RevokeSessionUseCase,
+    ValidateCredentialsUseCase,
+    OAuthCallbackUseCase,
+
+    // Strategies
+    LocalStrategy,
+    JwtStrategy,
+    JwtRefreshStrategy,
+    GoogleStrategy,
+  ],
+  exports: [ISessionRepository],
 })
 export class AuthModule {}
