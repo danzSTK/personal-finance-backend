@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource, EntityManager } from 'typeorm';
 import { LinkEmailProviderUseCase } from './link-email-provider.use-case';
 import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
-import { IHashService } from '../../../../../common/models/interfaces';
+import { IHashService, SessionMetadata } from '../../../../../common/models/interfaces';
 import { AuthProviderType } from '../../../../../common/models/enums';
 import { User } from '../../../../users/domain/entities/user.entity';
 import { Email } from '../../../../users/domain/value-objects/email.value-object';
@@ -15,7 +15,16 @@ describe('LinkEmailProviderUseCase', () => {
   let findUserByIdUseCase: FindUserByIdUseCase;
   let userRepository: IUserRepository;
   let hashService: IHashService;
-  let dataSource: DataSource;
+
+  const defaultSessionMetadata: SessionMetadata = {
+    browser: 'Chrome',
+    os: 'Linux',
+    device: 'Desktop',
+    ip: '127.0.0.1',
+    location: 'Local',
+    loginAt: new Date().toISOString(),
+  };
+  const addAuthProviderMock = jest.fn();
 
   const mockUser = {
     id: 'user-id',
@@ -27,12 +36,15 @@ describe('LinkEmailProviderUseCase', () => {
     authProviders: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-    addAuthProvider: jest.fn(),
+    addAuthProvider: addAuthProviderMock,
   } as unknown as User;
 
   beforeEach(async () => {
     const mockDataSource = {
-      transaction: jest.fn((callback) => callback({ getRepository: jest.fn() })),
+      transaction: jest.fn(
+        async (callback: (manager: EntityManager) => Promise<unknown>): Promise<unknown> =>
+          callback({} as EntityManager),
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -44,6 +56,7 @@ describe('LinkEmailProviderUseCase', () => {
             execute: jest.fn(),
           },
         },
+
         {
           provide: IUserRepository,
           useValue: {
@@ -68,7 +81,6 @@ describe('LinkEmailProviderUseCase', () => {
     findUserByIdUseCase = module.get<FindUserByIdUseCase>(FindUserByIdUseCase);
     userRepository = module.get<IUserRepository>(IUserRepository);
     hashService = module.get<IHashService>(IHashService);
-    dataSource = module.get<DataSource>(DataSource);
   });
 
   describe('execute', () => {
@@ -77,25 +89,25 @@ describe('LinkEmailProviderUseCase', () => {
         userId: 'user-id',
         email: 'newemail@example.com',
         password: 'password123',
-        sessionMetadata: {} as any,
+        sessionMetadata: defaultSessionMetadata,
       };
 
-      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password' as any);
-      jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
-      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(mockUser);
-      jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser);
+      const hashSpy = jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password');
+      const findByAuthProviderSpy = jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
+      const findUserByIdSpy = jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(mockUser);
+      const saveSpy = jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser);
 
       await useCase.execute(dto);
 
-      expect(hashService.hash).toHaveBeenCalledWith('password123');
-      expect(userRepository.findByAuthProvider).toHaveBeenCalledWith(
+      expect(hashSpy).toHaveBeenCalledWith('password123');
+      expect(findByAuthProviderSpy).toHaveBeenCalledWith(
         AuthProviderType.EMAIL,
         'newemail@example.com',
         expect.any(Object),
       );
-      expect(findUserByIdUseCase.execute).toHaveBeenCalledWith('user-id', expect.any(Object));
-      expect(mockUser.addAuthProvider).toHaveBeenCalled();
-      expect(userRepository.save).toHaveBeenCalledWith(mockUser, expect.any(Object));
+      expect(findUserByIdSpy).toHaveBeenCalledWith('user-id', expect.any(Object));
+      expect(addAuthProviderMock).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalledWith(mockUser, expect.any(Object));
     });
 
     it('deve lançar ConflictException se o email já estiver registrado', async () => {
@@ -103,12 +115,12 @@ describe('LinkEmailProviderUseCase', () => {
         userId: 'user-id',
         email: 'existing@example.com',
         password: 'password123',
-        sessionMetadata: {} as any,
+        sessionMetadata: defaultSessionMetadata,
       };
 
       const existingUser = { ...mockUser, id: 'other-user-id' } as User;
 
-      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password' as any);
+      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password');
       jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(existingUser);
 
       await expect(useCase.execute(dto)).rejects.toThrow(ConflictException);
@@ -120,7 +132,7 @@ describe('LinkEmailProviderUseCase', () => {
         userId: 'user-id',
         email: 'newemail@example.com',
         password: 'password123',
-        sessionMetadata: {} as any,
+        sessionMetadata: defaultSessionMetadata,
       };
 
       const userWithEmailProvider = {
@@ -128,7 +140,7 @@ describe('LinkEmailProviderUseCase', () => {
         authProviders: [{ provider: AuthProviderType.EMAIL }],
       } as unknown as User;
 
-      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password' as any);
+      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password');
       jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
       jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(userWithEmailProvider);
 
@@ -141,12 +153,12 @@ describe('LinkEmailProviderUseCase', () => {
         userId: 'non-existent-user',
         email: 'newemail@example.com',
         password: 'password123',
-        sessionMetadata: {} as any,
+        sessionMetadata: defaultSessionMetadata,
       };
 
-      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password' as any);
+      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password');
       jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
-      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(null as any);
+      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(null as unknown as User);
 
       await expect(useCase.execute(dto)).rejects.toThrow(ConflictException);
       await expect(useCase.execute(dto)).rejects.toThrow('User not found');

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { LinkGoogleProviderUseCase } from './link-google-provider.use-case';
 import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
@@ -13,7 +13,7 @@ describe('LinkGoogleProviderUseCase', () => {
   let useCase: LinkGoogleProviderUseCase;
   let findUserByIdUseCase: FindUserByIdUseCase;
   let userRepository: IUserRepository;
-  let dataSource: DataSource;
+  const addAuthProviderMock = jest.fn();
 
   const mockUser = {
     id: 'user-id',
@@ -25,12 +25,15 @@ describe('LinkGoogleProviderUseCase', () => {
     authProviders: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-    addAuthProvider: jest.fn(),
+    addAuthProvider: addAuthProviderMock,
   } as unknown as User;
 
   beforeEach(async () => {
     const mockDataSource = {
-      transaction: jest.fn((callback) => callback({ getRepository: jest.fn() })),
+      transaction: jest.fn(
+        async (callback: (manager: EntityManager) => Promise<unknown>): Promise<unknown> =>
+          callback({} as EntityManager),
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -59,7 +62,6 @@ describe('LinkGoogleProviderUseCase', () => {
     useCase = module.get<LinkGoogleProviderUseCase>(LinkGoogleProviderUseCase);
     findUserByIdUseCase = module.get<FindUserByIdUseCase>(FindUserByIdUseCase);
     userRepository = module.get<IUserRepository>(IUserRepository);
-    dataSource = module.get<DataSource>(DataSource);
   });
 
   describe('execute', () => {
@@ -69,20 +71,16 @@ describe('LinkGoogleProviderUseCase', () => {
         googleId: 'google-123',
       };
 
-      jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
-      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(mockUser);
-      jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser);
+      const findByAuthProviderSpy = jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
+      const findUserByIdSpy = jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(mockUser);
+      const saveSpy = jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser);
 
       await useCase.execute(dto);
 
-      expect(userRepository.findByAuthProvider).toHaveBeenCalledWith(
-        AuthProviderType.GOOGLE,
-        'google-123',
-        expect.any(Object),
-      );
-      expect(findUserByIdUseCase.execute).toHaveBeenCalledWith('user-id', expect.any(Object));
-      expect(mockUser.addAuthProvider).toHaveBeenCalled();
-      expect(userRepository.save).toHaveBeenCalledWith(mockUser, expect.any(Object));
+      expect(findByAuthProviderSpy).toHaveBeenCalledWith(AuthProviderType.GOOGLE, 'google-123', expect.any(Object));
+      expect(findUserByIdSpy).toHaveBeenCalledWith('user-id', expect.any(Object));
+      expect(addAuthProviderMock).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalledWith(mockUser, expect.any(Object));
     });
 
     it('deve lançar ConflictException se o googleId já estiver vinculado a outro usuário', async () => {
@@ -107,17 +105,15 @@ describe('LinkGoogleProviderUseCase', () => {
 
       const sameUser = { ...mockUser, id: 'user-id' } as User;
 
-      jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(sameUser);
-      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(mockUser);
-      jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser);
+      const findByAuthProviderSpy = jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(sameUser);
+      const findUserByIdSpy = jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(mockUser);
+      const saveSpy = jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser);
 
       await useCase.execute(dto);
 
-      expect(userRepository.findByAuthProvider).toHaveBeenCalledWith(
-        AuthProviderType.GOOGLE,
-        'google-123',
-        expect.any(Object),
-      );
+      expect(findByAuthProviderSpy).toHaveBeenCalledWith(AuthProviderType.GOOGLE, 'google-123', expect.any(Object));
+      expect(findUserByIdSpy).toHaveBeenCalledWith('user-id', expect.any(Object));
+      expect(saveSpy).toHaveBeenCalledWith(mockUser, expect.any(Object));
     });
 
     it('deve lançar ConflictException se o usuário já possui provider GOOGLE', async () => {
@@ -145,7 +141,7 @@ describe('LinkGoogleProviderUseCase', () => {
       };
 
       jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
-      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(null as any);
+      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(null as unknown as User);
 
       await expect(useCase.execute(dto)).rejects.toThrow(ConflictException);
       await expect(useCase.execute(dto)).rejects.toThrow('User not found');
