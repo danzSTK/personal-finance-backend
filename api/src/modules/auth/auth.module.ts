@@ -19,6 +19,8 @@ import { GetActiveSessionsUseCase } from './application/use-cases/get-active-ses
 import { RevokeSessionUseCase } from './application/use-cases/revoke-session/revoke-session.use-case';
 import { ValidateCredentialsUseCase } from './application/use-cases/validate-credentials/validate-credentials.use-case';
 import { OAuthCallbackUseCase } from './application/use-cases/oauth-callback/oauth-callback.use-case';
+import { LinkEmailProviderUseCase } from './application/use-cases/link-email-provider/link-email-provider.use-case';
+import { LinkGoogleProviderUseCase } from './application/use-cases/link-google-provider/link-google-provider.use-case';
 
 // Infrastructure — Persistence
 import { RedisSessionRepository } from './infrastructure/persistence/redis-session.repository';
@@ -28,6 +30,7 @@ import { LocalStrategy } from './infrastructure/strategies/local.strategy';
 import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './infrastructure/strategies/jwt-refresh.strategy';
 import { GoogleStrategy } from './infrastructure/strategies/google.strategy';
+import { GoogleLinkStrategy } from './infrastructure/strategies/google-link.strategy';
 
 // Presentation
 import { AuthController } from './presentation/http/auth.controller';
@@ -71,12 +74,15 @@ import { AuthController } from './presentation/http/auth.controller';
     RevokeSessionUseCase,
     ValidateCredentialsUseCase,
     OAuthCallbackUseCase,
+    LinkEmailProviderUseCase,
+    LinkGoogleProviderUseCase,
 
     // Strategies
     LocalStrategy,
     JwtStrategy,
     JwtRefreshStrategy,
     GoogleStrategy,
+    GoogleLinkStrategy,
   ],
   exports: [ISessionRepository],
 })

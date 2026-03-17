@@ -41,13 +41,19 @@ import { LogoutUseCase } from '../../application/use-cases/logout/logout.use-cas
 import { RefreshTokensUseCase } from '../../application/use-cases/refresh-tokens/refresh-tokens.use-case';
 import { GetActiveSessionsUseCase } from '../../application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { RevokeSessionUseCase } from '../../application/use-cases/revoke-session/revoke-session.use-case';
+import { LinkEmailProviderUseCase } from '../../application/use-cases/link-email-provider/link-email-provider.use-case';
+import { LinkGoogleProviderUseCase } from '../../application/use-cases/link-google-provider/link-google-provider.use-case';
 import { LocalAuthGuard } from '../../infrastructure/guards/local-auth.guard';
 import { GoogleAuthGuard } from '../../infrastructure/guards/google-auth.guard';
+import { GoogleLinkAuthGuard } from '../../infrastructure/guards/google-link-auth.guard';
 import { JwtRefreshGuard } from '../../infrastructure/guards/jwt-refresh.guard';
 import { JwtAuthGuard } from '../../infrastructure/guards/jwt-auth.guard';
 import { type RefreshStrategyResponse } from '../../infrastructure/strategies/refresh-strategy-response.interface';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
+import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
+import { RedisService } from '../../../../database/redis/redis.service';
+import { randomUUID } from 'node:crypto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -59,6 +65,9 @@ export class AuthController {
     private readonly refreshTokensUseCase: RefreshTokensUseCase,
     private readonly getActiveSessionsUseCase: GetActiveSessionsUseCase,
     private readonly revokeSessionUseCase: RevokeSessionUseCase,
+    private readonly linkEmailProviderUseCase: LinkEmailProviderUseCase,
+    private readonly linkGoogleProviderUseCase: LinkGoogleProviderUseCase,
+    private readonly redisService: RedisService,
 
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
@@ -397,6 +406,129 @@ export class AuthController {
     this.clearRefreshTokenCookie(res);
 
     return { message: 'Logged out successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('providers/link/email')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Vincular provider de email ao usuário autenticado',
+    description: 'Permite que um usuário autenticado adicione email/senha como método de login à sua conta.',
+  })
+  @ApiBody({ type: LinkEmailProviderDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Provider de email vinculado com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Email provider linked successfully' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
+  @ApiResponse({ status: 409, description: 'Usuário já possui provider de email ou email já cadastrado' })
+  async linkEmailProvider(
+    @CurrentUser() user: User,
+    @Body() linkEmailProviderDto: LinkEmailProviderDto,
+    @CurrentSessionInfo() sessionInfo: SessionMetadata,
+  ) {
+    await this.linkEmailProviderUseCase.execute({
+      userId: user.id,
+      email: linkEmailProviderDto.email,
+      password: linkEmailProviderDto.password,
+      sessionMetadata: sessionInfo,
+    });
+
+    return { message: 'Email provider linked successfully' };
+  }
+
+  /**
+   * 🔗 ROTA 1: Iniciar link do Google
+   * GET /auth/providers/link/google
+   *
+   * 🧠 FLUXO:
+   * 1. Usuário autenticado (JWT) inicia o fluxo
+   * 2. Geramos um state UUID e armazenamos o userId no Redis
+   * 3. Redirecionamos para OAuth do Google com o state
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('providers/link/google')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Iniciar vínculo de conta Google',
+    description: 'Inicia o fluxo OAuth do Google para vincular conta Google ao usuário autenticado.',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redireciona para Google OAuth',
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
+  async linkGoogle(@CurrentUser() user: User, @Res() res: Response) {
+    const state = randomUUID();
+
+    // Armazena o userId associado ao state no Redis com TTL de 10 minutos
+    await this.redisService.set(`auth:google-link:${state}`, user.id, 10 * 60 * 1000);
+
+    // Constrói a URL de autorização do Google
+    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    googleAuthUrl.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID!);
+    googleAuthUrl.searchParams.set('redirect_uri', process.env.GOOGLE_CALLBACK_URL!.replace('/callback', '/link/callback'));
+    googleAuthUrl.searchParams.set('response_type', 'code');
+    googleAuthUrl.searchParams.set('scope', 'email profile');
+    googleAuthUrl.searchParams.set('state', state);
+
+    return res.redirect(googleAuthUrl.toString());
+  }
+
+  /**
+   * 🔗 ROTA 2: Callback do Google para link
+   * GET /auth/providers/link/google/callback
+   *
+   * 🧠 FLUXO:
+   * 1. Google redireciona aqui com código e state
+   * 2. GoogleLinkAuthGuard troca código por accessToken
+   * 3. GoogleLinkStrategy valida e anexa googleId em req.user
+   * 4. Recuperamos o userId do state no Redis
+   * 5. Vinculamos o googleId ao userId
+   */
+  @Get('providers/link/google/callback')
+  @UseGuards(GoogleLinkAuthGuard)
+  @ApiExcludeEndpoint()
+  async linkGoogleCallback(@Req() req: any, @Res() res: Response) {
+    const { googleId, state } = req.user;
+
+    if (!state) {
+      const frontendUrl = this.appConfiguration.frontendUrl;
+      return res.redirect(`${frontendUrl}/auth/link?error=missing_state`);
+    }
+
+    // Recupera o userId do Redis usando o state
+    const userId = await this.redisService.get<string>(`auth:google-link:${state}`);
+
+    if (!userId) {
+      const frontendUrl = this.appConfiguration.frontendUrl;
+      return res.redirect(`${frontendUrl}/auth/link?error=invalid_state`);
+    }
+
+    // Remove o state do Redis (uso único)
+    await this.redisService.del(`auth:google-link:${state}`);
+
+    try {
+      // Vincula o Google provider ao usuário
+      await this.linkGoogleProviderUseCase.execute({
+        userId,
+        googleId,
+      });
+
+      const frontendUrl = this.appConfiguration.frontendUrl;
+      return res.redirect(`${frontendUrl}/auth/link?success=google`);
+    } catch (error) {
+      const frontendUrl = this.appConfiguration.frontendUrl;
+      const errorMessage = error instanceof Error ? error.message : 'unknown_error';
+      return res.redirect(`${frontendUrl}/auth/link?error=${encodeURIComponent(errorMessage)}`);
+    }
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {
