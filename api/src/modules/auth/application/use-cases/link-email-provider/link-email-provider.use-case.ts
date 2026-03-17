@@ -7,6 +7,7 @@ import { IHashService } from '../../../../../common/models/interfaces';
 import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
 import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { type LinkEmailProviderUseCaseDto } from './link-email-provider.dto';
+import { HashedPassword } from '../../../../users/domain/value-objects/hashed-password.value-object';
 
 @Injectable()
 export class LinkEmailProviderUseCase {
@@ -23,11 +24,9 @@ export class LinkEmailProviderUseCase {
 
     await this.dataSource.transaction(async manager => {
       // Verifica se já existe um provider EMAIL vinculado a outro usuário com este email
-      const existingEmailProvider = await this.userRepository.findByAuthProvider(
-        AuthProviderType.EMAIL,
-        data.email,
-        { manager },
-      );
+      const existingEmailProvider = await this.userRepository.findByAuthProvider(AuthProviderType.EMAIL, data.email, {
+        manager,
+      });
 
       if (existingEmailProvider) {
         throw new ConflictException('Email already registered');
@@ -48,7 +47,12 @@ export class LinkEmailProviderUseCase {
       }
 
       // Adiciona o novo provider EMAIL ao usuário
-      user.addAuthProvider(randomUUID(), AuthProviderType.EMAIL, data.email, passwordHash);
+      user.addAuthProvider(
+        randomUUID(),
+        AuthProviderType.EMAIL,
+        data.email,
+        HashedPassword.createFromHash(passwordHash),
+      );
 
       // Salva o usuário com o novo provider
       await this.userRepository.save(user, { manager });
