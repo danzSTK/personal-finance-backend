@@ -1,5 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { type ConfigType } from '@nestjs/config';
+import jwtConfig from '../../../../../config/jwt.config';
 import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
 import { type JwtPayloadDto } from '../../../presentation/dto/jwt-payload.dto';
 import { type LogoutUseCaseDto } from './logout.dto';
@@ -9,6 +11,8 @@ export class LogoutUseCase {
   constructor(
     private readonly sessionRepository: ISessionRepository,
     private readonly jwtService: JwtService,
+    @Inject(jwtConfig.KEY)
+    private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
   ) {}
 
   async execute(data: LogoutUseCaseDto): Promise<boolean> {
@@ -20,9 +24,18 @@ export class LogoutUseCase {
       throw new UnauthorizedException('Invalid access token');
     }
 
-    const rtPayload = this.jwtService.decode<JwtPayloadDto>(refreshToken);
+    let rtPayload: JwtPayloadDto;
 
-    if (!rtPayload || !rtPayload.jti) {
+    try {
+      rtPayload = this.jwtService.verify<JwtPayloadDto>(refreshToken, {
+        secret: this.jwtConfiguration.refreshSecret,
+        ignoreExpiration: true,
+      });
+    } catch {
+      throw new UnauthorizedException('Refresh token invalid or expired or not found');
+    }
+
+    if (!rtPayload.jti || rtPayload.sub !== userId) {
       throw new UnauthorizedException('Refresh token invalid or expired or not found');
     }
 

@@ -1,14 +1,12 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { randomUUID } from 'node:crypto';
 import { AuthProviderType, UserStatus } from '../../../../../common/models/enums';
 import { IHashService } from '../../../../../common/models/interfaces';
 import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
 import { FindUserByEmailUseCase } from '../../../../users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
 import { FindUserByUserNameUseCase } from '../../../../users/application/use-cases/find-by-user-name/find-by-user-name.use-case';
 import { CreateUserUseCase } from '../../../../users/application/use-cases/create-user/create-user.use-case';
-import { HashedPassword } from '../../../../users/domain/value-objects/hashed-password.value-object';
 import { GenerateTokenUseCase } from '../generate-token/generate-token.use-case';
 import { type GenerateTokenResult } from '../generate-token/generate-token.dto';
 import { type SignUpUseCaseDto } from './sign-up.dto';
@@ -41,14 +39,7 @@ export class SignUpUseCase {
       const user = await this.findUserByEmailUseCase.execute(data.email, { manager });
 
       if (user) {
-        user.addAuthProvider(
-          randomUUID(),
-          AuthProviderType.EMAIL,
-          data.email,
-          HashedPassword.createFromHash(passwordHash),
-        );
-
-        return this.userRepository.save(user, { manager });
+        throw new ConflictException('Email already registered');
       }
 
       const existingUsername = await this.findUserByUserNameUseCase.execute(data.userName, { manager });

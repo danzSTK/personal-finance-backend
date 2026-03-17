@@ -13,11 +13,9 @@ export class RedisSessionRepository implements ISessionRepository {
     const sessionKey = CacheKeys.auth.userSessions(userId);
     const rtValue = JSON.stringify(metadata);
 
-    await Promise.all([
-      this.redis.setex(rtKey, ttlSeconds, rtValue),
-      this.redis.sadd(sessionKey, jti),
-      this.redis.expire(sessionKey, ttlSeconds),
-    ]);
+    await this.redis.setex(rtKey, ttlSeconds, rtValue);
+    await this.redis.sadd(sessionKey, jti);
+    await this.redis.expire(sessionKey, ttlSeconds);
   }
 
   async getSession(userId: string, jti: string): Promise<SessionMetadata | null> {
@@ -52,18 +50,34 @@ export class RedisSessionRepository implements ISessionRepository {
     const rtKeys = jtis.map(jti => CacheKeys.auth.refreshToken(userId, jti));
     const sessionsData = await this.redis.mget(...rtKeys);
 
-    return sessionsData
+    const staleJtis: string[] = [];
+
+    const sessions = sessionsData
       .map((data, index) => {
-        if (!data) return null;
+        if (!data) {
+          staleJtis.push(jtis[index]);
+          return null;
+        }
 
-        const metadata = JSON.parse(data) as SessionMetadata;
+        try {
+          const metadata = JSON.parse(data) as SessionMetadata;
 
-        return {
-          jti: jtis[index],
-          ...metadata,
-        };
+          return {
+            jti: jtis[index],
+            ...metadata,
+          };
+        } catch {
+          staleJtis.push(jtis[index]);
+          return null;
+        }
       })
       .filter((session): session is ActiveSession => session !== null);
+
+    if (staleJtis.length > 0) {
+      await this.redis.srem(sessionKey, ...staleJtis);
+    }
+
+    return sessions;
   }
 
   async sessionExists(userId: string, jti: string): Promise<boolean> {
