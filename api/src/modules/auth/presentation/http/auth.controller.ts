@@ -14,7 +14,7 @@ import {
   UnauthorizedException,
   Inject,
 } from '@nestjs/common';
-import { type Response } from 'express';
+import { type Request, type Response } from 'express';
 import { type ConfigType } from '@nestjs/config';
 import ms, { StringValue } from 'ms';
 import {
@@ -41,13 +41,18 @@ import { LogoutUseCase } from '../../application/use-cases/logout/logout.use-cas
 import { RefreshTokensUseCase } from '../../application/use-cases/refresh-tokens/refresh-tokens.use-case';
 import { GetActiveSessionsUseCase } from '../../application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { RevokeSessionUseCase } from '../../application/use-cases/revoke-session/revoke-session.use-case';
+import { LinkEmailProviderUseCase } from '../../application/use-cases/link-email-provider/link-email-provider.use-case';
 import { LocalAuthGuard } from '../../infrastructure/guards/local-auth.guard';
 import { GoogleAuthGuard } from '../../infrastructure/guards/google-auth.guard';
+import { GoogleLinkAuthGuard } from '../../infrastructure/guards/google-link-auth.guard';
+import { GoogleLinkInitAuthGuard } from '../../infrastructure/guards/google-link-init-auth.guard';
 import { JwtRefreshGuard } from '../../infrastructure/guards/jwt-refresh.guard';
 import { JwtAuthGuard } from '../../infrastructure/guards/jwt-auth.guard';
 import { type RefreshStrategyResponse } from '../../infrastructure/strategies/refresh-strategy-response.interface';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
+import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
+import { GoogleLinkAuthPayload } from '../../infrastructure/strategies/google-link.strategy';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -59,6 +64,7 @@ export class AuthController {
     private readonly refreshTokensUseCase: RefreshTokensUseCase,
     private readonly getActiveSessionsUseCase: GetActiveSessionsUseCase,
     private readonly revokeSessionUseCase: RevokeSessionUseCase,
+    private readonly linkEmailProviderUseCase: LinkEmailProviderUseCase,
 
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
@@ -397,6 +403,91 @@ export class AuthController {
     this.clearRefreshTokenCookie(res);
 
     return { message: 'Logged out successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('providers/link/email')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Vincular provider de email ao usuário autenticado',
+    description: 'Permite que um usuário autenticado adicione email/senha como método de login à sua conta.',
+  })
+  @ApiBody({ type: LinkEmailProviderDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Provider de email vinculado com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Email provider linked successfully' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
+  @ApiResponse({ status: 409, description: 'Usuário já possui provider de email ou email já cadastrado' })
+  async linkEmailProvider(
+    @CurrentUser() user: User,
+    @Body() linkEmailProviderDto: LinkEmailProviderDto,
+    @CurrentSessionInfo() sessionInfo: SessionMetadata,
+  ) {
+    await this.linkEmailProviderUseCase.execute({
+      userId: user.id,
+      email: linkEmailProviderDto.email,
+      password: linkEmailProviderDto.password,
+      sessionMetadata: sessionInfo,
+    });
+
+    return { message: 'Email provider linked successfully' };
+  }
+
+  /**
+   * 🔗 ROTA 1: Iniciar link do Google
+   * GET /auth/providers/link/google
+   *
+   * 🧠 FLUXO:
+   * 1. Usuário autenticado (JWT) inicia o fluxo
+   * 2. Geramos um state UUID e armazenamos o userId no Redis
+   * 3. Redirecionamos para OAuth do Google com o state
+   */
+  @UseGuards(JwtAuthGuard, GoogleLinkInitAuthGuard)
+  @Get('providers/link/google')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Iniciar vínculo de conta Google',
+    description: 'Inicia o fluxo OAuth do Google para vincular conta Google ao usuário autenticado.',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redireciona para Google OAuth',
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
+  linkGoogle() {
+    // Guards cuidam da autenticação JWT, state e redirect OAuth
+  }
+
+  /**
+   * 🔗 ROTA 2: Callback do Google para link
+   * GET /auth/providers/link/google/callback
+   *
+   * 🧠 FLUXO:
+   * 1. Google redireciona aqui com código e state
+   * 2. GoogleLinkAuthGuard troca código por accessToken
+   * 3. GoogleLinkStrategy valida state, faz o vínculo e retorna o resultado em req.user
+   * 4. Controller apenas redireciona para frontend com status final
+   */
+  @Get('providers/link/google/callback')
+  @UseGuards(GoogleLinkAuthGuard)
+  @ApiExcludeEndpoint()
+  linkGoogleCallback(@Req() req: Request, @Res() res: Response) {
+    const googleLinkAuthPayload = req.user as GoogleLinkAuthPayload;
+    const frontendUrl = this.appConfiguration.frontendUrl;
+
+    if (!googleLinkAuthPayload.success) {
+      return res.redirect(`${frontendUrl}/auth/link?error=${googleLinkAuthPayload.errorCode}`);
+    }
+
+    return res.redirect(`${frontendUrl}/auth/link?success=google`);
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {

@@ -35,6 +35,7 @@ import appConfig from './app.config';
         GOOGLE_CLIENT_ID: Joi.string().required(),
         GOOGLE_CLIENT_SECRET: Joi.string().required(),
         GOOGLE_CALLBACK_URL: Joi.string().uri().required(),
+        GOOGLE_LINK_CALLBACK_URI: Joi.string().uri().required(),
 
         // frontend url
         FRONTEND_URL: Joi.string().uri().required(),

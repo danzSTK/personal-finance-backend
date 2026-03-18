@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { IRepositoryOptions, IUserRepository } from '../../../domain/repositories/user.respository.interface';
 import { User } from '../../../domain/entities/user.entity';
 
@@ -6,11 +6,11 @@ import { User } from '../../../domain/entities/user.entity';
 export class FindUserByIdUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
 
-  async execute(userId: string, options?: IRepositoryOptions): Promise<User> {
+  async execute(userId: string, options?: IRepositoryOptions): Promise<User | null> {
     const user = await this.userRepository.findById(userId, options);
 
     if (!user) {
-      throw new NotFoundException(`User with id ${userId} not found`);
+      return null;
     }
     return user;
   }
