@@ -1,6 +1,5 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
-import { User } from '../../../../users/domain/entities/user.entity';
 import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
 import { GenerateTokenUseCase } from '../generate-token/generate-token.use-case';
 import { type GenerateTokenResult } from '../generate-token/generate-token.dto';
@@ -17,16 +16,10 @@ export class RefreshTokensUseCase {
   async execute(data: RefreshTokensUseCaseDto): Promise<GenerateTokenResult> {
     const { userId, oldJti, sessionMetadata } = data;
 
-    let user: User;
+    const user = await this.findUserByIdUseCase.execute(userId);
 
-    try {
-      user = await this.findUserByIdUseCase.execute(userId);
-    } catch (err) {
-      if (err instanceof NotFoundException) {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-
-      throw err;
+    if (!user) {
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
     const storedSession = await this.sessionRepository.getSession(userId, oldJti);
