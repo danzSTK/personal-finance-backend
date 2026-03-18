@@ -14,7 +14,7 @@ import {
   UnauthorizedException,
   Inject,
 } from '@nestjs/common';
-import { type Response } from 'express';
+import { type Request, type Response } from 'express';
 import { type ConfigType } from '@nestjs/config';
 import ms, { StringValue } from 'ms';
 import {
@@ -48,11 +48,11 @@ import { GoogleLinkAuthGuard } from '../../infrastructure/guards/google-link-aut
 import { GoogleLinkInitAuthGuard } from '../../infrastructure/guards/google-link-init-auth.guard';
 import { JwtRefreshGuard } from '../../infrastructure/guards/jwt-refresh.guard';
 import { JwtAuthGuard } from '../../infrastructure/guards/jwt-auth.guard';
-import { type GoogleLinkAuthPayload } from '../../infrastructure/strategies/google-link.strategy';
 import { type RefreshStrategyResponse } from '../../infrastructure/strategies/refresh-strategy-response.interface';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
 import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
+import { GoogleLinkAuthPayload } from '../../infrastructure/strategies/google-link.strategy';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -479,7 +479,8 @@ export class AuthController {
   @Get('providers/link/google/callback')
   @UseGuards(GoogleLinkAuthGuard)
   @ApiExcludeEndpoint()
-  linkGoogleCallback(@CurrentUser() googleLinkAuthPayload: GoogleLinkAuthPayload, @Res() res: Response) {
+  linkGoogleCallback(@Req() req: Request, @Res() res: Response) {
+    const googleLinkAuthPayload = req.user as GoogleLinkAuthPayload;
     const frontendUrl = this.appConfiguration.frontendUrl;
 
     if (!googleLinkAuthPayload.success) {
