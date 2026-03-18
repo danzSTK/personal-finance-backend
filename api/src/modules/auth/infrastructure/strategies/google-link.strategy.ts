@@ -1,50 +1,86 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { type ConfigType } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { type Request } from 'express';
+import { Profile, Strategy } from 'passport-google-oauth20';
 import googleOauthConfig from '../../../../config/google-oauth.config';
+import { CacheKeys } from '../../../../common/utils/cache-keys.factory';
+import { RedisService } from '../../../../database/redis/redis.service';
 import { LinkGoogleProviderUseCase } from '../../application/use-cases/link-google-provider/link-google-provider.use-case';
 
-/**
- * 🔗 GoogleLinkStrategy
- *
- * Estratégia especializada para vincular contas Google a usuários já autenticados.
- * Diferente do GoogleStrategy normal (que faz login/signup), esta estratégia:
- *
- * 1. Recebe um state UUID gerado pelo controller
- * 2. O state mapeia para um userId armazenado temporariamente no Redis
- * 3. Após OAuth, vincula o googleId ao userId recuperado
- *
- * ⚠️ IMPORTANTE: O userId é recuperado do state no controller, não aqui.
- */
+type GoogleLinkErrorCode = 'missing_state' | 'invalid_state' | 'google_provider_conflict';
+
+export type GoogleLinkAuthPayload =
+  | {
+      success: true;
+    }
+  | {
+      success: false;
+      errorCode: GoogleLinkErrorCode;
+    };
+
+type GoogleLinkRequest = Request<Record<string, never>, unknown, unknown, { state?: string | string[] }>;
+
 @Injectable()
 export class GoogleLinkStrategy extends PassportStrategy(Strategy, 'google-link') {
   constructor(
     @Inject(googleOauthConfig.KEY)
     private readonly googleOauthConfiguration: ConfigType<typeof googleOauthConfig>,
+    private readonly redisService: RedisService,
     private readonly linkGoogleProviderUseCase: LinkGoogleProviderUseCase,
   ) {
-    // Usa uma callback URL diferente para não conflitar com login/signup
-    const callbackURL = googleOauthConfiguration.callbackURL.replace('/callback', '/link/callback');
-
     super({
       clientID: googleOauthConfiguration.clientID,
       clientSecret: googleOauthConfiguration.clientSecret,
-      callbackURL,
+      callbackURL: googleOauthConfiguration.linkCallbackUri,
       scope: ['email', 'profile'],
-      passReqToCallback: true, // Necessário para acessar req.query.state
+      passReqToCallback: true,
     });
   }
 
-  async validate(req: any, accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback): Promise<void> {
-    try {
-      const { id } = profile;
+  async validate(
+    req: GoogleLinkRequest,
+    _accessToken: string,
+    _refreshToken: string,
+    profile: Profile,
+  ): Promise<GoogleLinkAuthPayload> {
+    const state = this.extractState(req.query.state);
 
-      // Retorna o googleId e state para que o controller processe
-      // O controller irá usar o state para recuperar o userId do Redis
-      done(null, { googleId: id, state: req.query.state });
-    } catch (error) {
-      done(error, false);
+    if (!state) {
+      return { success: false, errorCode: 'missing_state' };
     }
+
+    const userId = await this.redisService.getAndDelete(CacheKeys.auth.googleLinkState(state));
+
+    if (!userId) {
+      return { success: false, errorCode: 'invalid_state' };
+    }
+
+    try {
+      await this.linkGoogleProviderUseCase.execute({
+        userId,
+        googleId: profile.id,
+      });
+
+      return { success: true };
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        return { success: false, errorCode: 'google_provider_conflict' };
+      }
+
+      throw error;
+    }
+  }
+
+  private extractState(state: string | string[] | undefined): string | null {
+    if (Array.isArray(state)) {
+      return state[0] ?? null;
+    }
+
+    if (typeof state !== 'string' || state.trim() === '') {
+      return null;
+    }
+
+    return state;
   }
 }
