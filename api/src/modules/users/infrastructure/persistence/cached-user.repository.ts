@@ -134,9 +134,12 @@ export class CachedUserRepository implements IUserRepository {
   async findByAuthProvider(
     provider: AuthProviderType,
     providerUserId: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _options?: IRepositoryOptions,
+    options?: IRepositoryOptions,
   ): Promise<User | null> {
+    if (options?.manager) {
+      return this.userRepository.findByAuthProvider(provider, providerUserId, { manager: options.manager });
+    }
+
     const user = await this.userRepository.findByAuthProvider(provider, providerUserId);
 
     if (!user) {
