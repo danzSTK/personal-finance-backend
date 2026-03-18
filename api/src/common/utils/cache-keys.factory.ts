@@ -11,5 +11,6 @@ export const CacheKeys = {
     refreshToken: (userId: string, jti: string) => `auth:rt:${userId}:${jti}`,
 
     userSessions: (userId: string) => `auth:sessions:${userId}`,
+    googleLinkState: (state: string) => `auth:google-link:${state}`,
   },
 };
