@@ -31,6 +31,8 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './infrastructure/strategies/jwt-refresh.strategy';
 import { GoogleStrategy } from './infrastructure/strategies/google.strategy';
 import { GoogleLinkStrategy } from './infrastructure/strategies/google-link.strategy';
+import { GoogleLinkAuthGuard } from './infrastructure/guards/google-link-auth.guard';
+import { GoogleLinkInitAuthGuard } from './infrastructure/guards/google-link-init-auth.guard';
 
 // Presentation
 import { AuthController } from './presentation/http/auth.controller';
@@ -83,6 +85,8 @@ import { AuthController } from './presentation/http/auth.controller';
     JwtRefreshStrategy,
     GoogleStrategy,
     GoogleLinkStrategy,
+    GoogleLinkAuthGuard,
+    GoogleLinkInitAuthGuard,
   ],
   exports: [ISessionRepository],
 })
