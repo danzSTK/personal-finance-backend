@@ -46,6 +46,28 @@ export class RedisService {
     await this.redis.del(key);
   }
 
+  async getAndDelete(key: string): Promise<string | null> {
+    const transactionResult = await this.redis.multi().get(key).del(key).exec();
+
+    if (!transactionResult) {
+      return null;
+    }
+
+    const [getResult, deleteResult] = transactionResult;
+    const [getError, cachedValue] = getResult;
+    const [deleteError] = deleteResult;
+
+    if (getError) {
+      throw getError;
+    }
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    return typeof cachedValue === 'string' ? cachedValue : null;
+  }
+
   // ═══════════════════════════════════════════
   //  Comandos Nativos do Redis
   // ═══════════════════════════════════════════
