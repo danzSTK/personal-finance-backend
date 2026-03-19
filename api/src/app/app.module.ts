@@ -33,6 +33,9 @@ import { HealthModule } from '../modules/health/health.module';
         entities: ENTITIES,
         synchronize: false,
         logging: true,
+        ssl: {
+          rejectUnauthorized: false,
+        },
       }),
       inject: [databaseConfig.KEY],
     }),
