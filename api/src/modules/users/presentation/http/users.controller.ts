@@ -35,6 +35,10 @@ export class UsersController {
   async findOne(@Param('id') id: string) {
     const user = await this.findByUserIdUseCase.execute(id);
 
+    if (!user) {
+      return null;
+    }
+
     return {
       id: user.id,
       email: user.email.value,
