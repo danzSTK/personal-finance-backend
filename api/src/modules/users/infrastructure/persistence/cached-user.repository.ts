@@ -155,7 +155,7 @@ export class CachedUserRepository implements IUserRepository {
 
     await Promise.all([this.invalidateUserCache(user)]);
 
-    const userRefreshed = await this.userRepository.findById(saved.id);
+    const userRefreshed = await this.userRepository.findById(saved.id, options);
 
     if (!userRefreshed) {
       throw new Error('User not found after save');
