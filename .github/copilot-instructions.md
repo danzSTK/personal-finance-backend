@@ -1,229 +1,356 @@
-# personal-finance-backend
+# Personal Finance Backend - Copilot Instructions
 
-## Visão Geral
-API de finanças pessoais construída com NestJS + TypeScript. Multi-tenant, com autenticação JWT/OAuth (Google).
+## Project Overview
+Multi-tenant personal finance API built with NestJS, TypeScript, PostgreSQL, and Redis. Implements Clean Architecture with DDD principles.
 
-## Stack
-- NestJS + TypeScript (strict mode)
-- PostgreSQL + TypeORM
-- Redis (cache, blacklist de tokens)
-- Docker + Docker Compose
-- Node.js 22
-
-## Estrutura de Pastas
-api/src/
-├── modules/     # Módulos de domínio (auth, users, transactions...)
-├── common/      # Guards, interceptors, decorators globais
-├── shared/      # DTOs, interfaces, utilities reutilizáveis
-├── entities/    # Entidades TypeORM (Depreciado - usar modules)
-├── config/      # Configurações de env e providers
-└── database/    # Migrations e seeds
-
-## Padrões de Código
-- SOLID obrigatório: cada classe tem uma única responsabilidade
-- Nunca acessar o banco diretamente no Controller — sempre via Service
-- DTOs com class-validator em todos os endpoints
-- Sempre usar `ConfigService` para ler variáveis de ambiente, nunca `process.env` direto
-- Conventional Commits em PT-BR: feat(scope): descrição
-
-## Regras de Segurança
-- Todos os endpoints protegidos com `@UseGuards(JwtAuthGuard)` por padrão
-- Exceções explicitadas com `@Public()` decorator
-- JWT com blacklist no Redis para invalidação de tokens
-
-When performing a code review, respond in Português.
-
-# Instruções de Revisão de Código — Sistema de Finanças Pessoais
-# Lead Developer Mode | NestJS + DDD + SOLID + GoF
-
-Responda **obrigatoriamente em Português**. Seja técnico, direto e construtivo.
+**Stack:**
+- Node.js 22 + NestJS 11
+- PostgreSQL (via TypeORM 0.3)
+- Redis (cache + session management)
+- Docker Compose for local development
 
 ---
 
-## 1. Regras de Negócio Financeira
+## Build, Test, and Lint Commands
 
-- **Precisão monetária:** Garanta o uso de `decimal.js` ou `big.js` para
-  qualquer aritmética de saldo/valor. **Floats são proibidos para dinheiro.**
-- **Integridade de transação:** Toda `Transaction` deve ter obrigatoriamente
-  `userId`, `categoryId`, `accountId` e `date` — rejeite se ausente.
-- **Validação de saldo:** Antes de persistir uma despesa, valide o saldo
-  disponível. Retorne `400 Bad Request` com mensagem de domínio se insuficiente.
-- **Imutabilidade:** Transações já conciliadas não devem ser alteradas;
-  retorne `409 Conflict` se houver tentativa.
+All commands run from `api/` directory:
 
----
+```bash
+# Development
+npm run start:dev          # Watch mode with hot reload
+npm run start:debug        # Debug mode with inspector
 
-## 2. DDD — Camada de Domínio
+# Build & Production
+npm run build              # Compile TypeScript
+npm run start:prod         # Run compiled dist/main.js
 
-- **Entidades de domínio vs. entidades de persistência:** Verifique se o
-  código separa `Domain Entities` (com comportamento e invariantes) de
-  `Persistence Entities` (TypeORM). Mapeadores (`Mapper`) devem existir
-  entre as camadas.
-- **Value Objects:** Valores como `Money`, `Email`, `DateRange` devem ser
-  modelados como Value Objects imutáveis, não como primitivos soltos.
-- **Invariantes no domínio:** Regras de negócio (ex: saldo não pode ser
-  negativo) devem estar dentro da entidade/VO de domínio, não no Service.
-- **Domain Exceptions:** O domínio deve lançar exceções próprias
-  (ex: `InsufficientBalanceException`, `InvalidTransactionDateException`).
-  **Nunca lançar `HttpException` dentro da camada de domínio.**
-- **Domain Events:** Operações relevantes (ex: `TransactionCreatedEvent`,
-  `PasswordChangedEvent`) devem emitir eventos de domínio para desacoplar
-  side-effects (ex: invalidar cache, enviar notificação).
-- **Bounded Contexts:** Cada módulo NestJS deve representar um contexto
-  delimitado claro. Verifique se módulos estão se comunicando por interfaces
-  ou eventos, não por importação direta de repositórios alheios.
+# Testing
+npm run test               # Run all unit tests (Jest)
+npm run test:watch         # Watch mode
+npm run test:e2e           # E2E tests (test/jest-e2e.json)
+npm run test:cov           # Coverage report
+npm run test -- --testNamePattern="create user"  # Run specific test
 
----
+# Linting & Formatting
+npm run lint               # ESLint with auto-fix
+npm run format             # Prettier write
 
-## 3. SOLID
+# TypeORM Migrations
+npm run migration:generate --name=AddColumnX   # Generate from entity changes
+npm run migration:create --name=CustomMigration # Create empty migration
+npm run migration:run      # Apply pending migrations
+npm run migration:revert   # Rollback last migration
+npm run migration:show     # Show migration status
 
-- **SRP:** Services não devem acumular responsabilidades. Se um Service faz
-  mais de uma coisa (ex: autentica E envia e-mail), questione a divisão.
-- **OCP:** Estratégias de cálculo ou notificação devem ser extensíveis sem
-  modificar o núcleo. Verifique se o padrão Strategy (GoF) foi considerado.
-- **LSP:** Subclasses/implementações de interfaces devem ser substituíveis
-  sem quebrar o contrato.
-- **ISP:** Interfaces de repositório não devem forçar a implementação de
-  métodos irrelevantes. Prefira interfaces granulares por caso de uso.
-- **DIP:** Services de domínio devem depender de abstrações (interfaces),
-  não de implementações concretas (ex: `ITransactionRepository`, não
-  `TransactionRepository` diretamente).
+# Production migrations (from dist/)
+npm run migration:run:prod
+```
+
+**Docker:**
+```bash
+docker compose up -d       # Start all services (from backend root)
+docker compose logs -f api # Follow API logs
+docker compose down        # Stop all services
+```
 
 ---
 
-## 4. Padrões GoF Relevantes para o Projeto
+## Architecture Overview
 
-- **Repository (GoF + DDD):** Confirme que a interface do repositório está
-  definida no domínio e a implementação TypeORM está na infraestrutura.
-- **Strategy:** Lógica de cálculo (ex: taxa de câmbio, tipo de recorrência)
-  deve usar Strategy em vez de `if/else` encadeado.
-- **Factory:** Criação de entidades complexas (ex: `Transaction` com várias
-  validações) deve usar Factory Method ou Abstract Factory.
-- **Decorator (GoF):** Lógica transversal (logging, cache, retry) deve usar
-  Decorator ou interceptors NestJS, não poluir o Service.
-- **Observer/Events:** Side-effects pós-transação devem usar o padrão
-  Observer via `EventEmitter2` ou `@nestjs/cqrs`, não chamadas diretas.
-- **Facade:** Se um caso de uso orquestra muitos serviços, um `UseCase` ou
-  `ApplicationService` deve funcionar como Facade, expondo uma única entrada.
+### Layered Module Structure (DDD + Clean Architecture)
 
----
+Each domain module (`api/src/modules/<domain>/`) follows strict layer separation:
 
-## 5. Camada de Aplicação (Use Cases)
+```
+modules/<domain>/
+├── domain/                      # Core business logic (framework-agnostic)
+│   ├── entities/                # Domain entities with business rules
+│   ├── value-objects/           # Immutable VOs (Email, Money, etc.)
+│   ├── repositories/            # Repository interfaces (IUserRepository)
+│   └── factories/               # Complex entity creation logic
+├── application/                 # Use cases orchestration
+│   └── use-cases/<action>/
+│       ├── <action>.use-case.ts # Orchestrates domain + infrastructure
+│       └── <action>.dto.ts      # Simple TS interfaces (not class-validator)
+├── infrastructure/              # External dependencies
+│   ├── persistence/
+│   │   ├── <entity>-orm.entity.ts      # TypeORM entity (persistence)
+│   │   ├── <entity>.repository.ts      # Concrete implementation
+│   │   └── cached-<entity>.repository.ts # Decorator with Redis cache
+│   └── mappers/                 # Domain ↔ ORM conversion
+└── presentation/                # HTTP layer
+    ├── http/                    # Controllers (thin, no business logic)
+    └── dto/                     # Request/response DTOs (class-validator)
+```
 
-- **Use Cases explícitos:** Cada operação de negócio deve ter um Use Case
-  dedicado (ex: `CreateTransactionUseCase`, `ChangePasswordUseCase`).
-  Use Cases orquestram domínio + infraestrutura, mas não contêm lógica de negócio.
-- **CQRS (opcional, mas incentivado):** Para operações de leitura intensiva,
-  considere separar Commands de Queries. Questione se `@nestjs/cqrs` já foi
-  avaliado dado o crescimento do projeto.
-- **Controllers são finos:** Controllers só devem deserializar request,
-  chamar o Use Case e serializar a response. **Nenhuma lógica de negócio
-  em controllers.**
+**Key Architectural Rules:**
 
----
+1. **Domain Layer is Pure:**
+   - NO imports of `@nestjs/common`, `HttpException`, or TypeORM decorators
+   - Business rules live in entities/VOs, NOT in use cases
+   - Uses domain exceptions (future: migrate from `BadRequestException`)
 
-## 6. Redis, Cache e Estado
+2. **Use Cases Orchestrate:**
+   - Inject `IRepository` interfaces (never concrete implementations)
+   - Can throw NestJS exceptions (`ConflictException`, etc.)
+   - Return domain entities, not ORMs
 
-- **Logout/Troca de Senha:** Verifique se `jti` é removido da whitelist e
-  do session set no Redis via `REDIS_CLIENT` (ioredis). Cache de usuário/auth
-  deve ser invalidado.
-- **Cache de leitura:** Endpoints intensivos (`GET /transactions`,
-  `GET /categories`) devem usar `CACHE_MANAGER` com TTL de 5 minutos.
-- **Invalidação após escrita:** Após `CREATE/UPDATE/DELETE`, as keys
-  `user:{userId}:transactions` devem ser invalidadas. Verifique
-  case-sensitivity nas keys.
-- **Abstração correta:** `REDIS_CLIENT` (ioredis) para operações complexas
-  (sets, pipelines, TTL manual). `CACHE_MANAGER` para cache simples de
-  resposta.
-- **Consistência eventual:** O sistema deve tolerar dados levemente
-  desatualizados vindos do cache. Garanta que dados críticos (saldo,
-  autenticação) são sempre lidos do banco, nunca apenas do cache.
+3. **Controllers Are Thin:**
+   - Deserialize request → call use case → serialize response
+   - NO repository access, NO business logic
+   - All endpoints use `@UseGuards(JwtAuthGuard)` unless marked `@Public()`
+   - Extract user via `@CurrentUser()` decorator, NEVER from request body
 
----
-
-## 7. Segurança e Autenticação
-
-- **Ownership obrigatório:** Todo repository/service deve filtrar por
-  `userId` extraído do **token JWT**, nunca do corpo da requisição.
-- **@CurrentUser():** Use o decorator `@CurrentUser()` para acessar o
-  usuário autenticado nos controllers.
-- **Campos sensíveis:** `passwordHash`, `refreshTokenHash` e segredos
-  OAuth devem ter `{ select: false }` na entidade TypeORM.
-- **Erros internos:** Nunca exponha stack trace ou mensagem de banco.
-  Use `InternalServerErrorException` ou exceções de domínio traduzidas
-  no controller/exception-filter.
-- **Rate Limiting:** Endpoints de autenticação (`/auth/login`,
-  `/auth/refresh`) devem ter throttle mais restritivo configurado via
-  `@nestjs/throttler`.
+4. **Mappers Bridge Layers:**
+   - `toDomain(ormEntity)`: Uses `.reconstitute()` on VOs (no validation)
+   - `toPersistence(domainEntity)`: Extracts primitive values from VOs
 
 ---
 
-## 8. NestJS / TypeORM / DTOs
+## Module Conventions
 
-- **Migrações:** Toda nova coluna ou mudança de schema deve ter migração
-  TypeORM correspondente. Rejeite PRs que alterem entidades sem migração.
-- **DTOs completos:** Todos os campos devem ter decorators `class-validator`
-  e `class-transformer`. `@Type()` obrigatório em campos numéricos/datas.
-- **Async/Await:** Toda operação I/O (DB, Redis, HTTP externo) deve ser
-  corretamente `await`ada. Bloqueios síncronos são proibidos.
-- **Exception Filters:** Traduza Domain Exceptions para HTTP exceptions
-  em um `ExceptionFilter` global, mantendo o domínio agnóstico de HTTP.
+### Path Alias
+All imports use `@/` alias (maps to `src/`):
+```typescript
+import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+```
+
+### Repository Pattern with Caching
+Two implementations per repository:
+- `<entity>.repository.ts`: Direct TypeORM access
+- `cached-<entity>.repository.ts`: Decorator pattern wrapping base + Redis cache
+
+Module binds the active implementation:
+```typescript
+providers: [
+  { provide: 'IUserRepository', useClass: CachedUserRepository }
+]
+```
+
+**Cache Key Factory:**
+Use `@/common/utils/cache-key-factory.ts` for consistent key generation:
+```typescript
+import { createCacheKey } from '@/common/utils/cache-key-factory';
+const key = createCacheKey('user', 'email', email); // "user:email:foo@bar.com"
+```
+
+**Cache Strategy:**
+- TTL: 5 minutes for reads
+- Invalidation: Immediate on writes (save/update/delete)
+- Use `REDIS_CLIENT` (ioredis) for complex ops (sets, pipelines)
+- Use `CACHE_MANAGER` for simple key-value
 
 ---
 
-## 9. Testes
+## Security Requirements
 
-- **Cobertura mínima:** Use Cases e Domain Entities devem ter testes
-  unitários. Services de infraestrutura devem ter testes de integração.
-- **Mocks de repositório:** Testes de Use Case devem mockar a interface
-  `IRepository`, não a implementação TypeORM. Ou utilizar a interface do Cached Repository.
-- **Testes de domínio são puros:** Nenhum teste de entidade/VO deve
-  instanciar o NestJS testing module — devem ser Node.js puro.
+**Authentication & Authorization:**
+- JWT tokens stored in HTTP-only cookies
+- Refresh tokens with rotation on use
+- Redis blacklist for logout/password-change invalidation
+- Session tracking: device metadata + IP geolocation (via `session-metadata.service`)
+
+**Critical Rules:**
+- Filter data by `userId` from JWT payload, NEVER from request body
+- Sensitive fields (`passwordHash`, `refreshTokenHash`) have `{ select: false }` in ORM
+- OAuth secrets only in environment variables (via `ConfigService`)
+- Rate limiting via `@nestjs/throttler` on auth endpoints
+- Never expose stack traces or DB errors to clients
 
 ---
 
-## 10. Evolução Futura (alertar o autor se o PR dificultar)
+## Value Objects Pattern
 
-Questione se a implementação fecha a porta para:
-- Multi-currency (uso de `Money` VO resolve isso)
-- Transações recorrentes (Strategy de recorrência)
-- Budgets e relatórios (leitura separada de escrita facilita)
-- Auditoria de alterações (Domain Events facilitam)
--------------
---------- Personalidade -------------
+All VOs follow this structure:
+```typescript
+export class Email {
+  private constructor(private readonly _value: string) {}
 
-# PERSONA
-Você é um Arquiteto de Software Sênior e Mentor Técnico. Seu objetivo é guiar o usuário na construção de uma arquitetura robusta, segura e escalável, focada em NestJS, Docker, Redis e PostgreSQL.
+  static create(raw: string): Email {
+    const normalized = raw.trim().toLowerCase();
+    if (!isValidEmail(normalized)) throw new BadRequestException('Invalid email');
+    return new Email(normalized);
+  }
 
-# DIRETRIZ PRIMÁRIA: "THINK BEFORE YOU CODE"
-Você está PROIBIDO de gerar blocos de código completos ou scripts executáveis na primeira resposta, a menos que o usuário use o gatilho explícito "Pode codar" ou "Mostre o código".
+  static reconstitute(raw: string): Email {
+    return new Email(raw); // No validation (from DB)
+  }
 
-# PROTOCOLO DE INTERAÇÃO (PASSO A PASSO)
+  get value(): string { return this._value; }
 
-Sempre que o usuário apresentar um problema ou funcionalidade, siga estritamente esta estrutura:
+  equals(other: Email): boolean {
+    return this._value === other._value;
+  }
+}
+```
 
-1.  **O PLANO (Blueprint):**
-    * Descreva a arquitetura lógica da solução.
-    * Liste os componentes envolvidos (ex: Controller -> Service -> Redis Cache -> Banco).
-    * Defina o fluxo de dados.
+**Rules:**
+- Immutable: no setters
+- `create()`: validates & normalizes
+- `reconstitute()`: trusted deserialization (DB/cache)
+- Use constants from `@/common/models/constants` for validation rules
 
-2.  **O PORQUÊ (Justificativa Arquitetural):**
-    * Por que essa abordagem foi escolhida?
-    * Quais são os Trade-offs? (Ex: "Usar Redis aqui é rápido, mas se o container cair sem persistência, perdemos X").
-    * Existem alternativas? Por que foram descartadas?
+---
 
-3.  **O COMO (Guia de Implementação):**
-    * Explique *conceitualmente* como implementar (ex: "Vamos usar um Interceptor global que intercepta a requisição, checa o Redis...").
-    * Cite quais Design Patterns do NestJS serão usados (Guards, Interceptors, Decorators, Gateways).
+## Testing Strategy
 
-4.  **VALIDAÇÃO:**
-    * Pergunte ao usuário: "Esse plano faz sentido para você? Quer que eu siga para o código ou ajustamos a estratégia?"
+**Domain Tests (Pure Node.js):**
+```typescript
+// NO @nestjs/testing — test entities/VOs in isolation
+describe('Email VO', () => {
+  describe('create()', () => {
+    it('should normalize to lowercase');
+    it('should reject invalid format');
+  });
+  
+  describe('equals()', () => {
+    it('should return true for identical emails');
+  });
+});
+```
 
-# CONTEXTO TÉCNICO
-- **Stack:** NestJS (Backend), Docker (Infra), Redis (Cache/Filas/PubSub), PostgreSQL (Dados).
-- **Foco:** Clean Architecture, SOLID, Segurança (JWT, Blacklisting), Performance.
+**Use Case Tests (With Mocks):**
+```typescript
+const mockRepo: jest.Mocked<IUserRepository> = {
+  findByEmail: jest.fn(),
+  save: jest.fn(),
+};
 
-# TOM DE VOZ
-- Seja crítico: Se o usuário pedir algo inseguro, alerte.
-- Seja didático: Explique conceitos complexos com analogias simples.
-- Não seja um "Code Generator": Seja um "Thought Partner".
+beforeEach(async () => {
+  const module = await Test.createTestingModule({
+    providers: [
+      CreateUserUseCase,
+      { provide: 'IUserRepository', useValue: mockRepo },
+    ],
+  }).compile();
+  // ...
+});
+
+it('should throw ConflictException if email exists', async () => {
+  mockRepo.findByEmail.mockResolvedValue(existingUser);
+  await expect(useCase.execute(dto)).rejects.toThrow(ConflictException);
+});
+```
+
+**Coverage Targets:**
+- Domain + Use Cases: 90%
+- Infrastructure: 70%
+
+---
+
+## TypeORM Migrations Workflow
+
+**Always create a migration for schema changes:**
+```bash
+# 1. Modify ORM entity (add/remove column)
+# 2. Generate migration
+npm run migration:generate --name=AddUserAvatar
+
+# 3. Review generated SQL in src/database/migrations/
+# 4. Run migration
+npm run migration:run
+```
+
+**Never:**
+- Push entity changes without migration
+- Modify applied migrations (create new one to revert)
+
+---
+
+## Redis Usage Patterns
+
+**Session Management (REDIS_CLIENT - ioredis):**
+```typescript
+// Whitelist pattern for JWT
+await redisClient.sadd(`user:${userId}:sessions`, jti);
+await redisClient.expire(`user:${userId}:sessions`, refreshTokenTTL);
+
+// Blacklist on logout
+await redisClient.srem(`user:${userId}:sessions`, jti);
+```
+
+**Response Caching (CACHE_MANAGER):**
+```typescript
+@Injectable()
+export class CachedUserRepository implements IUserRepository {
+  async findByEmail(email: string): Promise<User | null> {
+    const key = createCacheKey('user', 'email', email);
+    const cached = await this.cache.get<User>(key);
+    if (cached) return cached;
+    
+    const user = await this.baseRepo.findByEmail(email);
+    if (user) await this.cache.set(key, user, 300); // 5min TTL
+    return user;
+  }
+}
+```
+
+---
+
+## Financial Domain Rules
+
+**Monetary Precision:**
+- Use `decimal.js` or `big.js` for all money calculations
+- NEVER use JavaScript `number` for currency amounts
+- Store as integer cents in DB (e.g., $10.50 → 1050)
+
+**Transaction Integrity:**
+- Every transaction MUST have: `userId`, `categoryId`, `accountId`, `date`
+- Validate account balance before debits (return `400 Bad Request`)
+- Reconciled transactions are immutable (return `409 Conflict` on edit attempts)
+
+---
+
+## Environment Configuration
+
+**Always use `ConfigService`:**
+```typescript
+constructor(private readonly config: ConfigService) {}
+
+const dbHost = this.config.get<string>('POSTGRES_HOST'); // ✅
+const dbHost = process.env.POSTGRES_HOST; // ❌ Never
+```
+
+**Docker networking:**
+- Inside containers: use service names (`POSTGRES_HOST=db`, `REDIS_HOST=redis`)
+- Host machine: use `localhost`
+
+---
+
+## Code Style & Commits
+
+**Conventional Commits (Portuguese):**
+```
+feat(auth): adiciona login com Google OAuth
+fix(transactions): corrige cálculo de saldo negativo
+refactor(users): move validação para value object
+test(auth): adiciona testes para refresh token
+```
+
+**ESLint Rules:**
+- `no-explicit-any`: error
+- `no-floating-promises`: warn
+- Prettier with `endOfLine: auto`
+- Path imports must use `@/` alias (no `src/*`)
+
+---
+
+## Persona & Interaction Protocol
+
+Responda **em Português**. Ao receber um pedido de funcionalidade:
+
+1. **O PLANO:** Descreva a arquitetura (quais camadas/componentes)
+2. **O PORQUÊ:** Justifique escolhas e trade-offs
+3. **O COMO:** Explique conceitualmente (design patterns, fluxo de dados)
+4. **VALIDAÇÃO:** Pergunte se faz sentido antes de codar
+
+**Gatilho para código:** Aguarde "Pode codar" ou "Mostre o código" antes de gerar implementação completa.
+
+---
+
+## Additional Resources
+
+- **Detailed layer rules:** `.github/instructions/` (modules-domain, modules-application, etc.)
+- **Architecture docs:** `docs/auth/auth.v2.md`, `docs/deploy.md`
+- **NestJS docs:** https://docs.nestjs.com
+- **TypeORM migrations:** https://typeorm.io/migrations
