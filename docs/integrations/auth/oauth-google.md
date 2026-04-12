@@ -145,11 +145,10 @@ GET /auth/google/callback
 | Parâmetro | Tipo | Descrição |
 |-----------|------|-----------|
 | `code` | string | Código de autorização do Google |
-| `state` | string | State para validação CSRF (gerado pelo backend) |
 
 **Exemplo**:
 ```
-GET /auth/google/callback?code=4/0AX4XfWi...&state=abc123
+GET /auth/google/callback?code=4/0AX4XfWi...
 ```
 
 > ⚠️ **Nota**: Você NÃO chama este endpoint diretamente. O Google redireciona automaticamente.
@@ -179,7 +178,6 @@ https://app.personalfinance.com/auth/callback?accessToken=eyJhbGciOiJIUzI1NiIsIn
 #### 401 Unauthorized
 **Quando ocorre**: 
 - Código de autorização inválido
-- State inválido (possível ataque CSRF)
 - Usuário negou permissão
 
 ```
@@ -307,7 +305,6 @@ Backend generates OAuth URL with:
   - client_id: <google_client_id>
   - redirect_uri: <api_url>/auth/google/callback
   - scope: email profile
-  - state: <random_uuid> (CSRF protection)
   ↓
 Redirect 302 → Google OAuth consent screen
 ```
@@ -321,19 +318,18 @@ User grants permissions (email, profile)
 
 ### 4. Google redireciona com código
 ```
-Google → GET /auth/google/callback?code=xyz&state=abc
+Google → GET /auth/google/callback?code=xyz
 ```
 
 ### 5. Backend troca código por perfil
 ```
 Backend:
-  1. Validates state (CSRF)
-  2. Exchanges code for Google access token
-  3. Fetches user profile from Google
-  4. Creates user if not exists
-  5. Generates JWT tokens
-  6. Sets refresh token cookie
-  7. Redirects to frontend with access token
+  1. Exchanges code for Google access token
+  2. Fetches user profile from Google
+  3. Creates user if not exists
+  4. Generates JWT tokens
+  5. Sets refresh token cookie
+  6. Redirects to frontend with access token
 ```
 
 ### 6. Frontend recebe token
@@ -347,22 +343,17 @@ Frontend redirects to dashboard
 
 ## 🔒 Notas de Segurança
 
-### 1. State Parameter (CSRF Protection)
-- Backend gera UUID aleatório antes de redirecionar
-- State é validado no callback
-- Previne ataques Cross-Site Request Forgery
-
-### 2. Redirect URI Whitelist
+### 1. Redirect URI Whitelist
 - Google valida redirect URI
 - Deve estar configurado no Google Cloud Console
 - Previne redirecionamentos maliciosos
 
-### 3. HTTPS Required (Produção)
+### 2. HTTPS Required (Produção)
 - Google exige HTTPS para redirect URI em produção
 - Cookies Secure ativos
 - Proteção contra man-in-the-middle
 
-### 4. Scopes Mínimos
+### 3. Scopes Mínimos
 ```
 scope=email profile
 ```
@@ -370,7 +361,7 @@ scope=email profile
 - Princípio do menor privilégio
 - Usuário vê exatamente o que está autorizando
 
-### 5. Token em URL
+### 4. Token em URL
 - Access token na URL é seguro para SPA
 - Apenas por alguns segundos (durante redirect)
 - Imediatamente movido para localStorage
@@ -492,5 +483,5 @@ function GoogleButton() {
 
 - [`POST /auth/sign-in`](./sign-in.md) - Login alternativo com email/senha
 - [`POST /auth/sign-up`](./sign-up.md) - Criar conta com email
-- [`GET /auth/me`](./get-me.md) - Obter dados do usuário
+- [`GET /users/me`](./get-me.md) - Obter dados do usuário
 - [`POST /auth/providers/link/google`](./link-providers.md#vincular-google) - Vincular Google a conta existente

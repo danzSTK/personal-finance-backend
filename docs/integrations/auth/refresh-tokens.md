@@ -351,7 +351,7 @@ import api from './api';
 
 async function getUserData() {
   // Token expirado? Será renovado automaticamente!
-  const response = await api.get('/auth/me');
+  const response = await api.get('/users/me');
   return response.data;
 }
 ```
@@ -490,5 +490,5 @@ Se um refresh token já usado for apresentado novamente:
 - [`POST /auth/sign-in`](./sign-in.md) - Obter tokens iniciais
 - [`POST /auth/sign-up`](./sign-up.md) - Criar conta e obter tokens
 - [`POST /auth/logout`](./logout.md) - Invalidar tokens
-- [`GET /auth/me`](./get-me.md) - Usar access token
+- [`GET /users/me`](./get-me.md) - Usar access token
 - [`GET /auth/sessions`](./sessions.md) - Ver sessões ativas

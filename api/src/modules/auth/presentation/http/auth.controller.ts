@@ -92,9 +92,9 @@ export class AuthController {
     headers: {
       'Set-Cookie': {
         description:
-          'Cookie HttpOnly contendo o refresh token. Ex.: refreshToken=<token>; HttpOnly; Path=/; Max-Age=604800;',
+          'Cookie HttpOnly contendo o refresh token. Ex.: refreshToken=<token>; HttpOnly; Path=/auth; Max-Age=604800;',
         schema: { type: 'string' },
-        example: 'refreshToken=abc123; Path=/; HttpOnly; Secure; SameSite=Lax',
+        example: 'refreshToken=abc123; Path=/auth; HttpOnly; Secure; SameSite=Lax',
       },
     },
     schema: {
@@ -152,9 +152,9 @@ export class AuthController {
     headers: {
       'Set-Cookie': {
         description:
-          'Cookie HttpOnly contendo o refresh token. Ex.: refreshToken=<token>; HttpOnly; Path=/; Max-Age=604800;',
+          'Cookie HttpOnly contendo o refresh token. Ex.: refreshToken=<token>; HttpOnly; Path=/auth; Max-Age=604800;',
         schema: { type: 'string' },
-        example: 'refreshToken=abc123; Path=/; HttpOnly; Secure; SameSite=Lax',
+        example: 'refreshToken=abc123; Path=/auth; HttpOnly; Secure; SameSite=Lax',
       },
     },
   })

@@ -2,9 +2,10 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../auth/infrastructure/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
 import { User } from '../../domain/entities/user.entity';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { AuthProviderType } from '../../../../common/models/enums';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AuthProviderType, UserStatus } from '../../../../common/models/enums';
 
+@ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor() {}
@@ -27,7 +28,7 @@ export class UsersController {
         firstName: { type: 'string', example: 'João', nullable: true },
         userName: { type: 'string', example: 'john_doe', nullable: true },
         email: { type: 'string', example: 'joao.silva@email.com' },
-        status: { type: 'string', example: 'active' },
+        status: { type: 'string', example: UserStatus.ACTIVE, enum: Object.values(UserStatus) },
         createdAt: { type: 'string', format: 'date-time' },
         updatedAt: { type: 'string', format: 'date-time' },
         providers: {

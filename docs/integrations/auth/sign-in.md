@@ -414,12 +414,12 @@ Após fazer login:
    - Chame [`POST /auth/refresh`](./refresh-tokens.md)
    - Repita requisição original com novo token
 
-4. Teste com [`GET /auth/me`](./get-me.md) para obter dados do usuário
+4. Teste com [`GET /users/me`](./get-me.md) para obter dados do usuário
 
 ## 🔗 Endpoints Relacionados
 
 - [`POST /auth/sign-up`](./sign-up.md) - Criar nova conta
-- [`GET /auth/me`](./get-me.md) - Obter dados do usuário autenticado
+- [`GET /users/me`](./get-me.md) - Obter dados do usuário autenticado
 - [`POST /auth/refresh`](./refresh-tokens.md) - Renovar access token
 - [`POST /auth/logout`](./logout.md) - Encerrar sessão
 - [`GET /auth/sessions`](./sessions.md) - Listar sessões ativas

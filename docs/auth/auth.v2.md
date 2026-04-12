@@ -44,7 +44,7 @@ Regra importante no estado atual:
 
 | Método | Rota | Auth | Descrição |
 |---|---|---|---|
-| `GET` | `/auth/me` | `JwtAuthGuard` | Retorna dados do usuário autenticado |
+| `GET` | `/users/me` | `JwtAuthGuard` | Retorna dados do usuário autenticado |
 | `POST` | `/auth/sign-up` | público | Cadastro por e-mail/senha |
 | `POST` | `/auth/sign-in` | `LocalAuthGuard` | Login por e-mail/senha |
 | `GET` | `/auth/google` | `GoogleAuthGuard` | Inicia login social com Google |
