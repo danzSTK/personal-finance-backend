@@ -1,3 +1,16 @@
+---
+name: nestjs-module
+description: Use when creating a new NestJS module or domain feature following this repository's DDD and Clean Architecture conventions.
+metadata:
+  category: architecture
+  triggers:
+    - nestjs module
+    - criar modulo
+    - nova feature
+    - ddd
+    - clean architecture
+---
+
 # Criar Módulo NestJS
 
 ## Quando usar
@@ -22,6 +35,5 @@ modules/<nome>/
 │   ├── http/              # Controllers
 │   └── dto/               # DTOs de request/response HTTP
 └── <nome>.module.ts
-
 
 
