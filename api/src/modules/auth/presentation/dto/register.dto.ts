@@ -1,19 +1,20 @@
 import { IsEmail, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
 import { TrimAndLowerCase } from '../../../../common/decorators/normalize-string.decorator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { USER_NAME_MAX_LENGTH, USER_NAME_MIN_LENGTH } from '@/common/models/constants';
 
 export class RegisterDto {
   @ApiProperty({
     description: 'Nome de usuário único para identificação',
     example: 'john_doe',
-    minLength: 3,
-    maxLength: 100,
+    minLength: USER_NAME_MIN_LENGTH,
+    maxLength: USER_NAME_MAX_LENGTH,
   })
   @TrimAndLowerCase()
   @IsString()
   @IsNotEmpty({ message: 'Username should not be empty.' })
-  @Length(3, 100, {
-    message: 'Username must be between 3 and 100 characters long.',
+  @Length(USER_NAME_MIN_LENGTH, USER_NAME_MAX_LENGTH, {
+    message: `Username must be between ${USER_NAME_MIN_LENGTH} and ${USER_NAME_MAX_LENGTH} characters long.`,
   })
   userName: string;
 

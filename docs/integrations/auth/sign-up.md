@@ -30,7 +30,7 @@ Content-Type: application/json
 
 | Campo | Tipo | Obrigatório | Validação | Descrição |
 |-------|------|-------------|-----------|-----------|
-| `userName` | string | ✅ Sim | 3-100 caracteres | Nome de usuário único (lowercase automático) |
+| `userName` | string | ✅ Sim | 3-50 caracteres | Nome de usuário único (lowercase automático) |
 | `email` | string | ✅ Sim | Email válido | Endereço de email (lowercase automático) |
 | `password` | string | ✅ Sim | 6-50 caracteres | Senha do usuário |
 | `firstName` | string | ❌ Não | 2-255 caracteres | Primeiro nome do usuário |
@@ -93,7 +93,7 @@ Max-Age: 604800 (7 dias)
 {
   "statusCode": 400,
   "message": [
-    "Username must be between 3 and 100 characters long.",
+    "Username must be between 3 and 50 characters long.",
     "This email address is not a valid address.",
     "The password must be between 6 and 50 characters long."
   ],
@@ -339,12 +339,12 @@ Após criar a conta:
 
 1. Use o `accessToken` retornado para fazer requisições autenticadas
 2. O `refreshToken` no cookie será usado automaticamente para renovar tokens
-3. Teste com [`GET /auth/me`](./get-me.md) para obter dados do usuário
+3. Teste com [`GET /users/me`](./get-me.md) para obter dados do usuário
 4. Configure interceptor para [renovar tokens](./refresh-tokens.md) quando expirar
 
 ## 🔗 Endpoints Relacionados
 
 - [`POST /auth/sign-in`](./sign-in.md) - Login com credenciais existentes
-- [`GET /auth/me`](./get-me.md) - Obter dados do usuário autenticado
+- [`GET /users/me`](./get-me.md) - Obter dados do usuário autenticado
 - [`POST /auth/refresh`](./refresh-tokens.md) - Renovar access token
 - [`POST /auth/logout`](./logout.md) - Encerrar sessão

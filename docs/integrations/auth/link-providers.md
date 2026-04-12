@@ -415,7 +415,8 @@ function linkGoogle() {
 async function checkLinkStatus() {
   // Verificar se Google foi vinculado
   const user = await getCurrentUser();
-  if (user.hasGoogleProvider) {
+  const hasGoogleProvider = user.providers?.some(p => p.provider === 'GOOGLE');
+  if (hasGoogleProvider) {
     alert('Google vinculado com sucesso!');
   }
 }
@@ -441,12 +442,12 @@ function LinkGoogleButton() {
     window.addEventListener('message', (event) => {
       if (event.origin !== window.location.origin) return;
       
-      if (event.data.type === 'google-link-success') {
+      if (event.data.type === 'auth:google-link-success') {
         popup?.close();
         toast.success('Google vinculado com sucesso!');
         // Atualizar dados do usuário
         refetchUser();
-      } else if (event.data.type === 'google-link-error') {
+      } else if (event.data.type === 'auth:google-link-error') {
         popup?.close();
         toast.error('Erro ao vincular Google: ' + event.data.error);
       }
@@ -473,7 +474,7 @@ Endpoint de callback do fluxo OAuth de vinculação. O Google redireciona para e
 
 ### 🔐 Autenticação
 
-❌ Não requer autenticação no header (state contém validação)
+❌ Não requer autenticação no header (a validação do fluxo ocorre via `state`)
 
 ### 📨 Request
 
@@ -487,7 +488,7 @@ GET /auth/providers/link/google/callback
 | Parâmetro | Tipo | Descrição |
 |-----------|------|-----------|
 | `code` | string | Código de autorização do Google |
-| `state` | string | State UUID (contém userId criptografado) |
+| `state` | string | State UUID gerado no início do fluxo |
 
 > ⚠️ **Nota**: Este endpoint NÃO é chamado diretamente. O Google redireciona automaticamente.
 
@@ -505,24 +506,19 @@ Location: <frontend_url>/auth/link?success=google
 
 ### ❌ Possíveis Erros
 
-**Cenário 1: Google já vinculado a outra conta**
+**Cenário 1: conflito de vínculo Google**
 ```
-Redirect: <frontend_url>/auth/link?error=google_already_linked
-```
-
-**Cenário 2: Usuário já possui Google**
-```
-Redirect: <frontend_url>/auth/link?error=user_already_has_google
+Redirect: <frontend_url>/auth/link?error=google_provider_conflict
 ```
 
-**Cenário 3: State inválido**
+**Cenário 2: state ausente**
+```
+Redirect: <frontend_url>/auth/link?error=missing_state
+```
+
+**Cenário 3: state inválido/expirado**
 ```
 Redirect: <frontend_url>/auth/link?error=invalid_state
-```
-
-**Cenário 4: Código inválido**
-```
-Redirect: <frontend_url>/auth/link?error=invalid_code
 ```
 
 ### 💡 Frontend - Capturar Resultado
@@ -544,7 +540,7 @@ function LinkCallback() {
       // Notificar janela pai (se foi aberta em popup)
       if (window.opener) {
         window.opener.postMessage(
-          { type: 'google-link-success' },
+          { type: 'auth:google-link-success' },
           window.location.origin
         );
         window.close();
@@ -554,17 +550,16 @@ function LinkCallback() {
       }
     } else if (error) {
       const errorMessages = {
-        google_already_linked: 'Esta conta Google já está vinculada a outro usuário',
-        user_already_has_google: 'Você já possui uma conta Google vinculada',
+        google_provider_conflict: 'Esta conta Google já está vinculada a outro usuário',
+        missing_state: 'Sessão de vínculo inválida. Tente novamente.',
         invalid_state: 'Sessão expirada. Tente novamente.',
-        invalid_code: 'Erro ao validar com Google. Tente novamente.',
       };
 
       const message = errorMessages[error] || 'Erro desconhecido';
 
       if (window.opener) {
         window.opener.postMessage(
-          { type: 'google-link-error', error: message },
+          { type: 'auth:google-link-error', error: message },
           window.location.origin
         );
         window.close();
@@ -616,7 +611,7 @@ sequenceDiagram
 ## 🔒 Notas de Segurança
 
 ### 1. State Parameter
-- Contém userId criptografado
+- É um UUID aleatório (não carrega dados sensíveis)
 - Armazenado em Redis com TTL de 10 minutos
 - Validado no callback para prevenir CSRF
 - Garante que a vinculação é para o usuário correto
@@ -649,6 +644,8 @@ sequenceDiagram
 ```typescript
 function AccountSettings() {
   const { user } = useAuth();
+  const hasEmailProvider = user.providers?.some(p => p.provider === 'EMAIL');
+  const hasGoogleProvider = user.providers?.some(p => p.provider === 'GOOGLE');
 
   return (
     <div>
@@ -659,7 +656,7 @@ function AccountSettings() {
         <div className="provider-item">
           <EmailIcon />
           <span>Email/Senha</span>
-          {user.hasEmailProvider ? (
+          {hasEmailProvider ? (
             <span className="badge-success">Ativo</span>
           ) : (
             <LinkEmailForm />
@@ -670,7 +667,7 @@ function AccountSettings() {
         <div className="provider-item">
           <GoogleIcon />
           <span>Google</span>
-          {user.hasGoogleProvider ? (
+          {hasGoogleProvider ? (
             <span className="badge-success">Vinculado</span>
           ) : (
             <LinkGoogleButton />
@@ -686,11 +683,13 @@ function AccountSettings() {
 ```typescript
 function WelcomeDashboard() {
   const { user } = useAuth();
+  const hasEmailProvider = user.providers?.some(p => p.provider === 'EMAIL');
+  const hasGoogleProvider = user.providers?.some(p => p.provider === 'GOOGLE');
 
   // Se usuário só tem 1 provider, sugerir adicionar outro
   const providersCount = 
-    (user.hasEmailProvider ? 1 : 0) + 
-    (user.hasGoogleProvider ? 1 : 0);
+    (hasEmailProvider ? 1 : 0) + 
+    (hasGoogleProvider ? 1 : 0);
 
   if (providersCount === 1) {
     return (
@@ -698,8 +697,8 @@ function WelcomeDashboard() {
         <h3>🔒 Proteja sua conta</h3>
         <p>Adicione outro método de login para mais segurança</p>
         
-        {!user.hasEmailProvider && <LinkEmailForm />}
-        {!user.hasGoogleProvider && <LinkGoogleButton />}
+        {!hasEmailProvider && <LinkEmailForm />}
+        {!hasGoogleProvider && <LinkGoogleButton />}
       </div>
     );
   }
@@ -737,5 +736,5 @@ function LoginPage() {
 
 - [`POST /auth/sign-up`](./sign-up.md) - Criar conta inicial
 - [`GET /auth/google`](./oauth-google.md) - Login com Google (não vincular)
-- [`GET /auth/me`](./get-me.md) - Ver providers vinculados
+- [`GET /users/me`](./get-me.md) - Ver providers vinculados
 - [`POST /auth/logout`](./logout.md) - Logout (funciona com qualquer provider)

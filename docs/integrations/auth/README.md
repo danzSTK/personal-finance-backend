@@ -18,7 +18,7 @@ O módulo de autenticação fornece endpoints completos para gerenciamento de us
 ## 🔗 Endpoints Disponíveis
 
 ### 👤 Gerenciamento de Usuário
-- [`GET /auth/me`](./get-me.md) - Obter dados do usuário autenticado
+- [`GET /users/me`](./get-me.md) - Obter dados do usuário autenticado
 
 ### 🔑 Autenticação com Email
 - [`POST /auth/sign-up`](./sign-up.md) - Criar nova conta com email/senha
@@ -109,7 +109,7 @@ curl -X POST http://localhost:3000/auth/sign-up \
   }'
 
 # 2. Obter dados do usuário
-curl http://localhost:3000/auth/me \
+curl http://localhost:3000/users/me \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -126,7 +126,7 @@ http://localhost:3000/auth/google
 sequenceDiagram
     Client->>API: POST /auth/sign-up
     API->>Client: accessToken + Set-Cookie(refreshToken)
-    Client->>API: GET /auth/me (Bearer token)
+    Client->>API: GET /users/me (Bearer token)
     API->>Client: User data
     Client->>API: POST /auth/refresh (cookie)
     API->>Client: New accessToken + new refreshToken

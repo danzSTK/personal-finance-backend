@@ -23,7 +23,7 @@ A aplicação segue uma arquitetura em camadas:
 ### 🔑 Características Principais
 
 - ✅ **Autenticação JWT** com refresh token rotation
-- ✅ **OAuth 2.0** (Google, GitHub)
+- ✅ **OAuth 2.0** (Google)
 - ✅ **Multi-provider authentication** (Email/Password + OAuth)
 - ✅ **Session management** com Redis
 - ✅ **Rate limiting** e proteção contra ataques
@@ -42,26 +42,25 @@ Development: http://localhost:3000
 Production: https://api.your-domain.com
 ```
 
-### Formato de Resposta Padrão
+### Formato de Resposta
 
-#### ✅ Sucesso (2xx)
+As respostas de sucesso são **diretas por endpoint** (sem envelope fixo `data/message`).
+
+Exemplo real de sucesso:
 
 ```json
 {
-  "data": { ... },
-  "message": "Operation successful"
+  "accessToken": "<jwt>"
 }
 ```
 
-#### ❌ Erro (4xx, 5xx)
+Exemplo de erro:
 
 ```json
 {
   "statusCode": 400,
   "message": "Error description",
-  "error": "BadRequest",
-  "timestamp": "2026-04-05T18:59:42.413Z",
-  "path": "/auth/sign-in"
+  "error": "Bad Request"
 }
 ```
 
@@ -102,7 +101,8 @@ Gerenciamento completo de autenticação e autorização.
 
 Gerenciamento de usuários e perfis.
 
-**Status:** 🚧 Em desenvolvimento
+**Disponível hoje:**
+- `GET /users/me` (dados do usuário autenticado + providers vinculados)
 
 ---
 
@@ -138,8 +138,8 @@ A API implementa **rate limiting** em endpoints críticos:
 
 | Endpoint | Limite | Janela | Bloqueio |
 |----------|--------|--------|----------|
-| `/auth/sign-up` | 3 requisições | 1 hora | 1 hora |
-| `/auth/sign-in` | 10 requisições | 15 min | 1 hora |
+| `/auth/sign-up` | 10 requisições | 10 min | 30 min |
+| `/auth/sign-in` | 5 requisições | 1 min | 10 min |
 | `/auth/refresh` | 5 requisições | 1 min | - |
 
 Quando o limite é excedido:
@@ -200,7 +200,7 @@ Refresh tokens são armazenados em **HttpOnly Cookies** com:
 Acesse a documentação interativa:
 
 ```
-http://localhost:3000/api/docs
+http://localhost:3000/docs
 ```
 
 ### Postman Collection
@@ -232,7 +232,7 @@ curl -X POST http://localhost:3000/auth/sign-in \
   }'
 
 # Acessar rota protegida
-curl -X GET http://localhost:3000/auth/me \
+curl -X GET http://localhost:3000/users/me \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -250,7 +250,7 @@ sequenceDiagram
     API->>Redis: Criar sessão
     API-->>Frontend: accessToken + refreshToken (cookie)
     
-    Frontend->>API: GET /auth/me (Authorization: Bearer <token>)
+    Frontend->>API: GET /users/me (Authorization: Bearer <token>)
     API-->>Frontend: User data
     
     Note over Frontend,API: Access token expira (15min)
@@ -270,7 +270,7 @@ sequenceDiagram
 
 Para dúvidas ou problemas, consulte:
 
-1. **Swagger Docs**: `http://localhost:3000/api/docs`
+1. **Swagger Docs**: `http://localhost:3000/docs`
 2. **Repositório**: [GitHub Issues](#)
 3. **Documentação por módulo**: Navegue pelos diretórios deste guia
 
@@ -288,7 +288,7 @@ docs/integrations/
 │   ├── oauth-google.md          ← OAuth Google Flow
 │   ├── refresh-tokens.md        ← POST /auth/refresh
 │   ├── logout.md                ← POST /auth/logout
-│   ├── get-me.md                ← GET /auth/me
+│   ├── get-me.md                ← GET /users/me
 │   ├── sessions.md              ← Gerenciar sessões
 │   └── link-providers.md        ← Vincular providers
 ├── users/
@@ -299,6 +299,6 @@ docs/integrations/
 
 ---
 
-**Última atualização:** 2026-04-05  
+**Última atualização:** 2026-04-12  
 **Versão da API:** 1.0.0  
 **Documentação mantida por:** Backend Team
