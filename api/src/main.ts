@@ -39,7 +39,6 @@ async function bootstrap() {
     .setDescription('API de controle financeiro')
     .setVersion('1.0')
     .addTag('auth', 'Autenticação e Sessões')
-    .addTag('users', 'Gestão de Usuários')
     .addTag('categories', 'Gestão de Categorias')
     .addTag('transactions', 'Gestão de Transações')
     .addBearerAuth()
