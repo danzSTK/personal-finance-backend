@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { IRepositoryOptions, IUserRepository } from '../../../domain/repositories/user.respository.interface';
-import { CreateUserUseCaseDto } from './create-user.dto';
+import { CreateUserUseCaseInput, CreateUserUseCaseOutput } from './create-user.dto';
 import { Email } from '../../../domain/value-objects/email.value-object';
 import { UserName } from '../../../domain/value-objects/user-name.value-object';
 import { User } from '../../../domain/entities/user.entity';
@@ -14,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 export class CreateUserUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
 
-  async execute(data: CreateUserUseCaseDto, options?: IRepositoryOptions) {
+  async execute(data: CreateUserUseCaseInput, options?: IRepositoryOptions): Promise<CreateUserUseCaseOutput> {
     const email = Email.create(data.email);
 
     const existingUserByEmail = await this.userRepository.findByEmail(email, options);

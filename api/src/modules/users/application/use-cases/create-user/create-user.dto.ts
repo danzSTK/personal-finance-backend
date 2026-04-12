@@ -1,4 +1,5 @@
 import { AuthProviderType, UserStatus } from '../../../../../common/models/enums';
+import { User } from '../../../domain/entities/user.entity';
 
 export interface CreateUserAuthProviderInput {
   provider: AuthProviderType;
@@ -6,7 +7,7 @@ export interface CreateUserAuthProviderInput {
   passwordHash: string | null;
 }
 
-export interface CreateUserUseCaseDto {
+export interface CreateUserUseCaseInput {
   userName?: string;
   firstName?: string;
   lastName?: string;
@@ -14,3 +15,5 @@ export interface CreateUserUseCaseDto {
   status: UserStatus;
   authProviders?: CreateUserAuthProviderInput[];
 }
+
+export type CreateUserUseCaseOutput = User;
