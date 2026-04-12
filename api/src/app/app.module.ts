@@ -17,13 +17,15 @@ import { APP_GUARD } from '@nestjs/core';
 import { RedisService } from '../database/redis/redis.service';
 import { SessionModule } from '../shared/session-tracking/session-metadata.module';
 import { HealthModule } from '../modules/health/health.module';
+import appConfig from '../config/app.config';
+import { AppStatus } from '../common/models/enums';
 
 @Module({
   imports: [
     ConfigModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (dbConfig: ConfigType<typeof databaseConfig>) => ({
+      useFactory: (dbConfig: ConfigType<typeof databaseConfig>, app: ConfigType<typeof appConfig>) => ({
         type: 'postgres',
         host: dbConfig.host,
         port: dbConfig.port,
@@ -33,11 +35,9 @@ import { HealthModule } from '../modules/health/health.module';
         entities: ENTITIES,
         synchronize: false,
         logging: true,
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: (app.nodeEnv as AppStatus) === AppStatus.PRODUCTION ? { rejectUnauthorized: false } : false,
       }),
-      inject: [databaseConfig.KEY],
+      inject: [databaseConfig.KEY, appConfig.KEY],
     }),
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
