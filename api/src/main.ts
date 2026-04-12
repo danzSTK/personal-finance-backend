@@ -5,10 +5,13 @@ import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppStatus } from './common/models/enums';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const isProduction = process.env.NODE_ENV === AppStatus.PRODUCTION;
+
+  app.set('trust proxy', 1); // Habilita o reconhecimento de proxies reversos
 
   app.enableCors({
     origin: isProduction ? process.env.FRONTEND_URL : true,
@@ -39,8 +42,9 @@ async function bootstrap() {
     .setDescription('API de controle financeiro')
     .setVersion('1.0')
     .addTag('auth', 'Autenticação e Sessões')
-    .addTag('categories', 'Gestão de Categorias')
-    .addTag('transactions', 'Gestão de Transações')
+    .addTag('users', 'Perfil e dados do usuário autenticado')
+    .addTag('health', 'Health checks da aplicação')
+    .addTag('app', 'Informações públicas da API')
     .addBearerAuth()
     .build();
 
