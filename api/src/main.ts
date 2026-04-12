@@ -9,6 +9,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.use(cookieParser());
   const isProduction = process.env.NODE_ENV === AppStatus.PRODUCTION;
 
   app.set('trust proxy', 1); // Habilita o reconhecimento de proxies reversos
@@ -24,7 +25,6 @@ async function bootstrap() {
       hsts: isProduction,
     }),
   );
-  app.use(cookieParser());
 
   app.useGlobalPipes(
     new ValidationPipe({
