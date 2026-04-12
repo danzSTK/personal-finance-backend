@@ -5,7 +5,7 @@ export const AUTH_CONSTANTS = {
     refreshTokenKey: 'refreshToken',
     accessTokenKey: 'accessToken',
     secure: process.env.NODE_ENV === AppStatus.PRODUCTION,
-    sameSite: process.env.NODE_ENV === AppStatus.PRODUCTION ? 'lax' : 'none',
+    sameSite: 'lax',
   },
   throttles: {
     signin: {
