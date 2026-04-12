@@ -16,7 +16,7 @@ export class RegisterDto {
   @Length(USER_NAME_MIN_LENGTH, USER_NAME_MAX_LENGTH, {
     message: `Username must be between ${USER_NAME_MIN_LENGTH} and ${USER_NAME_MAX_LENGTH} characters long.`,
   })
-  userName: string;
+  userName!: string;
 
   @ApiPropertyOptional({
     description: 'Primeiro nome do usuário',
@@ -52,7 +52,7 @@ export class RegisterDto {
   @TrimAndLowerCase()
   @IsString()
   @IsEmail({}, { message: 'This email address is not a valid address.' })
-  email: string;
+  email!: string;
 
   @ApiProperty({
     description: 'Senha do usuário',
@@ -65,5 +65,5 @@ export class RegisterDto {
   @Length(6, 50, {
     message: 'The password must be between 6 and 50 characters long.',
   })
-  password: string;
+  password!: string;
 }
