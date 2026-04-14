@@ -32,6 +32,7 @@ import appConfig from '../../../../config/app.config';
 import { AUTH_CONSTANTS } from '@/common/models/constants';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
+import { IsPublic } from '@/common/decorators/is-public.decorator';
 import { type SessionMetadata } from '@/common/models/interfaces';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 import { User } from '../../../users/domain/entities/user.entity';
@@ -47,12 +48,12 @@ import { GoogleAuthGuard } from '../../infrastructure/guards/google-auth.guard';
 import { GoogleLinkAuthGuard } from '../../infrastructure/guards/google-link-auth.guard';
 import { GoogleLinkInitAuthGuard } from '../../infrastructure/guards/google-link-init-auth.guard';
 import { JwtRefreshGuard } from '../../infrastructure/guards/jwt-refresh.guard';
-import { JwtAuthGuard } from '../../infrastructure/guards/jwt-auth.guard';
 import { type RefreshStrategyResponse } from '../../infrastructure/strategies/refresh-strategy-response.interface';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
 import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
 import { GoogleLinkAuthPayload } from '../../infrastructure/strategies/google-link.strategy';
+import { UserProfileResponseDto } from '../../../../common/dto/user-profile.response.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -81,6 +82,7 @@ export class AuthController {
     },
   })
   @Post('sign-up')
+  @IsPublic()
   @ApiOperation({
     summary: 'Registrar novo usuário',
     description: 'Cria uma nova conta de usuário e retorna os tokens de acesso.',
@@ -110,8 +112,8 @@ export class AuthController {
     @Body() signUpDto: RegisterDto,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
     @Res({ passthrough: true }) res: Response,
-  ) {
-    const tokens = await this.signUpUseCase.execute({
+  ): Promise<UserProfileResponseDto> {
+    const { accessToken, refreshToken, user } = await this.signUpUseCase.execute({
       email: signUpDto.email,
       password: signUpDto.password,
       firstName: signUpDto.firstName,
@@ -120,9 +122,10 @@ export class AuthController {
       sessionMetadata: sessionInfo,
     });
 
-    this.setRefreshTokenCookie(res, tokens.refreshToken);
+    this.setRefreshTokenCookie(res, refreshToken);
+    this.setAccessTokenCookie(res, accessToken);
 
-    return { accessToken: tokens.accessToken };
+    return UserProfileResponseDto.fromEntity(user);
   }
 
   @Throttle({
@@ -134,6 +137,7 @@ export class AuthController {
   })
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
+  @IsPublic()
   @UseGuards(LocalAuthGuard)
   @ApiOperation({
     summary: 'Autenticar usuário',
@@ -164,16 +168,15 @@ export class AuthController {
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.signInUseCase.execute({
+    const { accessToken, refreshToken } = await this.signInUseCase.execute({
       userId: user.id,
       email: user.email.value,
       status: user.status,
       sessionMetadata: sessionInfo,
     });
 
-    this.setRefreshTokenCookie(res, tokens.refreshToken);
-
-    return { accessToken: tokens.accessToken };
+    this.setRefreshTokenCookie(res, refreshToken);
+    this.setAccessTokenCookie(res, accessToken);
   }
 
   @Throttle({
@@ -184,6 +187,7 @@ export class AuthController {
     },
   })
   @Get('google')
+  @IsPublic()
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({
     summary: 'Iniciar login com Google',
@@ -208,6 +212,7 @@ export class AuthController {
    * 4. Geramos JWT e redirecionamos para frontend
    */
   @Get('google/callback')
+  @IsPublic()
   @UseGuards(GoogleAuthGuard)
   @ApiExcludeEndpoint()
   async googleAuthCallback(
@@ -215,23 +220,20 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
   ) {
-    const tokens = await this.signInUseCase.execute({
+    const { accessToken, refreshToken } = await this.signInUseCase.execute({
       userId: user.id,
       email: user.email.value,
       status: user.status,
       sessionMetadata: sessionInfo,
     });
 
-    this.setRefreshTokenCookie(res, tokens.refreshToken);
+    this.setRefreshTokenCookie(res, refreshToken);
+    this.setAccessTokenCookie(res, accessToken);
 
-    const frontendUrl = this.appConfiguration.frontendUrl;
-    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}`;
-
-    return res.redirect(redirectUrl);
+    return res.redirect(this.appConfiguration.frontendUrl);
   }
 
   @Get('sessions')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Listar sessões ativas',
@@ -262,7 +264,6 @@ export class AuthController {
   }
 
   @Delete('sessions/:jti')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @ApiOperation({
@@ -288,6 +289,7 @@ export class AuthController {
     },
   })
   @Post('refresh')
+  @IsPublic()
   @UseGuards(JwtRefreshGuard)
   @ApiOperation({
     summary: 'Renovar tokens',
@@ -316,18 +318,16 @@ export class AuthController {
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.refreshTokensUseCase.execute({
+    const { accessToken, refreshToken } = await this.refreshTokensUseCase.execute({
       userId: refreshStrategyResponse.id,
       oldJti: refreshStrategyResponse.oldRefreshTokenJti,
       sessionMetadata: sessionInfo,
     });
 
-    this.setRefreshTokenCookie(res, tokens.refreshToken);
-
-    return { accessToken: tokens.accessToken };
+    this.setRefreshTokenCookie(res, refreshToken);
+    this.setAccessTokenCookie(res, accessToken);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -352,22 +352,29 @@ export class AuthController {
     @Req() req: AuthRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const accessToken = authHeader.replace('Bearer ', '');
+    const accessToken = req.cookies.accessToken;
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken || typeof refreshToken !== 'string') {
       this.clearRefreshTokenCookie(res);
+      this.clearAccessTokenCookie(res);
       throw new UnauthorizedException('Refresh token not found');
+    }
+
+    if (!accessToken || typeof accessToken !== 'string') {
+      this.clearRefreshTokenCookie(res);
+      this.clearAccessTokenCookie(res);
+      throw new UnauthorizedException('Access token not found');
     }
 
     await this.logoutUseCase.execute({ userId: user.id, accessToken, refreshToken });
 
     this.clearRefreshTokenCookie(res);
+    this.clearAccessTokenCookie(res);
 
-    return { message: 'Logged out successfully' };
+    return;
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('providers/link/email')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -412,7 +419,7 @@ export class AuthController {
    * 2. Geramos um state UUID e armazenamos o userId no Redis
    * 3. Redirecionamos para OAuth do Google com o state
    */
-  @UseGuards(JwtAuthGuard, GoogleLinkInitAuthGuard)
+  @UseGuards(GoogleLinkInitAuthGuard)
   @Get('providers/link/google')
   @ApiBearerAuth()
   @ApiOperation({
@@ -439,6 +446,7 @@ export class AuthController {
    * 4. Controller apenas redireciona para frontend com status final
    */
   @Get('providers/link/google/callback')
+  @IsPublic()
   @UseGuards(GoogleLinkAuthGuard)
   @ApiExcludeEndpoint()
   linkGoogleCallback(@Req() req: Request, @Res() res: Response) {
@@ -464,5 +472,19 @@ export class AuthController {
 
   private clearRefreshTokenCookie(res: Response) {
     res.clearCookie(AUTH_CONSTANTS.cookies.refreshTokenKey, { path: '/auth' });
+  }
+
+  private setAccessTokenCookie(res: Response, accessToken: string) {
+    res.cookie(AUTH_CONSTANTS.cookies.accessTokenKey, accessToken, {
+      httpOnly: true,
+      secure: AUTH_CONSTANTS.cookies.secure,
+      sameSite: AUTH_CONSTANTS.cookies.sameSite,
+      path: AUTH_CONSTANTS.cookies.accessTokenPath,
+      maxAge: ms(this.jwtConfiguration.accessExpiresIn as StringValue),
+    });
+  }
+
+  private clearAccessTokenCookie(res: Response) {
+    res.clearCookie(AUTH_CONSTANTS.cookies.accessTokenKey, { path: AUTH_CONSTANTS.cookies.accessTokenPath });
   }
 }

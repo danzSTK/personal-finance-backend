@@ -3,8 +3,10 @@ import { HealthCheck, HealthCheckService, MemoryHealthIndicator, TypeOrmHealthIn
 import { RedisHealthIndicator } from './indicators/redis-health-indicator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { IsPublic } from '@/common/decorators/is-public.decorator';
 
 @ApiTags('health')
+@IsPublic()
 @Controller('health')
 export class HealthController {
   constructor(

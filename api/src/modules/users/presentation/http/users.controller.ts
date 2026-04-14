@@ -1,9 +1,9 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../../auth/infrastructure/guards/jwt-auth.guard';
+import { Controller, Get } from '@nestjs/common';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
 import { User } from '../../domain/entities/user.entity';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthProviderType, UserStatus } from '../../../../common/models/enums';
+import { UserProfileResponseDto } from '../../../../common/dto/user-profile.response.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -11,7 +11,6 @@ export class UsersController {
   constructor() {}
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Obter dados do usuário autenticado',
@@ -45,20 +44,7 @@ export class UsersController {
     },
   })
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
-  getMe(@CurrentUser() user: User) {
-    return {
-      id: user.id,
-      lastName: user.lastName,
-      firstName: user.firstName,
-      userName: user.userName?.value ?? null,
-      email: user.email.value,
-      status: user.status,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      providers: user.authProviders.map(provider => ({
-        provider: provider.provider,
-        linkedAt: provider.createdAt,
-      })),
-    };
+  getMe(@CurrentUser() user: User): UserProfileResponseDto {
+    return UserProfileResponseDto.fromEntity(user);
   }
 }

@@ -5,7 +5,7 @@ import ms, { StringValue } from 'ms';
 import { randomUUID } from 'node:crypto';
 import jwtConfig from '../../../../../config/jwt.config';
 import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
-import { type GenerateTokenUseCaseDto, type GenerateTokenResult } from './generate-token.dto';
+import { type GenerateTokenOutput, type GenerateTokenUseCaseInput } from './generate-token.dto';
 import { type JwtPayloadDto } from '../../../presentation/dto/jwt-payload.dto';
 
 @Injectable()
@@ -17,7 +17,7 @@ export class GenerateTokenUseCase {
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
   ) {}
 
-  async execute(data: GenerateTokenUseCaseDto): Promise<GenerateTokenResult> {
+  async execute(data: GenerateTokenUseCaseInput): Promise<GenerateTokenOutput> {
     const { userId, email, status, sessionMetadata } = data;
 
     const accessTokenPayload: JwtPayloadDto = {

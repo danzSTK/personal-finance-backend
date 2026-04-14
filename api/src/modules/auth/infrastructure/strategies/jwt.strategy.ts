@@ -1,6 +1,6 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Strategy } from 'passport-jwt';
 import { type ConfigType } from '@nestjs/config';
 import jwtConfig from '../../../../config/jwt.config';
 import { UserStatus } from '../../../../common/models/enums/user-status.enum';
@@ -8,6 +8,7 @@ import { User } from '../../../users/domain/entities/user.entity';
 import { FindUserByIdUseCase } from '../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { ISessionRepository } from '../../domain/repositories/session.repository.interface';
 import { type JwtPayloadDto } from '../../presentation/dto/jwt-payload.dto';
+import { AuthRequest } from '../../../../common/models/interfaces/auth-request.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -18,7 +19,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: (request: AuthRequest) => {
+        const token = request?.cookies?.accessToken;
+
+        if (!token || typeof token !== 'string' || token.trim() === '') {
+          return null;
+        }
+
+        return token;
+      },
       ignoreExpiration: false,
       secretOrKey: jwtConfiguration.accessSecret,
       issuer: jwtConfiguration.issuer,

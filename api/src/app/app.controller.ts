@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { IsPublic } from '@/common/decorators/is-public.decorator';
 
 @ApiTags('app')
 @Controller()
@@ -7,6 +8,7 @@ export class AppController {
   constructor() {}
 
   @Get()
+  @IsPublic()
   @ApiOperation({
     summary: 'Status público da API',
     description: 'Retorna uma mensagem simples para validar que a API está no ar.',

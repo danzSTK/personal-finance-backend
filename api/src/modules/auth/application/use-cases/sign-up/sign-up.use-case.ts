@@ -8,8 +8,7 @@ import { FindUserByEmailUseCase } from '../../../../users/application/use-cases/
 import { FindUserByUserNameUseCase } from '../../../../users/application/use-cases/find-by-user-name/find-by-user-name.use-case';
 import { CreateUserUseCase } from '../../../../users/application/use-cases/create-user/create-user.use-case';
 import { GenerateTokenUseCase } from '../generate-token/generate-token.use-case';
-import { type GenerateTokenResult } from '../generate-token/generate-token.dto';
-import { type SignUpUseCaseDto } from './sign-up.dto';
+import { type SignUpUseCaseOutput, type SignUpUseCaseInput } from './sign-up.dto';
 
 @Injectable()
 export class SignUpUseCase {
@@ -24,7 +23,7 @@ export class SignUpUseCase {
     private readonly dataSource: DataSource,
   ) {}
 
-  async execute(data: SignUpUseCaseDto): Promise<GenerateTokenResult> {
+  async execute(data: SignUpUseCaseInput): Promise<SignUpUseCaseOutput> {
     const passwordHash = await this.hashService.hash(data.password);
 
     const result = await this.dataSource.transaction(async manager => {
@@ -67,11 +66,13 @@ export class SignUpUseCase {
       );
     });
 
-    return this.generateTokenUseCase.execute({
+    const { accessToken, refreshToken } = await this.generateTokenUseCase.execute({
       userId: result.id,
       email: result.email.value,
       status: result.status,
       sessionMetadata: data.sessionMetadata,
     });
+
+    return { accessToken, refreshToken, user: result };
   }
 }

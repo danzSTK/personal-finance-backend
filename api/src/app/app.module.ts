@@ -19,6 +19,8 @@ import { SessionModule } from '../shared/session-tracking/session-metadata.modul
 import { HealthModule } from '../modules/health/health.module';
 import appConfig from '../config/app.config';
 import { AppStatus } from '../common/models/enums';
+import { JwtAuthGuard } from '../shared/guards/jwt-auth.guard';
+import { OriginGuard } from '../shared/guards/origin.guard';
 
 @Module({
   imports: [
@@ -63,6 +65,14 @@ import { AppStatus } from '../common/models/enums';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: OriginGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

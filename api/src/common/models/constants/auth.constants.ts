@@ -1,12 +1,23 @@
 import { AppStatus } from '../enums';
 
+const csrfAllowedOrigins = (process.env.CSRF_ALLOWED_ORIGINS ?? process.env.FRONTEND_URL ?? '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
 export const AUTH_CONSTANTS = {
   cookies: {
     refreshTokenKey: 'refreshToken',
     accessTokenKey: 'accessToken',
+    refreshTokenPath: '/auth',
+    accessTokenPath: '/',
     secure: process.env.NODE_ENV === AppStatus.PRODUCTION,
     sameSite: 'lax',
   },
+  csrf: {
+    allowedOrigins: csrfAllowedOrigins,
+  },
+
   throttles: {
     signin: {
       ttl: 60000,
