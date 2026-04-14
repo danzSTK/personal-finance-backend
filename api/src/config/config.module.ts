@@ -17,8 +17,6 @@ import appConfig from './app.config';
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
       validationSchema: Joi.object({
-        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
-        PORT: Joi.number().default(3000),
         POSTGRES_HOST: Joi.string().required(),
         POSTGRES_PORT: Joi.number().required(),
         POSTGRES_USER: Joi.string().required(),
@@ -29,16 +27,12 @@ import appConfig from './app.config';
         JWT_REFRESH_SECRET: Joi.string().min(32).required(),
         JWT_ACCESS_EXPIRES_IN: Joi.string().required(),
         JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
-        APP_URL: Joi.string().uri().required(),
 
         // google oauth
         GOOGLE_CLIENT_ID: Joi.string().required(),
         GOOGLE_CLIENT_SECRET: Joi.string().required(),
         GOOGLE_CALLBACK_URL: Joi.string().uri().required(),
         GOOGLE_LINK_CALLBACK_URI: Joi.string().uri().required(),
-
-        // frontend url
-        FRONTEND_URL: Joi.string().uri().required(),
 
         // redis
         REDIS_HOST: Joi.string().required(),
@@ -56,6 +50,44 @@ import appConfig from './app.config';
         THROTTLE_AUTH_SIGNUP_TTL: Joi.number().optional(),
         THROTTLE_AUTH_SIGNUP_LIMIT: Joi.number().optional(),
         THROTTLE_AUTH_SIGNUP_BLOCKED_TTL: Joi.number().optional(),
+
+        // app
+        CSRF_ALLOWED_ORIGINS: Joi.string()
+          .trim()
+          .min(1)
+          .required()
+          .custom((value: string, helpers) => {
+            const origins = value
+              .split(',')
+              .map(origin => origin.trim())
+              .filter(Boolean);
+
+            if (origins.length === 0) {
+              return helpers.error('any.invalid');
+            }
+
+            for (const origin of origins) {
+              try {
+                const parsed = new URL(origin);
+
+                if (parsed.origin !== origin) {
+                  return helpers.error('string.uri');
+                }
+              } catch {
+                return helpers.error('string.uri');
+              }
+            }
+
+            return value;
+          }, 'CSRF allowed origins validation')
+          .messages({
+            'any.invalid': 'CSRF_ALLOWED_ORIGINS must contain at least one valid origin',
+            'string.uri': 'CSRF_ALLOWED_ORIGINS must be a comma-separated list of valid origins',
+          }),
+        FRONTEND_URL: Joi.string().uri().required(),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        PORT: Joi.number().default(3000),
+        APP_URL: Joi.string().uri().required(),
       }),
       validationOptions: {
         abortEarly: true,

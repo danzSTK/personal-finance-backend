@@ -2,8 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
 import { GenerateTokenUseCase } from '../generate-token/generate-token.use-case';
-import { type GenerateTokenResult } from '../generate-token/generate-token.dto';
-import { type RefreshTokensUseCaseDto } from './refresh-tokens.dto';
+import { type RefreshTokensUseCaseInput } from './refresh-tokens.dto';
+import { GenerateTokenOutput } from '../generate-token/generate-token.dto';
 
 @Injectable()
 export class RefreshTokensUseCase {
@@ -13,7 +13,7 @@ export class RefreshTokensUseCase {
     private readonly generateTokenUseCase: GenerateTokenUseCase,
   ) {}
 
-  async execute(data: RefreshTokensUseCaseDto): Promise<GenerateTokenResult> {
+  async execute(data: RefreshTokensUseCaseInput): Promise<GenerateTokenOutput> {
     const { userId, oldJti, sessionMetadata } = data;
 
     const user = await this.findUserByIdUseCase.execute(userId);
