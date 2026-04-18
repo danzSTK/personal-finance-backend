@@ -105,7 +105,7 @@ Falha de credenciais retorna `401 Unauthorized`.
      - se existir, adiciona provider `GOOGLE`;
      - se não existir, cria novo usuário com status `PENDING_PROFILE`.
 5. API gera tokens próprios da aplicação.
-6. Redireciona para `${FRONTEND_URL}/auth/callback?accessToken=<token>`.
+6. Redireciona para `${FRONTEND_URL}/auth/callback` (sem token na URL; sessão via cookies HttpOnly).
 
 ### 5.4 Vínculo de provider EMAIL (`POST /auth/providers/link/email`)
 
@@ -177,7 +177,7 @@ Proteção extra:
 
 ### 6.5 Logout (`POST /auth/logout`)
 
-1. Requer access token no header `Authorization` e refresh token no cookie.
+1. Requer access token e refresh token via cookies HttpOnly.
 2. Decodifica access token para obter `jti` e TTL restante.
 3. Verifica refresh token (mesmo expirado) para extrair `jti`.
 4. Em paralelo:

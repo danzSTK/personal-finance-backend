@@ -46,6 +46,7 @@ async function bootstrap() {
     .addTag('health', 'Health checks da aplicação')
     .addTag('app', 'Informações públicas da API')
     .addBearerAuth()
+    .addCookieAuth('accessToken')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

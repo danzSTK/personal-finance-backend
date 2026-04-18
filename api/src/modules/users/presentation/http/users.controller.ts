@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
 import { User } from '../../domain/entities/user.entity';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthProviderType, UserStatus } from '../../../../common/models/enums';
 import { UserProfileResponseDto } from '../../../../common/dto/user-profile.response.dto';
 
@@ -11,10 +11,10 @@ export class UsersController {
   constructor() {}
 
   @Get('me')
-  @ApiBearerAuth()
+  @ApiCookieAuth('accessToken')
   @ApiOperation({
     summary: 'Obter dados do usuário autenticado',
-    description: 'Retorna os dados do usuário logado a partir do token JWT.',
+    description: 'Retorna os dados do usuário logado a partir do cookie HttpOnly accessToken.',
   })
   @ApiResponse({
     status: 200,

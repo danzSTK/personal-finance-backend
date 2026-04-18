@@ -7,7 +7,6 @@ import {
   UseGuards,
   Get,
   Res,
-  Headers,
   Delete,
   Param,
   Req,
@@ -21,7 +20,7 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiBody,
   ApiParam,
   ApiExcludeEndpoint,
@@ -85,7 +84,7 @@ export class AuthController {
   @IsPublic()
   @ApiOperation({
     summary: 'Registrar novo usuário',
-    description: 'Cria uma nova conta de usuário e retorna os tokens de acesso.',
+    description: 'Cria uma nova conta e inicia sessão via cookies HttpOnly de access e refresh token.',
   })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({
@@ -102,7 +101,15 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        accessToken: { type: 'string', description: 'Token JWT de acesso' },
+        id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
+        lastName: { type: 'string', example: 'Silva', nullable: true },
+        firstName: { type: 'string', example: 'João', nullable: true },
+        userName: { type: 'string', example: 'john_doe', nullable: true },
+        email: { type: 'string', example: 'joao.silva@email.com' },
+        status: { type: 'string', example: 'ACTIVE' },
+        createdAt: { type: 'string', format: 'date-time' },
+        updatedAt: { type: 'string', format: 'date-time' },
+        providers: { type: 'array', items: { type: 'object' } },
       },
     },
   })
@@ -141,7 +148,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @ApiOperation({
     summary: 'Autenticar usuário',
-    description: 'Realiza login com e-mail e senha. Retorna access token no body e refresh token via cookie HttpOnly.',
+    description: 'Realiza login com e-mail e senha e autentica via cookies HttpOnly (access + refresh).',
   })
   @ApiBody({ type: LoginEmailDto })
   @ApiResponse({
@@ -150,7 +157,15 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        accessToken: { type: 'string', description: 'Token JWT de acesso' },
+        id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
+        lastName: { type: 'string', example: 'Silva', nullable: true },
+        firstName: { type: 'string', example: 'João', nullable: true },
+        userName: { type: 'string', example: 'john_doe', nullable: true },
+        email: { type: 'string', example: 'joao.silva@email.com' },
+        status: { type: 'string', example: 'ACTIVE' },
+        createdAt: { type: 'string', format: 'date-time' },
+        updatedAt: { type: 'string', format: 'date-time' },
+        providers: { type: 'array', items: { type: 'object' } },
       },
     },
     headers: {
@@ -167,7 +182,7 @@ export class AuthController {
     @CurrentUser() user: User,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<UserProfileResponseDto> {
     const { accessToken, refreshToken } = await this.signInUseCase.execute({
       userId: user.id,
       email: user.email.value,
@@ -177,6 +192,8 @@ export class AuthController {
 
     this.setRefreshTokenCookie(res, refreshToken);
     this.setAccessTokenCookie(res, accessToken);
+
+    return UserProfileResponseDto.fromEntity(user);
   }
 
   @Throttle({
@@ -230,11 +247,13 @@ export class AuthController {
     this.setRefreshTokenCookie(res, refreshToken);
     this.setAccessTokenCookie(res, accessToken);
 
-    return res.redirect(this.appConfiguration.frontendUrl);
+    const callbackUrl = new URL('/auth/callback', this.appConfiguration.frontendUrl).toString();
+
+    return res.redirect(callbackUrl);
   }
 
   @Get('sessions')
-  @ApiBearerAuth()
+  @ApiCookieAuth('accessToken')
   @ApiOperation({
     summary: 'Listar sessões ativas',
     description: 'Retorna todas as sessões ativas do usuário autenticado.',
@@ -265,7 +284,7 @@ export class AuthController {
 
   @Delete('sessions/:jti')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiBearerAuth()
+  @ApiCookieAuth('accessToken')
   @ApiOperation({
     summary: 'Revogar sessão',
     description: 'Encerra uma sessão específica, invalidando o refresh token associado.',
@@ -302,7 +321,7 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        accessToken: { type: 'string', description: 'Novo token JWT de acesso' },
+        message: { type: 'string', example: 'Tokens refreshed successfully' },
       },
     },
     headers: {
@@ -317,7 +336,7 @@ export class AuthController {
     @CurrentUser() refreshStrategyResponse: RefreshStrategyResponse,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<{ message: string }> {
     const { accessToken, refreshToken } = await this.refreshTokensUseCase.execute({
       userId: refreshStrategyResponse.id,
       oldJti: refreshStrategyResponse.oldRefreshTokenJti,
@@ -326,11 +345,13 @@ export class AuthController {
 
     this.setRefreshTokenCookie(res, refreshToken);
     this.setAccessTokenCookie(res, accessToken);
+
+    return { message: 'Tokens refreshed successfully' };
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
+  @ApiCookieAuth('accessToken')
   @ApiOperation({
     summary: 'Encerrar sessão',
     description: 'Realiza logout invalidando o access token e o refresh token. Remove o cookie de sessão.',
@@ -348,10 +369,9 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
   async logout(
     @CurrentUser() user: User,
-    @Headers('Authorization') authHeader: string,
     @Req() req: AuthRequest,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<{ message: string }> {
     const accessToken = req.cookies.accessToken;
     const refreshToken = req.cookies.refreshToken;
 
@@ -372,12 +392,12 @@ export class AuthController {
     this.clearRefreshTokenCookie(res);
     this.clearAccessTokenCookie(res);
 
-    return;
+    return { message: 'Logged out successfully' };
   }
 
   @Post('providers/link/email')
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
+  @ApiCookieAuth('accessToken')
   @ApiOperation({
     summary: 'Vincular provider de email ao usuário autenticado',
     description: 'Permite que um usuário autenticado adicione email/senha como método de login à sua conta.',
@@ -421,7 +441,7 @@ export class AuthController {
    */
   @UseGuards(GoogleLinkInitAuthGuard)
   @Get('providers/link/google')
-  @ApiBearerAuth()
+  @ApiCookieAuth('accessToken')
   @ApiOperation({
     summary: 'Iniciar vínculo de conta Google',
     description: 'Inicia o fluxo OAuth do Google para vincular conta Google ao usuário autenticado.',
