@@ -33,9 +33,8 @@ export class UserProfileResponseDto {
   @ApiProperty({
     description: 'Email do usuário',
     example: 'joao.silva@example.com',
-    nullable: true,
   })
-  email!: string | null;
+  email!: string;
 
   @ApiProperty({
     description: 'Status do usuário',
