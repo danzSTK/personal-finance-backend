@@ -12,7 +12,7 @@ async function bootstrap() {
   app.use(cookieParser());
   const isProduction = process.env.NODE_ENV === AppStatus.PRODUCTION;
 
-  app.set('trust proxy', 1); // Habilita o reconhecimento de proxies reversos
+  app.set('trust proxy', isProduction ? 1 : false);
 
   app.enableCors({
     origin: isProduction ? process.env.FRONTEND_URL : true,
@@ -46,7 +46,14 @@ async function bootstrap() {
     .addTag('health', 'Health checks da aplicação')
     .addTag('app', 'Informações públicas da API')
     .addBearerAuth()
-    .addCookieAuth('accessToken')
+    .addCookieAuth(
+      'accessToken',
+      {
+        type: 'apiKey',
+        in: 'cookie',
+      },
+      'accessToken',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

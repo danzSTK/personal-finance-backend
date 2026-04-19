@@ -1,4 +1,4 @@
-import { SessionMetadata } from '../../../../common/models/interfaces';
+import { SessionMetadata } from '@/common/models/interfaces';
 
 export interface SessionProps {
   userId: string;

@@ -42,4 +42,25 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['src/*'],
+              message: 'Use @/... alias instead of src/... imports.',
+            },
+            {
+              group: ['../../**'],
+              message:
+                'Use @/... alias instead of imports with two or more parent levels.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

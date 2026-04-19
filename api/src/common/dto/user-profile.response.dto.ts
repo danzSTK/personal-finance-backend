@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AuthProviderType, UserStatus } from '../models/enums';
-import { User } from '../../modules/users/domain/entities/user.entity';
+import { User } from '@/modules/users/domain/entities/user.entity';
 
 export class UserProfileResponseDto {
   @ApiProperty({

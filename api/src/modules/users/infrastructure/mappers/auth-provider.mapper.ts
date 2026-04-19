@@ -1,6 +1,6 @@
-import { AuthProvider } from '../../domain/entities/auth-provider.entity';
-import { AuthProviderFactory } from '../../domain/factories/auth-provider.factory';
-import { HashedPassword } from '../../domain/value-objects/hashed-password.value-object';
+import { AuthProvider } from '@/modules/users/domain/entities/auth-provider.entity';
+import { AuthProviderFactory } from '@/modules/users/domain/factories/auth-provider.factory';
+import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
 import { AuthProviderOrmEntity } from '../persistence/auth-provider-orm.entity';
 
 export class AuthProviderMapper {

@@ -1,4 +1,4 @@
-import { AuthProviderType } from '../../../../common/models/enums';
+import { AuthProviderType } from '@/common/models/enums';
 import { AuthProvider, AuthProviderProps } from './auth-provider.entity';
 
 const OAUTH_PROVIDERS = [AuthProviderType.GOOGLE];

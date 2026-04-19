@@ -1,5 +1,5 @@
 import { IsEmail, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
-import { TrimAndLowerCase } from '../../../../common/decorators/normalize-string.decorator';
+import { TrimAndLowerCase } from '@/common/decorators/normalize-string.decorator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { USER_NAME_MAX_LENGTH, USER_NAME_MIN_LENGTH } from '@/common/models/constants';
 

@@ -2,12 +2,12 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
-import { AuthProviderType } from '../../../../../common/models/enums';
-import { IHashService } from '../../../../../common/models/interfaces';
-import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
-import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { AuthProviderType } from '@/common/models/enums';
+import { IHashService } from '@/common/models/interfaces';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { type LinkEmailProviderUseCaseDto } from './link-email-provider.dto';
-import { HashedPassword } from '../../../../users/domain/value-objects/hashed-password.value-object';
+import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
 
 @Injectable()
 export class LinkEmailProviderUseCase {

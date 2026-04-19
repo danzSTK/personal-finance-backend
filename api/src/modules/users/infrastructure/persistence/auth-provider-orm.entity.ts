@@ -9,7 +9,7 @@ import {
   Index,
   Unique,
 } from 'typeorm';
-import { AuthProviderType } from '../../../../common/models/enums';
+import { AuthProviderType } from '@/common/models/enums';
 import { UserOrmEntity } from './user-orm-entity';
 
 @Entity('auth_providers')

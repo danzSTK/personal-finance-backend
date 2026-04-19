@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { type ActiveSession } from '../../../../../common/models/interfaces';
-import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
+import { type ActiveSession } from '@/common/models/interfaces';
+import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 
 @Injectable()
 export class GetActiveSessionsUseCase {

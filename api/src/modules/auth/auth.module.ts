@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-import jwtConfig from '../../config/jwt.config';
+import jwtConfig from '@/config/jwt.config';
 import { UsersModule } from '../users/users.module';
-import { CommonModule } from '../../common/common.module';
+import { CommonModule } from '@/common/common.module';
 
 // Domain
 import { ISessionRepository } from './domain/repositories/session.repository.interface';

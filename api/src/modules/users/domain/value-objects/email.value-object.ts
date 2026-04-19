@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { USER_EMAIL_MAX_LENGTH, USER_EMAIL_REGEX } from '../../../../common/models/constants';
+import { USER_EMAIL_MAX_LENGTH, USER_EMAIL_REGEX } from '@/common/models/constants';
 
 export class Email {
   private readonly _value: string;

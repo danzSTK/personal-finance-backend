@@ -3,10 +3,10 @@ import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { type ConfigType } from '@nestjs/config';
 import ms, { StringValue } from 'ms';
 import { randomUUID } from 'node:crypto';
-import jwtConfig from '../../../../../config/jwt.config';
-import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
+import jwtConfig from '@/config/jwt.config';
+import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 import { type GenerateTokenOutput, type GenerateTokenUseCaseInput } from './generate-token.dto';
-import { type JwtPayloadDto } from '../../../presentation/dto/jwt-payload.dto';
+import { type JwtPayloadDto } from '@/modules/auth/presentation/dto/jwt-payload.dto';
 
 @Injectable()
 export class GenerateTokenUseCase {

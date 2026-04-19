@@ -2,13 +2,13 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
 import { type ConfigType } from '@nestjs/config';
-import jwtConfig from '../../../../config/jwt.config';
-import { UserStatus } from '../../../../common/models/enums/user-status.enum';
-import { User } from '../../../users/domain/entities/user.entity';
-import { FindUserByIdUseCase } from '../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
-import { ISessionRepository } from '../../domain/repositories/session.repository.interface';
-import { type JwtPayloadDto } from '../../presentation/dto/jwt-payload.dto';
-import { AuthRequest } from '../../../../common/models/interfaces/auth-request.interface';
+import jwtConfig from '@/config/jwt.config';
+import { UserStatus } from '@/common/models/enums/user-status.enum';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
+import { type JwtPayloadDto } from '@/modules/auth/presentation/dto/jwt-payload.dto';
+import { AuthRequest } from '@/common/models/interfaces/auth-request.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {

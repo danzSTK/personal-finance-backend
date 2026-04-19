@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { type ActiveSession, type SessionMetadata } from '../../../../common/models/interfaces';
-import { CacheKeys } from '../../../../common/utils/cache-keys.factory';
-import { RedisService } from '../../../../database/redis/redis.service';
-import { ISessionRepository } from '../../domain/repositories/session.repository.interface';
+import { type ActiveSession, type SessionMetadata } from '@/common/models/interfaces';
+import { CacheKeys } from '@/common/utils/cache-keys.factory';
+import { RedisService } from '@/database/redis/redis.service';
+import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 
 @Injectable()
 export class RedisSessionRepository implements ISessionRepository {

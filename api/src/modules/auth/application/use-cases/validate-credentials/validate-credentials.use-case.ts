@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { UserStatus } from '../../../../../common/models/enums';
-import { IHashService } from '../../../../../common/models/interfaces';
-import { User } from '../../../../users/domain/entities/user.entity';
-import { FindUserByEmailUseCase } from '../../../../users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
+import { UserStatus } from '@/common/models/enums';
+import { IHashService } from '@/common/models/interfaces';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { FindUserByEmailUseCase } from '@/modules/users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
 import { type ValidateCredentialsUseCaseDto } from './validate-credentials.dto';
 
 @Injectable()

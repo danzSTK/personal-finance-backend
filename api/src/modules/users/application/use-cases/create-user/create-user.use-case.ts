@@ -1,13 +1,13 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { IRepositoryOptions, IUserRepository } from '../../../domain/repositories/user.respository.interface';
+import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { CreateUserUseCaseInput, CreateUserUseCaseOutput } from './create-user.dto';
-import { Email } from '../../../domain/value-objects/email.value-object';
-import { UserName } from '../../../domain/value-objects/user-name.value-object';
-import { User } from '../../../domain/entities/user.entity';
-import { UserStatus } from '../../../../../common/models/enums';
-import { AuthProvider } from '../../../domain/entities/auth-provider.entity';
-import { HashedPassword } from '../../../domain/value-objects/hashed-password.value-object';
-import { AuthProviderFactory } from '../../../domain/factories/auth-provider.factory';
+import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { UserStatus } from '@/common/models/enums';
+import { AuthProvider } from '@/modules/users/domain/entities/auth-provider.entity';
+import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { AuthProviderFactory } from '@/modules/users/domain/factories/auth-provider.factory';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()

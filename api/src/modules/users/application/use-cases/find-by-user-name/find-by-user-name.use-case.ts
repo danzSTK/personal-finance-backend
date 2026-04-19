@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '../../../domain/entities/user.entity';
-import { IRepositoryOptions, IUserRepository } from '../../../domain/repositories/user.respository.interface';
-import { UserName } from '../../../domain/value-objects/user-name.value-object';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
 
 @Injectable()
 export class FindUserByUserNameUseCase {

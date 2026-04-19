@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
-import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
+import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 import { GenerateTokenUseCase } from '../generate-token/generate-token.use-case';
 import { type RefreshTokensUseCaseInput } from './refresh-tokens.dto';
 import { GenerateTokenOutput } from '../generate-token/generate-token.dto';
