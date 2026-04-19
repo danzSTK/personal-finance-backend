@@ -2,8 +2,8 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { type ConfigType } from '@nestjs/config';
-import googleOauthConfig from '../../../../config/google-oauth.config';
-import { OAuthCallbackUseCase } from '../../application/use-cases/oauth-callback/oauth-callback.use-case';
+import googleOauthConfig from '@/config/google-oauth.config';
+import { OAuthCallbackUseCase } from '@/modules/auth/application/use-cases/oauth-callback/oauth-callback.use-case';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {

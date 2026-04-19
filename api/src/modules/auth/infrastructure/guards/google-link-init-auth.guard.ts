@@ -2,9 +2,9 @@ import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/com
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 import { randomUUID } from 'node:crypto';
-import { CacheKeys } from '../../../../common/utils/cache-keys.factory';
-import { RedisService } from '../../../../database/redis/redis.service';
-import { User } from '../../../users/domain/entities/user.entity';
+import { CacheKeys } from '@/common/utils/cache-keys.factory';
+import { RedisService } from '@/database/redis/redis.service';
+import { User } from '@/modules/users/domain/entities/user.entity';
 
 interface GoogleLinkInitRequest extends Request {
   user: User;

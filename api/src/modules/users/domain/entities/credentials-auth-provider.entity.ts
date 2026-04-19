@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { AuthProvider, AuthProviderProps } from './auth-provider.entity';
-import { USER_EMAIL_REGEX } from '../../../../common/models/constants';
+import { USER_EMAIL_REGEX } from '@/common/models/constants';
 import { HashedPassword } from '../value-objects/hashed-password.value-object';
 
 export class CredentialsAuthProvider extends AuthProvider {

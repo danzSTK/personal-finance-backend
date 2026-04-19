@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { AuthProviderType, UserStatus } from '../../../../common/models/enums';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
 import { Email } from '../value-objects/email.value-object';
 import { HashedPassword } from '../value-objects/hashed-password.value-object';
 import { UserName } from '../value-objects/user-name.value-object';

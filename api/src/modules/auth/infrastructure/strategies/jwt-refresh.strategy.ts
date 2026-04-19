@@ -2,10 +2,10 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
 import { type ConfigType } from '@nestjs/config';
-import jwtConfig from '../../../../config/jwt.config';
+import jwtConfig from '@/config/jwt.config';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
-import { ISessionRepository } from '../../domain/repositories/session.repository.interface';
-import { type JwtPayloadDto } from '../../presentation/dto/jwt-payload.dto';
+import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
+import { type JwtPayloadDto } from '@/modules/auth/presentation/dto/jwt-payload.dto';
 import { type RefreshStrategyResponse } from './refresh-strategy-response.interface';
 
 @Injectable()

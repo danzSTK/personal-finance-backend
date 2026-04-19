@@ -3,10 +3,10 @@ import { type ConfigType } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { type Request } from 'express';
 import { Profile, Strategy } from 'passport-google-oauth20';
-import googleOauthConfig from '../../../../config/google-oauth.config';
-import { CacheKeys } from '../../../../common/utils/cache-keys.factory';
-import { RedisService } from '../../../../database/redis/redis.service';
-import { LinkGoogleProviderUseCase } from '../../application/use-cases/link-google-provider/link-google-provider.use-case';
+import googleOauthConfig from '@/config/google-oauth.config';
+import { CacheKeys } from '@/common/utils/cache-keys.factory';
+import { RedisService } from '@/database/redis/redis.service';
+import { LinkGoogleProviderUseCase } from '@/modules/auth/application/use-cases/link-google-provider/link-google-provider.use-case';
 
 type GoogleLinkErrorCode = 'missing_state' | 'invalid_state' | 'google_provider_conflict';
 

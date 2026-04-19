@@ -2,12 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { LinkGoogleProviderUseCase } from './link-google-provider.use-case';
-import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
-import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
-import { AuthProviderType } from '../../../../../common/models/enums';
-import { User } from '../../../../users/domain/entities/user.entity';
-import { Email } from '../../../../users/domain/value-objects/email.value-object';
-import { UserStatus } from '../../../../../common/models/enums';
+import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { AuthProviderType } from '@/common/models/enums';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { UserStatus } from '@/common/models/enums';
 
 describe('LinkGoogleProviderUseCase', () => {
   let useCase: LinkGoogleProviderUseCase;

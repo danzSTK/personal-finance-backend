@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { AuthProviderType, UserStatus } from '../../../../common/models/enums';
-import { IRepositoryOptions, IUserRepository } from '../../domain/repositories/user.respository.interface';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { UserRepository } from './user.repository';
-import { RedisService } from '../../../../database/redis/redis.service';
-import { User } from '../../domain/entities/user.entity';
-import { Email } from '../../domain/value-objects/email.value-object';
-import { UserName } from '../../domain/value-objects/user-name.value-object';
-import { CacheKeys } from '../../../../common/utils/cache-keys.factory';
-import { HashedPassword } from '../../domain/value-objects/hashed-password.value-object';
-import { AuthProviderFactory } from '../../domain/factories/auth-provider.factory';
+import { RedisService } from '@/database/redis/redis.service';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
+import { CacheKeys } from '@/common/utils/cache-keys.factory';
+import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { AuthProviderFactory } from '@/modules/users/domain/factories/auth-provider.factory';
 
 interface CachedAuthProvider {
   id: string;

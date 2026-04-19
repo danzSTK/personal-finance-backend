@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { USER_NAME_MAX_LENGTH, USER_NAME_MIN_LENGTH, USER_NAME_REGEX } from '../../../../common/models/constants/index';
+import { USER_NAME_MAX_LENGTH, USER_NAME_MIN_LENGTH, USER_NAME_REGEX } from '@/common/models/constants/index';
 
 export class UserName {
   private readonly _value: string;

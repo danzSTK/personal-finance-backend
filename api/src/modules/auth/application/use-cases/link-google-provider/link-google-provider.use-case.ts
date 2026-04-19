@@ -2,9 +2,9 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
-import { AuthProviderType } from '../../../../../common/models/enums';
-import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
-import { FindUserByIdUseCase } from '../../../../users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { AuthProviderType } from '@/common/models/enums';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { type LinkGoogleProviderUseCaseDto } from './link-google-provider.dto';
 
 @Injectable()

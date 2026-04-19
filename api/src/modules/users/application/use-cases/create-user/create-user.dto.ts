@@ -1,5 +1,5 @@
-import { AuthProviderType, UserStatus } from '../../../../../common/models/enums';
-import { User } from '../../../domain/entities/user.entity';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { User } from '@/modules/users/domain/entities/user.entity';
 
 export interface CreateUserAuthProviderInput {
   provider: AuthProviderType;

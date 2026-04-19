@@ -1,4 +1,4 @@
-import { UserStatus } from '../../../../common/models/enums/user-status.enum';
+import { UserStatus } from '@/common/models/enums/user-status.enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class JwtPayloadDto {

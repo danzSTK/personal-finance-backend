@@ -1,12 +1,12 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { AuthProviderType, UserStatus } from '../../../../../common/models/enums';
-import { IHashService } from '../../../../../common/models/interfaces';
-import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
-import { FindUserByEmailUseCase } from '../../../../users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
-import { FindUserByUserNameUseCase } from '../../../../users/application/use-cases/find-by-user-name/find-by-user-name.use-case';
-import { CreateUserUseCase } from '../../../../users/application/use-cases/create-user/create-user.use-case';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { IHashService } from '@/common/models/interfaces';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { FindUserByEmailUseCase } from '@/modules/users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
+import { FindUserByUserNameUseCase } from '@/modules/users/application/use-cases/find-by-user-name/find-by-user-name.use-case';
+import { CreateUserUseCase } from '@/modules/users/application/use-cases/create-user/create-user.use-case';
 import { GenerateTokenUseCase } from '../generate-token/generate-token.use-case';
 import { type SignUpUseCaseOutput, type SignUpUseCaseInput } from './sign-up.dto';
 

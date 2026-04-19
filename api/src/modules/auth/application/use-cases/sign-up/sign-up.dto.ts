@@ -1,5 +1,5 @@
-import { SessionMetadata } from '../../../../../common/models/interfaces';
-import { User } from '../../../../users/domain/entities/user.entity';
+import { SessionMetadata } from '@/common/models/interfaces';
+import { User } from '@/modules/users/domain/entities/user.entity';
 
 export interface SignUpUseCaseInput {
   email: string;

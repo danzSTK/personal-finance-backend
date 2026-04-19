@@ -1,4 +1,4 @@
-import { ActiveSession, SessionMetadata } from '../../../../common/models/interfaces';
+import { ActiveSession, SessionMetadata } from '@/common/models/interfaces';
 
 export abstract class ISessionRepository {
   abstract createSession(userId: string, jti: string, metadata: SessionMetadata, ttlSeconds: number): Promise<void>;

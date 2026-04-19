@@ -1,8 +1,8 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { SessionMetadata } from '../models/interfaces/sessions.interface';
 import { Request } from 'express';
-import { GeoIpLiteProvider } from '../../shared/session-tracking/providers/geoip-lite.provider';
-import { UAParserProvider } from '../../shared/session-tracking/providers/ua-parser.provider';
+import { GeoIpLiteProvider } from '@/shared/session-tracking/providers/geoip-lite.provider';
+import { UAParserProvider } from '@/shared/session-tracking/providers/ua-parser.provider';
 
 export const CurrentSessionInfo = createParamDecorator(
   async (data: unknown, ctx: ExecutionContext): Promise<SessionMetadata> => {

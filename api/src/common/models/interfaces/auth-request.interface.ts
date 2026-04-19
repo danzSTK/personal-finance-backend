@@ -1,6 +1,6 @@
 import { Request } from 'express';
 import { AUTH_CONSTANTS } from '../constants';
-import { User } from '../../../modules/users/domain/entities/user.entity';
+import { User } from '@/modules/users/domain/entities/user.entity';
 
 export interface AuthRequest extends Request {
   user?: User;

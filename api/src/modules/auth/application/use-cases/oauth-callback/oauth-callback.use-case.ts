@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
-import { AuthProviderType, UserStatus } from '../../../../../common/models/enums';
-import { User } from '../../../../users/domain/entities/user.entity';
-import { IUserRepository } from '../../../../users/domain/repositories/user.respository.interface';
-import { FindUserByEmailUseCase } from '../../../../users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
-import { CreateUserUseCase } from '../../../../users/application/use-cases/create-user/create-user.use-case';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { FindUserByEmailUseCase } from '@/modules/users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
+import { CreateUserUseCase } from '@/modules/users/application/use-cases/create-user/create-user.use-case';
 import { type OAuthCallbackUseCaseDto } from './oauth-callback.dto';
 
 @Injectable()

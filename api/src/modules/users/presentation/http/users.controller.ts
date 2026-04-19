@@ -1,9 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
-import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
-import { User } from '../../domain/entities/user.entity';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { User } from '@/modules/users/domain/entities/user.entity';
 import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AuthProviderType, UserStatus } from '../../../../common/models/enums';
-import { UserProfileResponseDto } from '../../../../common/dto/user-profile.response.dto';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
 
 @ApiTags('users')
 @Controller('users')

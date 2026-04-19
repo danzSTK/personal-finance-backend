@@ -1,7 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Inject } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import appConfig from '../../config/app.config';
+import appConfig from '@/config/app.config';
 import { type ConfigType } from '@nestjs/config';
 import { SKIP_ORIGIN_CHECK_KEY } from '@/common/decorators/skip-origin-check.decorator';
 

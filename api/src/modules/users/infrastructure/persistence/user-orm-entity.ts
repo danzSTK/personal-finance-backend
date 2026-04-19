@@ -9,10 +9,10 @@ import {
   Check,
   Unique,
 } from 'typeorm';
-import { UserStatus } from '../../../../common/models/enums';
-import { Account } from '../../../../entities/account.entity';
-import { Category } from '../../../../entities/category.entity';
-import { Transaction } from '../../../../entities/transaction.entity';
+import { UserStatus } from '@/common/models/enums';
+import { Account } from '@/entities/account.entity';
+import { Category } from '@/entities/category.entity';
+import { Transaction } from '@/entities/transaction.entity';
 import { AuthProviderOrmEntity } from './auth-provider-orm.entity';
 
 @Entity('users')

@@ -1,4 +1,4 @@
-import { AuthProviderType } from '../../../../common/models/enums';
+import { AuthProviderType } from '@/common/models/enums';
 import { HashedPassword } from '../value-objects/hashed-password.value-object';
 
 export interface AuthProviderProps {

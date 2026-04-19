@@ -1,10 +1,10 @@
 import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Profile } from 'passport-google-oauth20';
-import googleOauthConfig from '../../../../config/google-oauth.config';
-import { CacheKeys } from '../../../../common/utils/cache-keys.factory';
-import { RedisService } from '../../../../database/redis/redis.service';
-import { LinkGoogleProviderUseCase } from '../../application/use-cases/link-google-provider/link-google-provider.use-case';
+import googleOauthConfig from '@/config/google-oauth.config';
+import { CacheKeys } from '@/common/utils/cache-keys.factory';
+import { RedisService } from '@/database/redis/redis.service';
+import { LinkGoogleProviderUseCase } from '@/modules/auth/application/use-cases/link-google-provider/link-google-provider.use-case';
 import { GoogleLinkStrategy } from './google-link.strategy';
 
 describe('GoogleLinkStrategy', () => {

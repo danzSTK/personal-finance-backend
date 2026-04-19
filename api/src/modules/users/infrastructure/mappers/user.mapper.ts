@@ -1,6 +1,6 @@
-import { User } from '../../domain/entities/user.entity';
-import { Email } from '../../domain/value-objects/email.value-object';
-import { UserName } from '../../domain/value-objects/user-name.value-object';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
 import { AuthProviderOrmEntity } from '../persistence/auth-provider-orm.entity';
 import { UserOrmEntity } from '../persistence/user-orm-entity';
 import { AuthProviderMapper } from './auth-provider.mapper';

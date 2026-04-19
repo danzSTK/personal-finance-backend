@@ -1,9 +1,9 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { type ConfigType } from '@nestjs/config';
-import jwtConfig from '../../../../../config/jwt.config';
-import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
-import { type JwtPayloadDto } from '../../../presentation/dto/jwt-payload.dto';
+import jwtConfig from '@/config/jwt.config';
+import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
+import { type JwtPayloadDto } from '@/modules/auth/presentation/dto/jwt-payload.dto';
 import { type LogoutUseCaseDto } from './logout.dto';
 
 @Injectable()

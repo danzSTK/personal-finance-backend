@@ -1,4 +1,4 @@
-import { AuthProviderType } from '../../../../common/models/enums';
+import { AuthProviderType } from '@/common/models/enums';
 import { AuthProvider, AuthProviderProps } from '../entities/auth-provider.entity';
 import { CredentialsAuthProvider } from '../entities/credentials-auth-provider.entity';
 import { OAuthProvider } from '../entities/oauth-provider.entity';

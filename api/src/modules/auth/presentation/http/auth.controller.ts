@@ -26,33 +26,33 @@ import {
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import jwtConfig from '../../../../config/jwt.config';
-import appConfig from '../../../../config/app.config';
+import jwtConfig from '@/config/jwt.config';
+import appConfig from '@/config/app.config';
 import { AUTH_CONSTANTS } from '@/common/models/constants';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
 import { IsPublic } from '@/common/decorators/is-public.decorator';
 import { type SessionMetadata } from '@/common/models/interfaces';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
-import { User } from '../../../users/domain/entities/user.entity';
-import { SignUpUseCase } from '../../application/use-cases/sign-up/sign-up.use-case';
-import { SignInUseCase } from '../../application/use-cases/sign-in/sign-in.use-case';
-import { LogoutUseCase } from '../../application/use-cases/logout/logout.use-case';
-import { RefreshTokensUseCase } from '../../application/use-cases/refresh-tokens/refresh-tokens.use-case';
-import { GetActiveSessionsUseCase } from '../../application/use-cases/get-active-sessions/get-active-sessions.use-case';
-import { RevokeSessionUseCase } from '../../application/use-cases/revoke-session/revoke-session.use-case';
-import { LinkEmailProviderUseCase } from '../../application/use-cases/link-email-provider/link-email-provider.use-case';
-import { LocalAuthGuard } from '../../infrastructure/guards/local-auth.guard';
-import { GoogleAuthGuard } from '../../infrastructure/guards/google-auth.guard';
-import { GoogleLinkAuthGuard } from '../../infrastructure/guards/google-link-auth.guard';
-import { GoogleLinkInitAuthGuard } from '../../infrastructure/guards/google-link-init-auth.guard';
-import { JwtRefreshGuard } from '../../infrastructure/guards/jwt-refresh.guard';
-import { type RefreshStrategyResponse } from '../../infrastructure/strategies/refresh-strategy-response.interface';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { SignUpUseCase } from '@/modules/auth/application/use-cases/sign-up/sign-up.use-case';
+import { SignInUseCase } from '@/modules/auth/application/use-cases/sign-in/sign-in.use-case';
+import { LogoutUseCase } from '@/modules/auth/application/use-cases/logout/logout.use-case';
+import { RefreshTokensUseCase } from '@/modules/auth/application/use-cases/refresh-tokens/refresh-tokens.use-case';
+import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
+import { RevokeSessionUseCase } from '@/modules/auth/application/use-cases/revoke-session/revoke-session.use-case';
+import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
+import { LocalAuthGuard } from '@/modules/auth/infrastructure/guards/local-auth.guard';
+import { GoogleAuthGuard } from '@/modules/auth/infrastructure/guards/google-auth.guard';
+import { GoogleLinkAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-auth.guard';
+import { GoogleLinkInitAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-init-auth.guard';
+import { JwtRefreshGuard } from '@/modules/auth/infrastructure/guards/jwt-refresh.guard';
+import { type RefreshStrategyResponse } from '@/modules/auth/infrastructure/strategies/refresh-strategy-response.interface';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
 import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
-import { GoogleLinkAuthPayload } from '../../infrastructure/strategies/google-link.strategy';
-import { UserProfileResponseDto } from '../../../../common/dto/user-profile.response.dto';
+import { GoogleLinkAuthPayload } from '@/modules/auth/infrastructure/strategies/google-link.strategy';
+import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -485,13 +485,15 @@ export class AuthController {
       httpOnly: true,
       secure: AUTH_CONSTANTS.cookies.secure,
       sameSite: AUTH_CONSTANTS.cookies.sameSite,
-      path: '/auth',
+      path: AUTH_CONSTANTS.cookies.refreshTokenPath,
       maxAge: ms(this.jwtConfiguration.refreshExpiresIn as StringValue),
     });
   }
 
   private clearRefreshTokenCookie(res: Response) {
-    res.clearCookie(AUTH_CONSTANTS.cookies.refreshTokenKey, { path: '/auth' });
+    res.clearCookie(AUTH_CONSTANTS.cookies.refreshTokenKey, {
+      path: AUTH_CONSTANTS.cookies.refreshTokenPath,
+    });
   }
 
   private setAccessTokenCookie(res: Response, accessToken: string) {

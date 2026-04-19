@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ISessionRepository } from '../../../domain/repositories/session.repository.interface';
+import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 import { type RevokeSessionUseCaseDto } from './revoke-session.dto';
 
 @Injectable()
