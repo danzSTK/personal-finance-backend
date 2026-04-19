@@ -1,8 +1,69 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { SessionMetadata } from '../models/interfaces/sessions.interface';
 import { Request } from 'express';
+import { isIP } from 'node:net';
 import { GeoIpLiteProvider } from '@/shared/session-tracking/providers/geoip-lite.provider';
 import { UAParserProvider } from '@/shared/session-tracking/providers/ua-parser.provider';
+
+function normalizeIp(raw: string): string | null {
+  const firstValue = raw.split(',')[0]?.trim();
+  if (!firstValue) {
+    return null;
+  }
+
+  let candidate = firstValue;
+
+  if (candidate.startsWith('::ffff:')) {
+    candidate = candidate.slice(7);
+  }
+
+  if (candidate.startsWith('[') && candidate.includes(']')) {
+    candidate = candidate.slice(1, candidate.indexOf(']'));
+  }
+
+  const hasSingleColon = candidate.indexOf(':') === candidate.lastIndexOf(':');
+  if (hasSingleColon) {
+    const [host, port] = candidate.split(':');
+    if (host && port && isIP(host) === 4 && /^\d+$/.test(port)) {
+      candidate = host;
+    }
+  }
+
+  return isIP(candidate) ? candidate : null;
+}
+
+function resolveClientIp(request: Request): string {
+  const candidates: Array<string | string[] | undefined> = [
+    request.headers['cf-connecting-ip'],
+    request.headers['x-real-ip'],
+    request.headers['x-forwarded-for'],
+    request.ip,
+    request.socket.remoteAddress,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    if (Array.isArray(candidate)) {
+      for (const value of candidate) {
+        const normalized = normalizeIp(value);
+        if (normalized) {
+          return normalized;
+        }
+      }
+      continue;
+    }
+
+    const normalized = normalizeIp(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return 'Unknown';
+}
 
 export const CurrentSessionInfo = createParamDecorator(
   async (data: unknown, ctx: ExecutionContext): Promise<SessionMetadata> => {
@@ -10,15 +71,11 @@ export const CurrentSessionInfo = createParamDecorator(
 
     const geoService = new GeoIpLiteProvider();
     const uaParser = new UAParserProvider();
-
-    const ipRaw =
-      request.headers['x-forwarded-for'] || request.headers['cf-connecting-ip'] || request.socket.remoteAddress || '';
-
-    const ip = Array.isArray(ipRaw) ? ipRaw[0].trim() : ipRaw?.trim();
+    const ip = resolveClientIp(request);
 
     const uaString = request.headers['user-agent'];
     const parsedUa = await uaParser.parse(uaString ?? '');
-    const geo = await geoService.lookup(ip);
+    const geo = ip === 'Unknown' ? null : await geoService.lookup(ip);
 
     const browser = parsedUa?.browser || 'Unknown';
     const os = parsedUa?.os || 'Unknown';
