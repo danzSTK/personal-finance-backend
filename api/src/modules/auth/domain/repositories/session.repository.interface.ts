@@ -9,7 +9,7 @@ export abstract class ISessionRepository {
 
   abstract revokeAllSessions(userId: string): Promise<void>;
 
-  abstract getActiveSessions(userId: string): Promise<ActiveSession[]>;
+  abstract getActiveSessions(userId: string, currentSessionJti: string): Promise<ActiveSession[]>;
 
   abstract sessionExists(userId: string, jti: string): Promise<boolean>;
 

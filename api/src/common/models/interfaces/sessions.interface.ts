@@ -9,4 +9,5 @@ export interface SessionMetadata {
 
 export interface ActiveSession extends SessionMetadata {
   jti: string;
+  isCurrent: boolean;
 }

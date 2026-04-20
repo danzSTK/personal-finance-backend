@@ -41,7 +41,7 @@ export class RedisSessionRepository implements ISessionRepository {
     }
   }
 
-  async getActiveSessions(userId: string): Promise<ActiveSession[]> {
+  async getActiveSessions(userId: string, currentSessionJti: string): Promise<ActiveSession[]> {
     const sessionKey = CacheKeys.auth.userSessions(userId);
     const jtis = await this.redis.smembers(sessionKey);
 
@@ -64,6 +64,7 @@ export class RedisSessionRepository implements ISessionRepository {
 
           return {
             jti: jtis[index],
+            isCurrent: jtis[index] === currentSessionJti,
             ...metadata,
           };
         } catch {

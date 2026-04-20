@@ -6,7 +6,7 @@ import { ISessionRepository } from '@/modules/auth/domain/repositories/session.r
 export class GetActiveSessionsUseCase {
   constructor(private readonly sessionRepository: ISessionRepository) {}
 
-  async execute(userId: string): Promise<ActiveSession[]> {
-    return this.sessionRepository.getActiveSessions(userId);
+  async execute(userId: string, currentSessionJti: string): Promise<ActiveSession[]> {
+    return this.sessionRepository.getActiveSessions(userId, currentSessionJti);
   }
 }

@@ -1,58 +1,60 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-  Get,
-  Res,
-  Delete,
-  Param,
-  Req,
-  UnauthorizedException,
-  Inject,
-} from '@nestjs/common';
-import { type Request, type Response } from 'express';
-import { type ConfigType } from '@nestjs/config';
-import ms, { StringValue } from 'ms';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiCookieAuth,
-  ApiBody,
-  ApiParam,
-  ApiExcludeEndpoint,
-} from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
-import jwtConfig from '@/config/jwt.config';
-import appConfig from '@/config/app.config';
-import { AUTH_CONSTANTS } from '@/common/models/constants';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { IsPublic } from '@/common/decorators/is-public.decorator';
+import { RefreshToken } from '@/common/decorators/refresh-token.decorator';
+import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
+import { AUTH_CONSTANTS } from '@/common/models/constants';
 import { type SessionMetadata } from '@/common/models/interfaces';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
-import { User } from '@/modules/users/domain/entities/user.entity';
-import { SignUpUseCase } from '@/modules/auth/application/use-cases/sign-up/sign-up.use-case';
-import { SignInUseCase } from '@/modules/auth/application/use-cases/sign-in/sign-in.use-case';
+import appConfig from '@/config/app.config';
+import jwtConfig from '@/config/jwt.config';
+import { RefreshTokenValidationService } from '@/modules/auth/application/services/refresh-token-validation.service';
+import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
+import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
 import { LogoutUseCase } from '@/modules/auth/application/use-cases/logout/logout.use-case';
 import { RefreshTokensUseCase } from '@/modules/auth/application/use-cases/refresh-tokens/refresh-tokens.use-case';
-import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { RevokeSessionUseCase } from '@/modules/auth/application/use-cases/revoke-session/revoke-session.use-case';
-import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
-import { LocalAuthGuard } from '@/modules/auth/infrastructure/guards/local-auth.guard';
+import { SignInUseCase } from '@/modules/auth/application/use-cases/sign-in/sign-in.use-case';
+import { SignUpUseCase } from '@/modules/auth/application/use-cases/sign-up/sign-up.use-case';
 import { GoogleAuthGuard } from '@/modules/auth/infrastructure/guards/google-auth.guard';
 import { GoogleLinkAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-auth.guard';
 import { GoogleLinkInitAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-init-auth.guard';
 import { JwtRefreshGuard } from '@/modules/auth/infrastructure/guards/jwt-refresh.guard';
-import { type RefreshStrategyResponse } from '@/modules/auth/infrastructure/strategies/refresh-strategy-response.interface';
-import { RegisterDto } from '../dto/register.dto';
-import { LoginEmailDto } from '../dto/login-email.dto';
-import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
+import { LocalAuthGuard } from '@/modules/auth/infrastructure/guards/local-auth.guard';
 import { GoogleLinkAuthPayload } from '@/modules/auth/infrastructure/strategies/google-link.strategy';
-import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
+import { type RefreshStrategyResponse } from '@/modules/auth/infrastructure/strategies/refresh-strategy-response.interface';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import { type ConfigType } from '@nestjs/config';
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { type Request, type Response } from 'express';
+import ms, { StringValue } from 'ms';
+import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
+import { LoginEmailDto } from '../dto/login-email.dto';
+import { RegisterDto } from '../dto/register.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -65,6 +67,7 @@ export class AuthController {
     private readonly getActiveSessionsUseCase: GetActiveSessionsUseCase,
     private readonly revokeSessionUseCase: RevokeSessionUseCase,
     private readonly linkEmailProviderUseCase: LinkEmailProviderUseCase,
+    private readonly refreshTokenValidationService: RefreshTokenValidationService,
 
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
@@ -267,6 +270,7 @@ export class AuthController {
         type: 'object',
         properties: {
           jti: { type: 'string', description: 'ID único da sessão' },
+          isCurrent: { type: 'boolean', description: 'Indica se é a sessão atual' },
           browser: { type: 'string', description: 'Navegador' },
           os: { type: 'string', description: 'Sistema operacional' },
           device: { type: 'string', description: 'Tipo de dispositivo' },
@@ -278,8 +282,10 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
-  async getSessions(@CurrentUser() user: User) {
-    return this.getActiveSessionsUseCase.execute(user.id);
+  async getSessions(@CurrentUser() user: User, @RefreshToken() refreshToken: unknown) {
+    const currentSessionJti = this.refreshTokenValidationService.getSessionJti(refreshToken);
+
+    return this.getActiveSessionsUseCase.execute(user.id, currentSessionJti);
   }
 
   @Delete('sessions/:jti')
