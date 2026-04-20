@@ -54,6 +54,14 @@ async function bootstrap() {
       },
       'accessToken',
     )
+    .addCookieAuth(
+      'refreshToken',
+      {
+        type: 'apiKey',
+        in: 'cookie',
+      },
+      'refreshToken',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

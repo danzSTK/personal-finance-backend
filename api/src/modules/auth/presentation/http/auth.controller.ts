@@ -257,9 +257,11 @@ export class AuthController {
 
   @Get('sessions')
   @ApiCookieAuth('accessToken')
+  @ApiCookieAuth('refreshToken')
   @ApiOperation({
     summary: 'Listar sessões ativas',
-    description: 'Retorna todas as sessões ativas do usuário autenticado.',
+    description:
+      'Retorna todas as sessões ativas do usuário autenticado. O cookie refreshToken válido é necessário para identificar a sessão atual (isCurrent).',
   })
   @ApiResponse({
     status: 200,
@@ -281,7 +283,10 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
+  @ApiResponse({
+    status: 401,
+    description: 'Access token inválido/expirado ou refresh token ausente/inválido/expirado',
+  })
   async getSessions(@CurrentUser() user: User, @RefreshToken() refreshToken: unknown) {
     const currentSessionJti = this.refreshTokenValidationService.getSessionJti(refreshToken);
 
