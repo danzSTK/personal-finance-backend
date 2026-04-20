@@ -21,6 +21,7 @@ import { ValidateCredentialsUseCase } from './application/use-cases/validate-cre
 import { OAuthCallbackUseCase } from './application/use-cases/oauth-callback/oauth-callback.use-case';
 import { LinkEmailProviderUseCase } from './application/use-cases/link-email-provider/link-email-provider.use-case';
 import { LinkGoogleProviderUseCase } from './application/use-cases/link-google-provider/link-google-provider.use-case';
+import { RefreshTokenValidationService } from './application/services/refresh-token-validation.service';
 
 // Infrastructure — Persistence
 import { RedisSessionRepository } from './infrastructure/persistence/redis-session.repository';
@@ -78,6 +79,7 @@ import { AuthController } from './presentation/http/auth.controller';
     OAuthCallbackUseCase,
     LinkEmailProviderUseCase,
     LinkGoogleProviderUseCase,
+    RefreshTokenValidationService,
 
     // Strategies
     LocalStrategy,
