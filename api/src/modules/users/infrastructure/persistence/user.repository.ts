@@ -1,13 +1,14 @@
-import { InjectRepository } from '@nestjs/typeorm';
+import { AuthProviderType } from '@/common/models/enums';
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { User } from '@/modules/users/domain/entities/user.entity';
-import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { UserOrmEntity } from './user-orm-entity';
-import { Repository } from 'typeorm';
-import { UserMapper } from '../mappers/user.mapper';
-import { Injectable } from '@nestjs/common';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { Email } from '@/modules/users/domain/value-objects/email.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
-import { AuthProviderType } from '@/common/models/enums';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UserMapper } from '../mappers/user.mapper';
+import { UserOrmEntity } from './user-orm-entity';
 
 @Injectable()
 export class UserRepository implements IUserRepository {

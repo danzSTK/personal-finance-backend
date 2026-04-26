@@ -1,14 +1,15 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { CreateUserUseCaseInput, CreateUserUseCaseOutput } from './create-user.dto';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
-import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
-import { User } from '@/modules/users/domain/entities/user.entity';
 import { UserStatus } from '@/common/models/enums';
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { AuthProvider } from '@/modules/users/domain/entities/auth-provider.entity';
-import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { User } from '@/modules/users/domain/entities/user.entity';
 import { AuthProviderFactory } from '@/modules/users/domain/factories/auth-provider.factory';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { CreateUserUseCaseInput, CreateUserUseCaseOutput } from './create-user.dto';
 
 @Injectable()
 export class CreateUserUseCase {

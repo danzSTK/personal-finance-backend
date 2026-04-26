@@ -10,7 +10,7 @@ import {
   Unique,
 } from 'typeorm';
 import { UserStatus } from '@/common/models/enums';
-import { Account } from '@/entities/account.entity';
+import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
 import { Category } from '@/entities/category.entity';
 import { Transaction } from '@/entities/transaction.entity';
 import { AuthProviderOrmEntity } from './auth-provider-orm.entity';
@@ -68,8 +68,8 @@ export class UserOrmEntity {
   @UpdateDateColumn({ type: 'timestamptz' })
   updated_at: Date;
 
-  @OneToMany(() => Account, account => account.user)
-  accounts: Account[];
+  @OneToMany(() => AccountOrmEntity, account => account.user)
+  accounts: AccountOrmEntity[];
 
   @OneToMany(() => Category, category => category.user)
   categories: Category[];

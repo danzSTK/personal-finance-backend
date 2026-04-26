@@ -1,17 +1,17 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
+  Check,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
-  Check,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
-import { Account } from './account.entity';
-import { Category } from './category.entity';
 import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
+import { Category } from './category.entity';
+import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
 
 @Entity('transactions')
 @Index('idx_transactions_user_date_id', ['user_id', 'date', 'id'], {
@@ -73,14 +73,14 @@ export class Transaction {
   })
   user: UserOrmEntity;
 
-  @ManyToOne(() => Account, account => account.transactions, {
+  @ManyToOne(() => AccountOrmEntity, account => account.transactions, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({
     name: 'account_id',
     foreignKeyConstraintName: 'FK_transactions_account',
   })
-  account: Account;
+  account: AccountOrmEntity;
 
   @ManyToOne(() => Category, category => category.transactions, {
     onDelete: 'NO ACTION',

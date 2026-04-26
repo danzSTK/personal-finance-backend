@@ -1,12 +1,8 @@
-import { EntityManager } from 'typeorm';
-import { User } from '../entities/user.entity';
-import { UserName } from '../value-objects/user-name.value-object';
-import { Email } from '../value-objects/email.value-object';
 import { AuthProviderType } from '@/common/models/enums';
-
-export interface IRepositoryOptions {
-  manager?: EntityManager;
-}
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
+import { User } from '../entities/user.entity';
+import { Email } from '../value-objects/email.value-object';
+import { UserName } from '../value-objects/user-name.value-object';
 
 export abstract class IUserRepository {
   abstract findById(id: string, options?: IRepositoryOptions): Promise<User | null>;

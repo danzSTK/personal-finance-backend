@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { User } from '@/modules/users/domain/entities/user.entity';
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 
 @Injectable()
 export class FindUserByIdUseCase {
