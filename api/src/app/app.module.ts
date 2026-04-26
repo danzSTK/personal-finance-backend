@@ -21,6 +21,7 @@ import appConfig from '../config/app.config';
 import { AppStatus } from '../common/models/enums';
 import { JwtAuthGuard } from '../shared/guards/jwt-auth.guard';
 import { OriginGuard } from '../shared/guards/origin.guard';
+import { AccountsModule } from '@/modules/accounts/accounts.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { OriginGuard } from '../shared/guards/origin.guard';
     CommonModule,
     SessionModule,
     HealthModule,
+    AccountsModule,
   ],
   controllers: [AppController],
   providers: [
