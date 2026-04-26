@@ -1,3 +1,4 @@
+Está versão está desatualizada e a complementação dela é a [[auth.v2]]
 # Authentication & Session Management
 
 ## 1. Objetivo
