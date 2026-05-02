@@ -1,12 +1,12 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
-import { type ArchiveAccountUseCaseDto } from './archive-account.dto';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ArchiveAccountUseCaseInput } from './archive-account.dto';
 
 @Injectable()
 export class ArchiveAccountUseCase {
   constructor(private readonly accountRepository: IAccountRepository) {}
 
-  async execute(data: ArchiveAccountUseCaseDto): Promise<void> {
+  async execute(data: ArchiveAccountUseCaseInput): Promise<void> {
     const account = await this.accountRepository.findByIdAndUserId(data.accountId, data.userId);
 
     if (!account) {

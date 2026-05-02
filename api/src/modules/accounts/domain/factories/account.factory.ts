@@ -1,9 +1,9 @@
-import { randomUUID } from 'node:crypto';
+import { type CreateAccountUseCaseInput } from '@/modules/accounts/application/use-cases/create-account/create-account.dto';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
-import { type CreateAccountUseCaseDto } from '@/modules/accounts/application/use-cases/create-account/create-account.dto';
+import { randomUUID } from 'node:crypto';
 
 export class AccountFactory {
-  static createFromInput(data: CreateAccountUseCaseDto, shouldSetAsDefault: boolean): Account {
+  static createFromInput(data: CreateAccountUseCaseInput, shouldSetAsDefault: boolean): Account {
     const now = new Date();
 
     return Account.create(

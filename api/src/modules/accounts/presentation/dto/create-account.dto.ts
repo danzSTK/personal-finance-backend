@@ -21,7 +21,7 @@ export class CreateAccountDto {
   @IsOptional()
   initialBalance?: number;
 
-  @ApiPropertyOptional({ example: '#4CAF50' })
+  @ApiPropertyOptional({ example: '#a902eb' })
   @IsOptional()
   @IsString()
   @MaxLength(20)

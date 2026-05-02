@@ -1,4 +1,7 @@
+import { UnarchiveAccountUseCase } from '@/modules/accounts/application/use-cases/unarchive-account/unarchive-account.use-case';
+import { UpdateAccountUseCase } from '@/modules/accounts/application/use-cases/update-account/update-account.use-case';
 import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
+import { CachedAccountRepository } from '@/modules/accounts/infrastructure/persistence/cached-account.repository';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ArchiveAccountUseCase } from './application/use-cases/archive-account/archive-account.use-case';
@@ -15,13 +18,15 @@ import { AccountsController } from './presentation/http/accounts.controller';
   providers: [
     {
       provide: IAccountRepository,
-      useClass: AccountRepository,
+      useClass: CachedAccountRepository,
     },
     AccountRepository,
     CreateAccountUseCase,
     ListAccountsUseCase,
     ArchiveAccountUseCase,
     SetDefaultAccountUseCase,
+    UnarchiveAccountUseCase,
+    UpdateAccountUseCase,
   ],
   exports: [
     IAccountRepository,

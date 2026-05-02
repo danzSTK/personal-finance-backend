@@ -1,28 +1,24 @@
+import { UnarchiveAccountUseCaseInput } from '@/modules/accounts/application/use-cases/unarchive-account/unarchive-account.dto';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { type SetDefaultAccountUseCaseInput } from './set-default-account.dto';
 
 @Injectable()
-export class SetDefaultAccountUseCase {
+export class UnarchiveAccountUseCase {
   constructor(private readonly accountRepository: IAccountRepository) {}
 
-  async execute(data: SetDefaultAccountUseCaseInput): Promise<void> {
+  async execute(data: UnarchiveAccountUseCaseInput): Promise<void> {
     const account = await this.accountRepository.findByIdAndUserId(data.accountId, data.userId);
 
     if (!account) {
       throw new NotFoundException('Account not found');
     }
 
-    if (account.isArchived) {
-      throw new ConflictException('Archived account cannot be set as default');
+    if (!account.isArchived) {
+      throw new ConflictException('Account is not archived');
     }
 
-    if (account.isDefault) {
-      throw new ConflictException('Account is already set as default');
-    }
+    account.unarchive();
 
-    await this.accountRepository.unsetDefaultAccount(data.userId);
-    account.setAsDefault();
     await this.accountRepository.save(account);
   }
 }

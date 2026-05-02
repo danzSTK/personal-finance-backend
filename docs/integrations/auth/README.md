@@ -2,6 +2,8 @@
 
 Este módulo usa autenticação baseada em **cookies HttpOnly**.
 
+Para regras internas, decisões arquiteturais e fluxos de domínio, veja [Auth architecture](../../auth/README.md).
+
 ## Fluxo padrão
 
 1. `POST /auth/sign-in` ou `POST /auth/sign-up` cria sessão e define cookies.

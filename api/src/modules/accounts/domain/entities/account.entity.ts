@@ -1,5 +1,5 @@
-import { ConflictException } from '@nestjs/common';
 import { AccountType } from '@/common/models/enums/account-type.enum';
+import { ConflictException } from '@nestjs/common';
 
 export interface AccountProps {
   userId: string;
@@ -65,12 +65,103 @@ export class Account {
     return this.props.updatedAt;
   }
 
+  changerName(name: string): void {
+    if (this.props.name === name) {
+      return;
+    }
+
+    if (this.props.isArchived) {
+      throw new Error('Cannot change name of an archived account');
+    }
+
+    if (!name || name.trim() === '' || name.length > 255 || name.length < 3) {
+      throw new Error('Invalid account name');
+    }
+
+    this.props.name = name;
+    this.props.updatedAt = new Date();
+  }
+
+  // TODO: Pensar se devemos permitir mudanças quando o tipo for CASH, já que isso pode impactar a forma como as transações são tratadas
+  changerType(type: AccountType) {
+    if (this.props.type === type) {
+      return;
+    }
+
+    if (this.props.isArchived) {
+      throw new Error('Cannot change type of an archived account');
+    }
+
+    this.props.type = type;
+    this.props.updatedAt = new Date();
+  }
+
+  changerColor(color: string | null) {
+    if (this.props.color === color) {
+      return;
+    }
+
+    if (this.props.isArchived) {
+      throw new Error('Cannot change color of an archived account');
+    }
+
+    if (color && (color.trim() === '' || color.length > 20)) {
+      throw new Error('Invalid account color');
+    }
+
+    this.props.color = color;
+    this.props.updatedAt = new Date();
+  }
+
+  changerIcon(icon: string | null) {
+    if (this.props.icon === icon) {
+      return;
+    }
+
+    if (this.props.isArchived) {
+      throw new Error('Cannot change icon of an archived account');
+    }
+
+    if (icon && (icon.trim() === '' || icon.length > 100)) {
+      throw new Error('Invalid account icon');
+    }
+
+    this.props.icon = icon;
+    this.props.updatedAt = new Date();
+  }
+
+  changerIncludeInTotal(includeInTotal: boolean) {
+    if (this.props.includeInTotal === includeInTotal) {
+      return;
+    }
+
+    if (this.props.isArchived) {
+      throw new Error('Cannot change includeInTotal of an archived account');
+    }
+
+    this.props.includeInTotal = includeInTotal;
+    this.props.updatedAt = new Date();
+  }
+
   archive(): void {
     if (this.props.isDefault) {
       throw new ConflictException('Default account cannot be archived');
     }
 
+    if (this.props.isArchived) {
+      return;
+    }
+
     this.props.isArchived = true;
+    this.props.updatedAt = new Date();
+  }
+
+  unarchive(): void {
+    if (!this.props.isArchived) {
+      return;
+    }
+
+    this.props.isArchived = false;
     this.props.updatedAt = new Date();
   }
 
@@ -79,11 +170,18 @@ export class Account {
       throw new ConflictException('Archived account cannot be set as default');
     }
 
+    if (this.props.isDefault) {
+      return;
+    }
+
     this.props.isDefault = true;
     this.props.updatedAt = new Date();
   }
 
   unsetAsDefault(): void {
+    if (!this.props.isDefault) {
+      return;
+    }
     this.props.isDefault = false;
     this.props.updatedAt = new Date();
   }

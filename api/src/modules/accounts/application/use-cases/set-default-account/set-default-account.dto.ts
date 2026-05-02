@@ -1,4 +1,4 @@
-export interface SetDefaultAccountUseCaseDto {
+export interface SetDefaultAccountUseCaseInput {
   userId: string;
   accountId: string;
 }

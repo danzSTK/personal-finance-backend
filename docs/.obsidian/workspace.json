@@ -4,19 +4,24 @@
     "type": "split",
     "children": [
       {
-        "id": "b48650f574f7f79b",
+        "id": "2e812341ae3919ed",
         "type": "tabs",
         "children": [
           {
-            "id": "80b739aa9862b935",
+            "id": "0be2241a1ce18d73",
             "type": "leaf",
             "state": {
-              "type": "excalidraw",
+              "type": "canvas",
               "state": {
-                "file": "Excalidraw/Drawing 2026-05-02 19.04.38.excalidraw.md"
+                "file": "auth/auth.canvas",
+                "viewState": {
+                  "x": 280,
+                  "y": 160,
+                  "zoom": -0.677023053709924
+                }
               },
-              "icon": "excalidraw-icon",
-              "title": "Drawing 2026-05-02 19.04.38.excalidraw"
+              "icon": "lucide-layout-dashboard",
+              "title": "auth"
             }
           }
         ]
@@ -39,7 +44,7 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": true
               },
               "icon": "lucide-folder-closed",
               "title": "Explorador de arquivos"
@@ -159,13 +164,23 @@
               "icon": "lucide-list",
               "title": "Sumário"
             }
+          },
+          {
+            "id": "2de06c9a3cbf7f6a",
+            "type": "leaf",
+            "state": {
+              "type": "git-view",
+              "state": {},
+              "icon": "git-pull-request",
+              "title": "Source Control"
+            }
           }
-        ]
+        ],
+        "currentTab": 5
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 200
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -182,16 +197,43 @@
       "templater-obsidian:Templater": false
     }
   },
-  "active": "80b739aa9862b935",
+  "active": "0be2241a1ce18d73",
   "lastOpenFiles": [
-    "deploy.md",
+    "auth/concepts/auth-provider.md",
+    "auth/auth.canvas",
+    "auth/google-provider-link.canvas",
+    "auth/README.md",
+    "Excalidraw/Drawing 2026-05-02 19.07.23.excalidraw.md",
     "Excalidraw/Drawing 2026-05-02 19.04.38.excalidraw.md",
-    "Excalidraw",
-    "design.md",
-    "auth/auth.v2.md",
+    "auth/concepts/access-token.md",
     "auth/auth.v1.md",
-    "integrations/README.md",
-    "integrations/auth/sign-up.md",
-    "integrations/auth/README.md"
+    "auth/auth.v2.md",
+    "Sem título.canvas",
+    "auth/legacy/auth.v1.md",
+    "auth/reference/error-codes.md",
+    "auth/reference/throttling.md",
+    "auth/reference/cookies.md",
+    "auth/reference/redis-keys.md",
+    "auth/reference/endpoints.md",
+    "auth/decisions/google-link-state-in-redis.md",
+    "auth/decisions/no-automatic-provider-link.md",
+    "auth/decisions/stateful-refresh-token-in-redis.md",
+    "auth/decisions/use-http-only-cookies.md",
+    "auth/flows/link-google-provider.md",
+    "auth/flows/link-email-provider.md",
+    "auth/flows/sessions.md",
+    "auth/flows/logout.md",
+    "auth/flows/refresh-token-rotation.md",
+    "auth/flows/google-login.md",
+    "auth/flows/sign-in.md",
+    "auth/flows/sign-up.md",
+    "auth/concepts/csrf-origin-check.md",
+    "Sem título.base",
+    "auth/legacy",
+    "auth/reference",
+    "auth/decisions",
+    "auth/flows",
+    "auth/concepts",
+    "Excalidraw"
   ]
 }
