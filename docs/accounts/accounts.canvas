@@ -1,0 +1,27 @@
+{
+	"nodes":[
+		{"id":"account-types","type":"file","file":"accounts/concepts/account-type.md","x":-260,"y":-220,"width":280,"height":120},
+		{"id":"cash-account","type":"file","file":"accounts/concepts/cash-account.md","x":100,"y":-320,"width":300,"height":120},
+		{"id":"default-account","type":"file","file":"accounts/concepts/default-account.md","x":100,"y":-120,"width":300,"height":120},
+		{"id":"balance","type":"file","file":"accounts/concepts/account-balance.md","x":-260,"y":170,"width":300,"height":120},
+		{"id":"unarchive","type":"file","file":"accounts/flows/unarchive-account.md","x":460,"y":40,"width":300,"height":120},
+		{"id":"delete","type":"file","file":"accounts/flows/delete-account.md","x":460,"y":220,"width":300,"height":120},
+		{"id":"transfer","type":"file","file":"accounts/flows/transfer-between-accounts.md","x":100,"y":340,"width":320,"height":120},
+		{"id":"visibility","type":"file","file":"accounts/reference/invariants.md","x":-620,"y":190,"width":280,"height":120},
+		{"id":"open-questions","type":"file","file":"accounts/reference/open-questions.md","x":-620,"y":390,"width":280,"height":120},
+		{"id":"account","type":"file","file":"accounts/concepts/account.md","x":-660,"y":-100,"width":280,"height":120},
+		{"id":"archive","type":"file","file":"accounts/flows/archive-account.md","x":980,"y":-120,"width":300,"height":120}
+	],
+	"edges":[
+		{"id":"account-to-types","fromNode":"account","fromSide":"right","toNode":"account-types","toSide":"left"},
+		{"id":"types-to-cash","fromNode":"account-types","fromSide":"right","toNode":"cash-account","toSide":"left"},
+		{"id":"account-to-default","fromNode":"account","fromSide":"right","toNode":"default-account","toSide":"left"},
+		{"id":"default-to-archive","fromNode":"default-account","fromSide":"right","toNode":"archive","toSide":"left","label":"blocks archive"},
+		{"id":"archive-to-unarchive","fromNode":"archive","fromSide":"bottom","toNode":"unarchive","toSide":"top"},
+		{"id":"archive-to-delete","fromNode":"archive","fromSide":"bottom","toNode":"delete","toSide":"top"},
+		{"id":"account-to-balance","fromNode":"account","fromSide":"bottom","toNode":"balance","toSide":"top"},
+		{"id":"balance-to-transfer","fromNode":"balance","fromSide":"right","toNode":"transfer","toSide":"left","label":"neutral"},
+		{"id":"account-to-visibility","fromNode":"account","fromSide":"bottom","toNode":"visibility","toSide":"top","label":"includeInTotal"},
+		{"id":"balance-to-open","fromNode":"balance","fromSide":"bottom","toNode":"open-questions","toSide":"top"}
+	]
+}
