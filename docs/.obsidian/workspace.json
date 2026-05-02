@@ -11,10 +11,12 @@
             "id": "80b739aa9862b935",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Visualização em gráfico"
+              "type": "excalidraw",
+              "state": {
+                "file": "Excalidraw/Drawing 2026-05-02 19.04.38.excalidraw.md"
+              },
+              "icon": "excalidraw-icon",
+              "title": "Drawing 2026-05-02 19.04.38.excalidraw"
             }
           }
         ]
@@ -173,11 +175,20 @@
       "daily-notes:Abrir a nota de hoje": false,
       "templates:Inserir modelo": false,
       "command-palette:Abrir paleta de comandos": false,
-      "bases:Criar nova base": false
+      "bases:Criar nova base": false,
+      "markdown-importer:Abrir importador Markdown": false,
+      "obsidian-git:Open Git source control": false,
+      "obsidian-excalidraw-plugin:New drawing": false,
+      "templater-obsidian:Templater": false
     }
   },
   "active": "80b739aa9862b935",
   "lastOpenFiles": [
+    "deploy.md",
+    "Excalidraw/Drawing 2026-05-02 19.04.38.excalidraw.md",
+    "Excalidraw",
+    "design.md",
+    "auth/auth.v2.md",
     "auth/auth.v1.md",
     "integrations/README.md",
     "integrations/auth/sign-up.md",

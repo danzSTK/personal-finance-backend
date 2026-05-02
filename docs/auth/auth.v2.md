@@ -42,20 +42,20 @@ Regra importante no estado atual:
 
 ## 4. Endpoints do módulo Auth
 
-| Método | Rota | Auth | Descrição |
-|---|---|---|---|
-| `GET` | `/users/me` | `JwtAuthGuard` | Retorna dados do usuário autenticado |
-| `POST` | `/auth/sign-up` | público | Cadastro por e-mail/senha |
-| `POST` | `/auth/sign-in` | `LocalAuthGuard` | Login por e-mail/senha |
-| `GET` | `/auth/google` | `GoogleAuthGuard` | Inicia login social com Google |
-| `GET` | `/auth/google/callback` | `GoogleAuthGuard` | Callback OAuth Google (redireciona frontend) |
-| `POST` | `/auth/refresh` | `JwtRefreshGuard` | Rotaciona tokens |
-| `POST` | `/auth/logout` | `JwtAuthGuard` | Logout e invalidação da sessão atual |
-| `GET` | `/auth/sessions` | `JwtAuthGuard` | Lista sessões ativas |
-| `DELETE` | `/auth/sessions/:jti` | `JwtAuthGuard` | Revoga sessão específica |
-| `POST` | `/auth/providers/link/email` | `JwtAuthGuard` | Vincula provider EMAIL à conta autenticada |
-| `GET` | `/auth/providers/link/google` | `JwtAuthGuard + GoogleLinkInitAuthGuard` | Inicia vínculo de conta Google |
-| `GET` | `/auth/providers/link/google/callback` | `GoogleLinkAuthGuard` | Callback do vínculo Google |
+| Método   | Rota                                   | Auth                                     | Descrição                                    |
+| -------- | -------------------------------------- | ---------------------------------------- | -------------------------------------------- |
+| `GET`    | `/users/me`                            | `JwtAuthGuard`                           | Retorna dados do usuário autenticado         |
+| `POST`   | `/auth/sign-up`                        | público                                  | Cadastro por e-mail/senha                    |
+| `POST`   | `/auth/sign-in`                        | `LocalAuthGuard`                         | Login por e-mail/senha                       |
+| `GET`    | `/auth/google`                         | `GoogleAuthGuard`                        | Inicia login social com Google               |
+| `GET`    | `/auth/google/callback`                | `GoogleAuthGuard`                        | Callback OAuth Google (redireciona frontend) |
+| `POST`   | `/auth/refresh`                        | `JwtRefreshGuard`                        | Rotaciona tokens                             |
+| `POST`   | `/auth/logout`                         | `JwtAuthGuard`                           | Logout e invalidação da sessão atual         |
+| `GET`    | `/auth/sessions`                       | `JwtAuthGuard`                           | Lista sessões ativas                         |
+| `DELETE` | `/auth/sessions/:jti`                  | `JwtAuthGuard`                           | Revoga sessão específica                     |
+| `POST`   | `/auth/providers/link/email`           | `JwtAuthGuard`                           | Vincula provider EMAIL à conta autenticada   |
+| `GET`    | `/auth/providers/link/google`          | `JwtAuthGuard + GoogleLinkInitAuthGuard` | Inicia vínculo de conta Google               |
+| `GET`    | `/auth/providers/link/google/callback` | `GoogleLinkAuthGuard`                    | Callback do vínculo Google                   |
 
 ### Throttling aplicado
 
