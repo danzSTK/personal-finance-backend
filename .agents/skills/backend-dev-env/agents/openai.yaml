@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backend Dev Env"
+  short_description: "Subir o backend local em watch com Postgres e Redis."
+  default_prompt: "Suba o backend em dev local."
