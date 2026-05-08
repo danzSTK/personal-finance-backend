@@ -1,6 +1,6 @@
 {
   "collapse-filter": false,
-  "search": "[\"area\":auth]",
+  "search": "[\"area\":account]",
   "showTags": false,
   "showAttachments": false,
   "hideUnresolved": false,
