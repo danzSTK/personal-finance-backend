@@ -7,13 +7,17 @@ import { IUserRepository } from '@/modules/users/domain/repositories/user.respos
 import { Email } from '@/modules/users/domain/value-objects/email.value-object';
 import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
+import { AppEventPublisher } from '@/shared/events';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { CreateUserUseCaseInput, CreateUserUseCaseOutput } from './create-user.dto';
 
 @Injectable()
 export class CreateUserUseCase {
-  constructor(private readonly userRepository: IUserRepository) {}
+  constructor(
+    private readonly userRepository: IUserRepository,
+    private readonly appEventPublisher: AppEventPublisher,
+  ) {}
 
   async execute(data: CreateUserUseCaseInput, options?: IRepositoryOptions): Promise<CreateUserUseCaseOutput> {
     const email = Email.create(data.email);
@@ -67,6 +71,10 @@ export class CreateUserUseCase {
       userId,
     );
 
-    return this.userRepository.save(user, options);
+    const savedUser = await this.userRepository.save(user, options);
+
+    this.appEventPublisher.emitAll(user.pullDomainEvents());
+
+    return savedUser;
   }
 }

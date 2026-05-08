@@ -29,6 +29,38 @@ export class CachedAccountRepository implements IAccountRepository {
     private readonly cache: RedisService,
   ) {}
 
+  async findByUserIdAndType(
+    userId: string,
+    type: AccountType,
+    options?: IRepositoryOptions,
+  ): Promise<Account[] | null> {
+    if (options?.manager) {
+      return this.accountRepository.findByUserIdAndType(userId, type, { manager: options.manager });
+    }
+
+    const cacheKey = CacheKeys.accounts.byUserIdAndType(userId, type);
+
+    const cached = await this.cache.get<CachedAccount[]>(cacheKey);
+
+    if (cached) {
+      return cached.map(account => this.hydrateAccount(account));
+    }
+
+    const account = await this.accountRepository.findByUserIdAndType(userId, type);
+
+    if (!account) {
+      return null;
+    }
+
+    await this.cache.set(
+      cacheKey,
+      account.map(a => this.serializeAccount(a)),
+      this.cacheTtl,
+    );
+
+    return account;
+  }
+
   private readonly cacheTtl = 1000 * 60 * 5;
 
   async findByIdAndUserId(accountId: string, userId: string, options?: IRepositoryOptions): Promise<Account | null> {
@@ -170,6 +202,7 @@ export class CachedAccountRepository implements IAccountRepository {
     await Promise.all([
       this.cache.del(CacheKeys.accounts.listByUserId(userId, false)),
       this.cache.del(CacheKeys.accounts.listByUserId(userId, true)),
+      this.cache.del(CacheKeys.accounts.byUserIdAndType(userId, AccountType.CASH)),
       ...accounts.map(account => this.cache.del(CacheKeys.accounts.byId(account.id))),
     ]);
   }

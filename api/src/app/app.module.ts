@@ -22,6 +22,7 @@ import { AppStatus } from '../common/models/enums';
 import { JwtAuthGuard } from '../shared/guards/jwt-auth.guard';
 import { OriginGuard } from '../shared/guards/origin.guard';
 import { AccountsModule } from '@/modules/accounts/accounts.module';
+import { AppEventsModule } from '@/shared/events';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { AccountsModule } from '@/modules/accounts/accounts.module';
       }),
     }),
     RedisModule,
+    AppEventsModule,
     UsersModule,
     AuthModule,
     CommonModule,

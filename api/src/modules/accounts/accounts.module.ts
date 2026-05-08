@@ -11,6 +11,8 @@ import { SetDefaultAccountUseCase } from './application/use-cases/set-default-ac
 import { IAccountRepository } from './domain/repositories/account.repository.interface';
 import { AccountRepository } from './infrastructure/persistence/account.repository';
 import { AccountsController } from './presentation/http/accounts.controller';
+import { CreateDefaultAccountUseCase } from '@/modules/accounts/application/use-cases/create-default-account/create-default-account.use-case';
+import { ProvisionDefaultAccountOnUserHandler } from '@/modules/accounts/application/handlers/provision-default-account-on-user.handler';
 
 @Module({
   imports: [TypeOrmModule.forFeature([AccountOrmEntity])],
@@ -27,6 +29,8 @@ import { AccountsController } from './presentation/http/accounts.controller';
     SetDefaultAccountUseCase,
     UnarchiveAccountUseCase,
     UpdateAccountUseCase,
+    CreateDefaultAccountUseCase,
+    ProvisionDefaultAccountOnUserHandler,
   ],
   exports: [
     IAccountRepository,

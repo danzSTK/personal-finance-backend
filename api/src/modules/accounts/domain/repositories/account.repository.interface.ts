@@ -1,3 +1,4 @@
+import { AccountType } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { Account } from '../entities/account.entity';
 
@@ -18,4 +19,10 @@ export abstract class IAccountRepository {
     referenceDate: Date,
     options?: IRepositoryOptions,
   ): Promise<boolean>;
+
+  abstract findByUserIdAndType(
+    userId: string,
+    type: AccountType,
+    options?: IRepositoryOptions,
+  ): Promise<Account[] | null>;
 }

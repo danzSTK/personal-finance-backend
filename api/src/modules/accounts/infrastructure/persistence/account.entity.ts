@@ -20,6 +20,10 @@ import {
   unique: true,
   where: 'is_default = true AND is_archived = false',
 })
+@Index('UQ_accounts_user_cash', ['user_id'], {
+  unique: true,
+  where: "account_type = 'CASH'",
+})
 @Check('CHK_accounts_type', `"account_type" IN ('CASH', 'BANK', 'CREDIT_CARD', 'INVESTMENT')`)
 @Check('CHK_accounts_default_not_archived', `NOT (is_default = true AND is_archived = true)`)
 export class AccountOrmEntity {

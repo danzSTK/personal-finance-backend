@@ -1,12 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
+import { AccountType } from '@/common/models/enums';
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { Transaction } from '@/entities/transaction.entity';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
 import { AccountMapper } from '@/modules/accounts/infrastructure/mappers/account.mapper';
-import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
+import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class AccountRepository implements IAccountRepository {
@@ -14,6 +15,27 @@ export class AccountRepository implements IAccountRepository {
     @InjectRepository(AccountOrmEntity)
     private readonly accountRepository: Repository<AccountOrmEntity>,
   ) {}
+
+  async findByUserIdAndType(
+    userId: string,
+    type: AccountType,
+    options?: IRepositoryOptions,
+  ): Promise<Account[] | null> {
+    const repository = options?.manager ? options.manager.getRepository(AccountOrmEntity) : this.accountRepository;
+
+    const accountOrm = await repository.find({
+      where: {
+        user_id: userId,
+        account_type: type,
+      },
+    });
+
+    if (!accountOrm) {
+      return null;
+    }
+
+    return accountOrm.map(account => AccountMapper.toDomain(account));
+  }
 
   async findByIdAndUserId(accountId: string, userId: string, options?: IRepositoryOptions): Promise<Account | null> {
     const repository = options?.manager ? options.manager.getRepository(AccountOrmEntity) : this.accountRepository;

@@ -1,11 +1,13 @@
-import { ConflictException } from '@nestjs/common';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
+import { AggregateRoot } from '@/shared/domain/aggregate-root';
+import { ConflictException } from '@nestjs/common';
+import { AuthProviderFactory } from '../factories/auth-provider.factory';
 import { Email } from '../value-objects/email.value-object';
 import { HashedPassword } from '../value-objects/hashed-password.value-object';
 import { UserName } from '../value-objects/user-name.value-object';
 import { AuthProvider } from './auth-provider.entity';
 import { CredentialsAuthProvider } from './credentials-auth-provider.entity';
-import { AuthProviderFactory } from '../factories/auth-provider.factory';
 
 export interface UserProps {
   userName: UserName | null;
@@ -18,11 +20,13 @@ export interface UserProps {
   updatedAt: Date;
 }
 
-export class User {
+export class User extends AggregateRoot {
   constructor(
     private readonly props: UserProps,
     public readonly id: string,
-  ) {}
+  ) {
+    super();
+  }
 
   get userName(): UserName | null {
     return this.props.userName;
@@ -98,6 +102,14 @@ export class User {
   }
 
   static create(props: UserProps, id: string) {
+    const user = new User(props, id);
+
+    user.addDomainEvent(UserCreatedEvent.create(user.id, user.status));
+
+    return user;
+  }
+
+  static reconstitute(props: UserProps, id: string) {
     return new User(props, id);
   }
 

@@ -8,7 +8,7 @@ import { AuthProviderMapper } from './auth-provider.mapper';
 export class UserMapper {
   // ORM -> Domain (Usado no repository ao buscar do banco)
   static toDomain(entity: UserOrmEntity) {
-    return User.create(
+    return User.reconstitute(
       {
         email: Email.create(entity.email),
         userName: entity.userName ? UserName.create(entity.userName) : null,
