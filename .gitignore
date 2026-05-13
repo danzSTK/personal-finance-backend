@@ -1,5 +1,7 @@
 # Env
 .env
+.env.bitwarden.local
+.env.bws.runtime
 
 # Docker
 postgres_data/
