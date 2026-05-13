@@ -11,17 +11,14 @@
             "id": "0be2241a1ce18d73",
             "type": "leaf",
             "state": {
-              "type": "canvas",
+              "type": "markdown",
               "state": {
-                "file": "Sem título.canvas",
-                "viewState": {
-                  "x": -165.57928769224878,
-                  "y": -163.3582255732,
-                  "zoom": 0
-                }
+                "file": "database/schema.md",
+                "mode": "preview",
+                "source": false
               },
-              "icon": "lucide-layout-dashboard",
-              "title": "Sem título"
+              "icon": "lucide-file",
+              "title": "schema"
             }
           }
         ]
@@ -199,8 +196,10 @@
   },
   "active": "0be2241a1ce18d73",
   "lastOpenFiles": [
-    "accounts/concepts/archived-account.md",
+    "deploy.md",
+    "design.md",
     "Sem título.canvas",
+    "accounts/concepts/archived-account.md",
     "accounts/concepts/cash-account.md",
     "accounts/concepts/account-type.md",
     "accounts/concepts/account-balance.md",
@@ -226,7 +225,6 @@
     "accounts/decisions/one-cash-account-per-user.md",
     "accounts/decisions/cash-account-created-on-onboarding.md",
     "accounts/flows/transfer-between-accounts.md",
-    "accounts/flows/onboarding-cash-account.md",
     "integrations/accounts",
     "accounts/reference",
     "accounts/flows",
