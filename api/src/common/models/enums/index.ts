@@ -3,3 +3,4 @@ export * from './auth-provider.enum';
 export * from './category-types.enum';
 export * from './account-type.enum';
 export * from './app-types.enum';
+export * from './outbox-message-status.enum';

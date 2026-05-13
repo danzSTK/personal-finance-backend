@@ -23,6 +23,7 @@ import { JwtAuthGuard } from '../shared/guards/jwt-auth.guard';
 import { OriginGuard } from '../shared/guards/origin.guard';
 import { AccountsModule } from '@/modules/accounts/accounts.module';
 import { AppEventsModule } from '@/shared/events';
+import { OutboxModule } from '@/shared/outbox';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { AppEventsModule } from '@/shared/events';
     }),
     RedisModule,
     AppEventsModule,
+    OutboxModule,
     UsersModule,
     AuthModule,
     CommonModule,
