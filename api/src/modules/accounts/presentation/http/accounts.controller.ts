@@ -34,7 +34,7 @@ export class AccountsController {
       userId: user.id,
       name: body.name,
       type: body.type,
-      initialBalance: body.initialBalance ?? 0,
+      initialBalance: body.initialBalance,
       color: body.color,
       icon: body.icon,
       includeInTotal: body.includeInTotal,

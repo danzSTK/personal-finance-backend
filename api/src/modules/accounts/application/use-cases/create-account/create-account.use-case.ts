@@ -19,7 +19,7 @@ export class CreateAccountUseCase {
       await this.accountRepository.unsetDefaultAccount(data.userId);
     }
 
-    const account: Account = AccountFactory.createFromInput(data, shouldSetAsDefault);
+    const account: Account = AccountFactory.createManualAccount(data, shouldSetAsDefault);
 
     return this.accountRepository.save(account);
   }

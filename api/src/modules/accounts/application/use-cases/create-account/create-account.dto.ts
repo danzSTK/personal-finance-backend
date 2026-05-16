@@ -5,7 +5,7 @@ export interface CreateAccountUseCaseInput {
   userId: string;
   name: string;
   type: AccountType;
-  initialBalance: number;
+  initialBalance?: number;
   color?: string | null;
   icon?: string | null;
   includeInTotal?: boolean;
