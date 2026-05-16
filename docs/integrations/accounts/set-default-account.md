@@ -24,6 +24,10 @@ Não possui body.
 - Se já existir outra default ativa, ela deixa de ser default.
 - O usuário deve terminar com uma única default ativa.
 
+## Efeito No Frontend
+
+Este endpoint retorna `204` sem body. Após sucesso, recarregue `GET /accounts` para atualizar `isDefault` da lista.
+
 ## Respostas
 
 | Status | Quando |

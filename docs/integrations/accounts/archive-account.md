@@ -23,6 +23,11 @@ Não possui body.
 - Account default não pode ser arquivada.
 - O usuário precisa continuar com pelo menos uma account ativa.
 - Account com transações futuras agendadas não pode ser arquivada.
+- O frontend não deve oferecer arquivamento para `CASH`.
+
+## Efeito No Frontend
+
+Este endpoint retorna `204` sem body. Após sucesso, recarregue `GET /accounts`.
 
 ## Respostas
 
@@ -32,7 +37,3 @@ Não possui body.
 | `401` | Sessão ausente ou inválida |
 | `404` | Account não encontrada para o usuário autenticado |
 | `409` | Regra de arquivamento violada |
-
-## Observação V0
-
-A regra planejada é que `CASH` nunca possa ser arquivada.

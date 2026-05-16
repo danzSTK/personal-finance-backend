@@ -22,6 +22,10 @@ Não possui body.
 - A account precisa pertencer ao usuário autenticado.
 - A account precisa estar arquivada.
 
+## Efeito No Frontend
+
+Este endpoint retorna `204` sem body. Após sucesso, recarregue `GET /accounts?includeArchived=true` ou a lista que estiver em tela.
+
 ## Respostas
 
 | Status | Quando |
