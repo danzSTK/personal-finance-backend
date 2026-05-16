@@ -24,6 +24,7 @@ import { OriginGuard } from '../shared/guards/origin.guard';
 import { AccountsModule } from '@/modules/accounts/accounts.module';
 import { AppEventsModule } from '@/shared/events';
 import { OutboxModule } from '@/shared/outbox';
+import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { OutboxModule } from '@/shared/outbox';
     RedisModule,
     AppEventsModule,
     OutboxModule,
+    OutboxRehydratorsModule,
     UsersModule,
     AuthModule,
     CommonModule,

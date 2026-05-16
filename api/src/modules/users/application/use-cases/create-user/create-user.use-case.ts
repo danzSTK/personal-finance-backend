@@ -7,19 +7,36 @@ import { IUserRepository } from '@/modules/users/domain/repositories/user.respos
 import { Email } from '@/modules/users/domain/value-objects/email.value-object';
 import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
-import { AppEventPublisher } from '@/shared/events';
+import { OutboxWriteService } from '@/shared/outbox/services/outbox-write.service';
 import { ConflictException, Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
+import { DataSource, EntityManager } from 'typeorm';
 import { CreateUserUseCaseInput, CreateUserUseCaseOutput } from './create-user.dto';
 
 @Injectable()
 export class CreateUserUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
-    private readonly appEventPublisher: AppEventPublisher,
+    private readonly outboxWriteService: OutboxWriteService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async execute(data: CreateUserUseCaseInput, options?: IRepositoryOptions): Promise<CreateUserUseCaseOutput> {
+    if (options?.manager) {
+      return this.executeWithManager(data, {
+        manager: options.manager,
+      });
+    }
+
+    return this.dataSource.transaction(manager => this.executeWithManager(data, { manager }));
+  }
+
+  private async executeWithManager(
+    data: CreateUserUseCaseInput,
+    options: { manager: EntityManager },
+  ): Promise<CreateUserUseCaseOutput> {
     const email = Email.create(data.email);
 
     const existingUserByEmail = await this.userRepository.findByEmail(email, options);
@@ -72,8 +89,11 @@ export class CreateUserUseCase {
     );
 
     const savedUser = await this.userRepository.save(user, options);
+    const domainEvents = user.pullDomainEvents();
 
-    this.appEventPublisher.emitAll(user.pullDomainEvents());
+    await this.outboxWriteService.storeEvents(domainEvents, {
+      manager: options.manager,
+    });
 
     return savedUser;
   }

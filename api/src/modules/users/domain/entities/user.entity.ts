@@ -104,7 +104,7 @@ export class User extends AggregateRoot {
   static create(props: UserProps, id: string) {
     const user = new User(props, id);
 
-    user.addDomainEvent(UserCreatedEvent.create(user.id, user.status));
+    user.addDomainEvent(UserCreatedEvent.create(user.id, user.status, user.email));
 
     return user;
   }
