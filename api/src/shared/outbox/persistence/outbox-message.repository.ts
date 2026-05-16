@@ -1,5 +1,5 @@
 import { OutboxMessageStatus } from '@/common/models/enums';
-import { OutboxMessageOrmEntity } from '@/shared/outbox/outbox-message-orm.entity';
+import { OutboxMessageOrmEntity } from '@/shared/outbox/persistence/outbox-message-orm.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
@@ -22,6 +22,10 @@ export interface ClaimReadyOutboxMessagesOptions {
   lockForMs: number;
 }
 
+type StructuredQueryResult<T> = {
+  records: T[];
+};
+
 @Injectable()
 export class OutboxMessageRepository {
   constructor(
@@ -42,7 +46,11 @@ export class OutboxMessageRepository {
 
   async claimReadyBatch(options: ClaimReadyOutboxMessagesOptions): Promise<OutboxMessageOrmEntity[]> {
     return await this.repository.manager.transaction(async manager => {
-      return await manager.query<OutboxMessageOrmEntity[]>(
+      if (!manager.queryRunner) {
+        throw new Error('QueryRunner is required to claim outbox messages.');
+      }
+
+      const result = (await manager.queryRunner.query(
         `
           WITH picked AS (
             SELECT "id"
@@ -96,7 +104,10 @@ export class OutboxMessageRepository {
           options.lockedBy,
           options.lockForMs,
         ],
-      );
+        true,
+      )) as StructuredQueryResult<OutboxMessageOrmEntity>;
+
+      return result.records;
     });
   }
 
@@ -110,8 +121,9 @@ export class OutboxMessageRepository {
     });
   }
 
-  async markFailed(message: OutboxMessageOrmEntity, error: unknown, nextRetryAt: Date): Promise<void> {
+  async markFailed(message: OutboxMessageOrmEntity, error: unknown): Promise<void> {
     const status = message.attempts >= message.maxAttempts ? OutboxMessageStatus.DEAD : OutboxMessageStatus.FAILED;
+    const nextRetryAt = status === OutboxMessageStatus.FAILED ? this.calculateNextRetryAt(message.attempts) : null;
 
     await this.repository.update(message.id, {
       status,
@@ -128,5 +140,19 @@ export class OutboxMessageRepository {
     }
 
     return String(error);
+  }
+
+  private calculateNextRetryAt(attempts: number): Date {
+    const baseDelay = 5_000; // 5 seconds
+    const maxDelayMs = 5 * 60_000; // 5 minutes
+
+    const exponetialDelay = baseDelay * 2 ** Math.max(attempts - 1, 0);
+
+    const cappedDelay = Math.min(exponetialDelay, maxDelayMs);
+    const jitter = Math.floor(Math.random() * 1000); // Add up to 1 second of random jitter
+
+    const delayMs = cappedDelay + jitter;
+
+    return new Date(Date.now() + delayMs);
   }
 }

@@ -7,9 +7,6 @@ export class AppEventPublisher {
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
   emit(event: DomainEvent): boolean {
-    console.log(
-      `Emitting event: ${event.eventName} for aggregate ID: ${event.aggregateId} at ${event.occurredAt.toISOString()}`,
-    );
     return this.eventEmitter.emit(event.eventName, event);
   }
 

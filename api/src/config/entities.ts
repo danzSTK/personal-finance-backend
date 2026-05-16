@@ -5,4 +5,11 @@ import { AuthProviderOrmEntity } from '../modules/users/infrastructure/persisten
 import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
 import { OutboxMessageOrmEntity } from '../shared/outbox';
 
-export const ENTITIES = [UserOrmEntity, AuthProviderOrmEntity, AccountOrmEntity, Category, Transaction, OutboxMessageOrmEntity];
+export const ENTITIES = [
+  UserOrmEntity,
+  AuthProviderOrmEntity,
+  AccountOrmEntity,
+  Category,
+  Transaction,
+  OutboxMessageOrmEntity,
+];
