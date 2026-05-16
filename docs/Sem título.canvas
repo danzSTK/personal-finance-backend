@@ -2,9 +2,9 @@
 	"nodes":[
 		{"id":"3e4efad39aa9f570","type":"text","text":"Sign-up fluxo [[auth/flows/sign-up|sign-up]]","x":-800,"y":-240,"width":250,"height":60},
 		{"id":"72c7dd7a3c82f249","type":"text","text":"onboarding account","x":-380,"y":-240,"width":250,"height":60},
-		{"id":"c1bd6fd0b72820d3","type":"text","text":"Colher dados necessários: \n\nname -> default is \"Carteira\"\ninititalBalance: Essa é a pergunta principal caso ele n responda o default is 0, ele pode corrigir depois.\ncolor -> default green\nicon -> default icon \"Cash\"\n","x":0,"y":-310,"width":250,"height":200},
 		{"id":"979c93406bebc553","type":"text","text":"Criação de account type Cash","x":620,"y":-110,"width":250,"height":60},
-		{"id":"b34780136abd0a09","type":"text","text":"Criação de account type Cash com tudo default do sistema","x":620,"y":-340,"width":250,"height":60}
+		{"id":"b34780136abd0a09","type":"text","text":"Criação de account type Cash com tudo default do sistema","x":620,"y":-340,"width":250,"height":60},
+		{"id":"c1bd6fd0b72820d3","type":"text","text":"Colher dados necessários: \n\nname -> default is \"Carteira\"\ninititalBalance: Essa é a pergunta principal caso ele n responda o default is 0, ele pode corrigir depois.\ncolor -> default green\nicon -> default icon \"Cash\"\n","x":20,"y":-310,"width":250,"height":200}
 	],
 	"edges":[
 		{"id":"08b71de2807dad85","fromNode":"3e4efad39aa9f570","fromSide":"right","toNode":"72c7dd7a3c82f249","toSide":"left"},

@@ -1,7 +1,7 @@
 ---
 area: accounts
 type: decision
-status: planned
+status: current
 related:
   - ../concepts/cash-account.md
   - ../flows/onboarding-cash-account.md
@@ -12,6 +12,7 @@ related:
 ## Decisão
 
 Criar automaticamente uma account `CASH` no onboarding de um novo usuário/acesso.
+Valores default são criados para atender os requisitos de um account somente para n impedirmos o  seu uso pelo Onboarding 
 
 ## Motivos
 

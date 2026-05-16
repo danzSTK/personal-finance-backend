@@ -10,7 +10,10 @@ related:
 
 # Onboarding CASH Account
 
-Fluxo ainda não implementado.
+A criação primeira conta do usuário é feita de forma automática no sistema a parti do momento que ele tem sucesso ao criar um acesso na plataforma. 
+O fluxo inteiro acontece no padrão Events Outbox da plataforma para entender mais sobre como funciona esse fluxo e o que levamos em consideração pode ver o  [[Events-flow.excalidraw | Fluxo De eventos na plataforma]]  
+
+TODO: Criar documentação de eventos na plataforma e referenciar aqui também
 
 ## Regra Planejada
 
@@ -22,7 +25,7 @@ Essa account:
 - é única;
 - existe para garantir uma account estrutural mínima;
 - não pode ser criada manualmente depois.
+- Ela é a primeira e default do usuário
+- Atualmente ela por default vai ser criada com o Nome "Carteira" com o Initial Balance de 0 e inclusa no total. 
 
-## Pergunta De Implementação
-
-Definir em qual use case de onboarding/cadastro a criação será acoplada e se precisa acontecer na mesma transação do usuário.
+No Onboarding essa account já vai ser pré existente então vamos coletar os dados no onboarding somente para alterar os default o sistema n vai parar se ele não responder o onboarding da account 

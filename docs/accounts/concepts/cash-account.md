@@ -1,7 +1,7 @@
 ---
 area: accounts
 type: concept
-status: planned
+status: current
 related:
   - ../decisions/cash-account-created-on-onboarding.md
   - ../decisions/one-cash-account-per-user.md
@@ -11,6 +11,7 @@ related:
 # CASH Account
 
 `CASH` representa dinheiro físico/disponível.
+Ela também representa a account default criada pelo sistema e usada como referencia de idempotência 
 
 ## Regra Planejada Para V0
 

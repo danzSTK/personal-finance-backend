@@ -1,0 +1,6 @@
+{
+	"nodes":[
+		{"id":"61bdc43488665df8","x":-500,"y":-40,"width":250,"height":60,"type":"text","text":"Use case: Create User"}
+	],
+	"edges":[]
+}

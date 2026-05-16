@@ -13,6 +13,7 @@ Para documentação de consumo HTTP, use [Accounts integration](../integrations/
 ## Canvas
 
 - [Accounts canvas](./accounts.canvas)
+-  [[Events-flow.excalidraw|Fluxo de Eventos na plataforma]]
 
 ## Mapa
 
