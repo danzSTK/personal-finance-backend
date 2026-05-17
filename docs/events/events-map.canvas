@@ -1,0 +1,21 @@
+{
+	"nodes":[
+		{"id":"events-architecture","type":"file","file":"events/README.md","x":-500,"y":-40,"width":320,"height":140},
+		{"id":"add-event","type":"file","file":"events/add-event.md","x":-500,"y":180,"width":320,"height":120},
+		{"id":"user-created","type":"file","file":"events/user-created.md","x":0,"y":0,"width":320,"height":140},
+		{"id":"users-producer","type":"text","text":"users\nProducer\nUser.create()\nCreateUserUseCase\nUserCreatedEvent","x":-20,"y":-260,"width":340,"height":150},
+		{"id":"outbox","type":"text","text":"outbox\nDurable publication\noutbox_messages\nOutboxProcessorService\nEventRegistry + hydrators","x":0,"y":220,"width":360,"height":170},
+		{"id":"accounts-consumer","type":"file","file":"accounts/flows/onboarding-cash-account.md","x":500,"y":-180,"width":360,"height":140},
+		{"id":"categories-consumer","type":"text","text":"categories\nPlanned consumer\nCreate default categories\nIdempotent by user + seed","x":520,"y":40,"width":340,"height":140},
+		{"id":"email-consumer","type":"text","text":"notifications/email\nPlanned consumer\nQueue welcome email job\nDeduplicate by user + template","x":520,"y":250,"width":340,"height":140}
+	],
+	"edges":[
+		{"id":"architecture-to-user-created","fromNode":"events-architecture","fromSide":"right","toNode":"user-created","toSide":"left","label":"catalog"},
+		{"id":"add-event-to-architecture","fromNode":"add-event","fromSide":"top","toNode":"events-architecture","toSide":"bottom","label":"how to extend"},
+		{"id":"users-to-user-created","fromNode":"users-producer","fromSide":"bottom","toNode":"user-created","toSide":"top","label":"raises"},
+		{"id":"user-created-to-outbox","fromNode":"user-created","fromSide":"bottom","toNode":"outbox","toSide":"top","label":"stored and published"},
+		{"id":"user-created-to-accounts","fromNode":"user-created","fromSide":"right","toNode":"accounts-consumer","toSide":"left","label":"current"},
+		{"id":"user-created-to-categories","fromNode":"user-created","fromSide":"right","toNode":"categories-consumer","toSide":"left","label":"planned"},
+		{"id":"user-created-to-email","fromNode":"user-created","fromSide":"right","toNode":"email-consumer","toSide":"left","label":"planned"}
+	]
+}

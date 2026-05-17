@@ -11,14 +11,17 @@
             "id": "9b878a4cce55b3c0",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "canvas",
               "state": {
-                "file": "accounts/concepts/default-account.md",
-                "mode": "source",
-                "source": false
+                "file": "events/events-map.canvas",
+                "viewState": {
+                  "x": 180,
+                  "y": 65.00000000000001,
+                  "zoom": 0
+                }
               },
-              "icon": "lucide-file",
-              "title": "default-account"
+              "icon": "lucide-layout-dashboard",
+              "title": "events-map"
             }
           }
         ]
@@ -94,7 +97,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "accounts/concepts/default-account.md",
+                "file": "events/events-map.canvas",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +107,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Links inversos para default-account"
+              "title": "Links inversos para events-map"
             }
           },
           {
@@ -197,24 +200,32 @@
   },
   "active": "9b878a4cce55b3c0",
   "lastOpenFiles": [
+    "accounts/flows/transfer-between-accounts.md",
+    "events/events-map.canvas",
+    "events/user-created.md",
+    "accounts/flows/unarchive-account.md",
+    "accounts/flows/update-account.md",
+    "accounts/flows/set-default-account.md",
+    "accounts/flows/onboarding-cash-account.md",
+    "accounts/flows/delete-account.md",
+    "accounts/flows/create-account.md",
+    "accounts/flows/archive-account.md",
+    "events/add-event.md",
+    "Excalidraw/Events-flow.excalidraw.md",
+    "events/README.md",
+    "accounts/concepts/default-account.md",
+    "events",
     "accounts/concepts/cash-account.md",
     "accounts/decisions/one-cash-account-per-user.md",
     "accounts/decisions/cash-account-created-on-onboarding.md",
     "accounts/decisions/delete-only-without-movement.md",
-    "accounts/flows/onboarding-cash-account.md",
-    "accounts/flows/set-default-account.md",
-    "accounts/flows/archive-account.md",
-    "accounts/flows/delete-account.md",
-    "accounts/flows/create-account.md",
     "accounts/README.md",
-    "accounts/concepts/default-account.md",
     "accounts/accounts.canvas",
     "accounts/decisions/transfers-are-neutral.md",
     "accounts/decisions/account-balance-is-derived.md",
     "auth/google-provider-link.canvas",
     "auth/auth.canvas",
     "auth/concepts/cookie-based-auth.md",
-    "Excalidraw/Events-flow.excalidraw.md",
     "Excalidraw/Drawing 2026-05-02 19.07.23.excalidraw.md",
     "Fluxo de novos usuários BE.canvas",
     "Sem título.canvas",
@@ -222,12 +233,6 @@
     "design.md",
     "database/schema.md",
     "accounts/concepts/archived-account.md",
-    "accounts/concepts/account-type.md",
-    "accounts/concepts/account-balance.md",
-    "accounts/concepts/account.md",
-    "integrations/accounts/set-default-account.md",
-    "integrations/accounts/unarchive-account.md",
-    "integrations/accounts/archive-account.md",
     "integrations/accounts",
     "accounts/reference",
     "accounts/flows",
@@ -236,7 +241,6 @@
     "accounts",
     "Sem título.base",
     "auth/legacy",
-    "auth/reference",
-    "auth/decisions"
+    "auth/reference"
   ]
 }
