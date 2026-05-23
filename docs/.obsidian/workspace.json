@@ -11,17 +11,14 @@
             "id": "9b878a4cce55b3c0",
             "type": "leaf",
             "state": {
-              "type": "canvas",
+              "type": "markdown",
               "state": {
-                "file": "events/events-map.canvas",
-                "viewState": {
-                  "x": 180,
-                  "y": 65.00000000000001,
-                  "zoom": 0
-                }
+                "file": "categories/decisions/categories.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-layout-dashboard",
-              "title": "events-map"
+              "icon": "lucide-file",
+              "title": "categories"
             }
           }
         ]
@@ -198,11 +195,20 @@
       "templater-obsidian:Templater": false
     }
   },
-  "active": "9b878a4cce55b3c0",
+  "active": "36caca081cfa3663",
   "lastOpenFiles": [
-    "accounts/flows/transfer-between-accounts.md",
+    "Sem título.md",
+    "categories/decisions/categories.md",
+    "categories/decisions",
     "events/events-map.canvas",
+    "categories",
+    "integrations/accounts/default-cash-provisioning.md",
     "events/user-created.md",
+    "events/add-event.md",
+    "events/README.md",
+    "events",
+    "Fluxo de novos usuários BE.canvas",
+    "accounts/flows/transfer-between-accounts.md",
     "accounts/flows/unarchive-account.md",
     "accounts/flows/update-account.md",
     "accounts/flows/set-default-account.md",
@@ -210,11 +216,8 @@
     "accounts/flows/delete-account.md",
     "accounts/flows/create-account.md",
     "accounts/flows/archive-account.md",
-    "events/add-event.md",
     "Excalidraw/Events-flow.excalidraw.md",
-    "events/README.md",
     "accounts/concepts/default-account.md",
-    "events",
     "accounts/concepts/cash-account.md",
     "accounts/decisions/one-cash-account-per-user.md",
     "accounts/decisions/cash-account-created-on-onboarding.md",
@@ -227,20 +230,14 @@
     "auth/auth.canvas",
     "auth/concepts/cookie-based-auth.md",
     "Excalidraw/Drawing 2026-05-02 19.07.23.excalidraw.md",
-    "Fluxo de novos usuários BE.canvas",
     "Sem título.canvas",
     "deploy.md",
-    "design.md",
-    "database/schema.md",
-    "accounts/concepts/archived-account.md",
     "integrations/accounts",
     "accounts/reference",
     "accounts/flows",
     "accounts/decisions",
     "accounts/concepts",
     "accounts",
-    "Sem título.base",
-    "auth/legacy",
-    "auth/reference"
+    "Sem título.base"
   ]
 }
