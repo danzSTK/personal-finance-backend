@@ -11,12 +11,14 @@
             "id": "9b878a4cce55b3c0",
             "type": "leaf",
             "state": {
-              "type": "excalidraw",
+              "type": "markdown",
               "state": {
-                "file": "Excalidraw/Events-flow.excalidraw.md"
+                "file": "categories/decisions/categories.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "excalidraw-icon",
-              "title": "Events-flow.excalidraw"
+              "icon": "lucide-file",
+              "title": "categories"
             }
           }
         ]
@@ -195,6 +197,7 @@
   },
   "active": "9b878a4cce55b3c0",
   "lastOpenFiles": [
+    "Excalidraw/Events-flow.excalidraw.md",
     "categories/decisions/categories.md",
     "integrations/categories/get-category-metadata.md",
     "categories/reference/visual-tokens.md",
@@ -227,7 +230,6 @@
     "accounts/flows/onboarding-cash-account.md",
     "accounts/flows/delete-account.md",
     "accounts/flows/create-account.md",
-    "accounts/flows/archive-account.md",
     "accounts/accounts.canvas",
     "auth/google-provider-link.canvas",
     "auth/auth.canvas",
