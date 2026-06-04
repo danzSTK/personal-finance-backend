@@ -1,3 +1,4 @@
+import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
 import {
   Check,
   Column,
@@ -9,9 +10,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { CategoryOrmEntity } from '../modules/categories/infrastructure/persistence/model/category.entity';
 import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
-import { Category } from './category.entity';
-import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
 
 @Entity('transactions')
 @Index('idx_transactions_user_date_id', ['user_id', 'date', 'id'], {
@@ -82,12 +82,12 @@ export class Transaction {
   })
   account: AccountOrmEntity;
 
-  @ManyToOne(() => Category, category => category.transactions, {
+  @ManyToOne(() => CategoryOrmEntity, category => category.transactions, {
     onDelete: 'NO ACTION',
   })
   @JoinColumn({
     name: 'category_id',
     foreignKeyConstraintName: 'FK_transactions_category',
   })
-  category: Category;
+  category: CategoryOrmEntity;
 }

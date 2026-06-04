@@ -1,4 +1,4 @@
-import { AccountType } from '@/common/models/enums';
+import { AccountType, CategoryType } from '@/common/models/enums';
 
 export const CacheKeys = {
   users: {
@@ -21,5 +21,13 @@ export const CacheKeys = {
     listByUserId: (userId: string, includeArchived: boolean = false) =>
       `accounts:list:user:${userId}:archived:${includeArchived ? '1' : '0'}`,
     byUserIdAndType: (userId: string, type: AccountType) => `accounts:user:${userId}:type:${type}`,
+  },
+
+  categories: {
+    byId: (categoryId: string) => `categories:id:${categoryId}`,
+    listByUserId: (userId: string, includeArchived: boolean = false) =>
+      `categories:list:user:${userId}:archived:${includeArchived ? '1' : '0'}`,
+    listByUserIdAndType: (userId: string, type: CategoryType, includeArchived: boolean = false) =>
+      `categories:list:user:${userId}:type:${type}:archived:${includeArchived ? '1' : '0'}`,
   },
 };

@@ -111,7 +111,7 @@ Fluxo:
 | Status | Módulo | Handler | Efeito |
 |---|---|---|---|
 | current | `accounts` | `ProvisionDefaultAccountOnUserHandler` | Cria a account `CASH` default do usuário |
-| planned | `categories` | a definir | Criar categorias default do usuário |
+| planned | `categories` | a definir | Criar categorias default visíveis e categorias técnicas do usuário |
 | planned | `notifications/email` | a definir | Enfileirar email de boas-vindas |
 
 Handler atual:
@@ -148,6 +148,14 @@ Fluxo de produto relacionado:
 Quando categories existir, `user.created` deve disparar a criação das categorias iniciais do usuário.
 
 O handler precisa ser idempotente por usuário e por categoria seedada.
+
+O desenho esperado:
+
+- criar categorias default visíveis para o usuário;
+- criar categorias técnicas `TRANSFER` e `ADJUSTMENT`;
+- marcar categorias técnicas como `isSystem=true`;
+- manter categorias default visíveis como `isSystem=false`, mesmo quando criadas pelo backend;
+- não depender de nomes finais ainda, porque a lista de seeds permanece aberta.
 
 ### Welcome Email
 

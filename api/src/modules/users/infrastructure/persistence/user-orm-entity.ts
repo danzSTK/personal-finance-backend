@@ -1,18 +1,18 @@
+import { UserStatus } from '@/common/models/enums';
+import { Transaction } from '@/entities/transaction.entity';
+import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
+import { CategoryOrmEntity } from '@/modules/categories/infrastructure/persistence/model/category.entity';
 import {
-  Entity,
-  Index,
-  PrimaryGeneratedColumn,
+  Check,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
+  Index,
   OneToMany,
-  Check,
+  PrimaryGeneratedColumn,
   Unique,
+  UpdateDateColumn,
 } from 'typeorm';
-import { UserStatus } from '@/common/models/enums';
-import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
-import { Category } from '@/entities/category.entity';
-import { Transaction } from '@/entities/transaction.entity';
 import { AuthProviderOrmEntity } from './auth-provider-orm.entity';
 
 @Entity('users')
@@ -71,8 +71,8 @@ export class UserOrmEntity {
   @OneToMany(() => AccountOrmEntity, account => account.user)
   accounts: AccountOrmEntity[];
 
-  @OneToMany(() => Category, category => category.user)
-  categories: Category[];
+  @OneToMany(() => CategoryOrmEntity, category => category.user)
+  categories: CategoryOrmEntity[];
 
   @OneToMany(() => Transaction, transaction => transaction.user)
   transactions: Transaction[];

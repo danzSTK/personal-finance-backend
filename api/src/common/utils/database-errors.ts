@@ -7,16 +7,22 @@ interface PostgresDriverError extends Error {
   constraint?: string;
 }
 
-export function isPostgresUniqueViolation(error: unknown, constraintName?: string): boolean {
+export function isPostgresUniqueViolation(error: unknown): boolean {
   if (!(error instanceof QueryFailedError)) {
     return false;
   }
 
   const driverError = error.driverError as PostgresDriverError;
 
-  if (driverError.code !== POSTGRES_UNIQUE_VIOLATION_CODE) {
-    return false;
+  return driverError.code === POSTGRES_UNIQUE_VIOLATION_CODE;
+}
+
+export function getPostgresConstraintName(error: unknown): string | null {
+  if (!(error instanceof QueryFailedError)) {
+    return null;
   }
 
-  return constraintName ? driverError.constraint === constraintName : true;
+  const driverError = error.driverError as PostgresDriverError;
+
+  return driverError.constraint ?? null;
 }

@@ -42,3 +42,5 @@ Para métodos mutáveis, configure `CSRF_ALLOWED_ORIGINS` com as origens do fron
 - [Auth architecture](../auth/README.md)
 - [Accounts integration](./accounts/README.md)
 - [Accounts architecture](../accounts/README.md)
+- [Categories integration](./categories/README.md)
+- [Categories architecture](../categories/README.md)

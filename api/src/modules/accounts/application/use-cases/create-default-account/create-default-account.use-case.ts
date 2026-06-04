@@ -1,5 +1,5 @@
 import { AccountType } from '@/common/models/enums';
-import { isPostgresUniqueViolation } from '@/common/utils/database-errors';
+import { getPostgresConstraintName, isPostgresUniqueViolation } from '@/common/utils/database-errors';
 import { CreateDefaultAccountUseCaseInput } from '@/modules/accounts/application/use-cases/create-default-account/create-default-account.dto';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { AccountFactory } from '@/modules/accounts/domain/factories/account.factory';
@@ -24,7 +24,10 @@ export class CreateDefaultAccountUseCase {
     try {
       return await this.accountRepository.save(account);
     } catch (error) {
-      if (!isPostgresUniqueViolation(error, UNIQUE_CASH_ACCOUNT_PER_USER_CONSTRAINT)) {
+      if (
+        !isPostgresUniqueViolation(error) ||
+        getPostgresConstraintName(error) !== UNIQUE_CASH_ACCOUNT_PER_USER_CONSTRAINT
+      ) {
         throw error;
       }
 
