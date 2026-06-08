@@ -6,7 +6,7 @@ area: platform-errors
 # Error Handling Tasks
 
 - [x] Criar `DomainError` e `ApplicationError`.
-- [ ] Criar erros específicos começando por username.
+- [x] Criar erros específicos começando por username.
 - [ ] Criar `AppExceptionFilter`.
 - [ ] Padronizar `ValidationPipe.exceptionFactory`.
 - [ ] Migrar `UserName` para `InvalidUsernameFormatError`.
