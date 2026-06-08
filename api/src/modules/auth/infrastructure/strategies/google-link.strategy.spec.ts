@@ -1,11 +1,12 @@
-import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Profile } from 'passport-google-oauth20';
 import googleOauthConfig from '@/config/google-oauth.config';
 import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { RedisService } from '@/database/redis/redis.service';
+import { AuthProviderLinkedToAnotherUserError } from '@/modules/auth/application/errors';
 import { LinkGoogleProviderUseCase } from '@/modules/auth/application/use-cases/link-google-provider/link-google-provider.use-case';
 import { GoogleLinkStrategy } from './google-link.strategy';
+import { AuthProviderType } from '@/common/models/enums';
 
 describe('GoogleLinkStrategy', () => {
   let strategy: GoogleLinkStrategy;
@@ -97,7 +98,7 @@ describe('GoogleLinkStrategy', () => {
     jest.spyOn(redisService, 'getAndDelete').mockResolvedValue('user-id');
     jest
       .spyOn(linkGoogleProviderUseCase, 'execute')
-      .mockRejectedValue(new ConflictException('Google account already linked to another user'));
+      .mockRejectedValue(new AuthProviderLinkedToAnotherUserError(AuthProviderType.GOOGLE));
 
     const result = await strategy.validate(
       { query: { state: 'valid-state' } } as unknown as Parameters<GoogleLinkStrategy['validate']>[0],

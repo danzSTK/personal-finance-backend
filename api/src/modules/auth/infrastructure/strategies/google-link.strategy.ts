@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { type ConfigType } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { type Request } from 'express';
@@ -6,7 +6,12 @@ import { Profile, Strategy } from 'passport-google-oauth20';
 import googleOauthConfig from '@/config/google-oauth.config';
 import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { RedisService } from '@/database/redis/redis.service';
+import {
+  AuthProviderAlreadyLinkedError,
+  AuthProviderLinkedToAnotherUserError,
+} from '@/modules/auth/application/errors';
 import { LinkGoogleProviderUseCase } from '@/modules/auth/application/use-cases/link-google-provider/link-google-provider.use-case';
+import { UserNotFoundError } from '@/modules/users/application/errors';
 
 type GoogleLinkErrorCode = 'missing_state' | 'invalid_state' | 'google_provider_conflict';
 
@@ -64,7 +69,11 @@ export class GoogleLinkStrategy extends PassportStrategy(Strategy, 'google-link'
 
       return { success: true };
     } catch (error) {
-      if (error instanceof ConflictException) {
+      if (
+        error instanceof AuthProviderAlreadyLinkedError ||
+        error instanceof AuthProviderLinkedToAnotherUserError ||
+        error instanceof UserNotFoundError
+      ) {
         return { success: false, errorCode: 'google_provider_conflict' };
       }
 

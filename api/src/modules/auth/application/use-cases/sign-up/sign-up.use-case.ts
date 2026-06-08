@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
@@ -7,6 +7,7 @@ import { IUserRepository } from '@/modules/users/domain/repositories/user.respos
 import { FindUserByEmailUseCase } from '@/modules/users/application/use-cases/find-by-user-email/find-user-by-email.use-case';
 import { FindUserByUserNameUseCase } from '@/modules/users/application/use-cases/find-by-user-name/find-by-user-name.use-case';
 import { CreateUserUseCase } from '@/modules/users/application/use-cases/create-user/create-user.use-case';
+import { UserEmailAlreadyExistsError, UsernameAlreadyExistsError } from '@/modules/users/application/errors';
 import { GenerateTokenUseCase } from '../generate-token/generate-token.use-case';
 import { type SignUpUseCaseOutput, type SignUpUseCaseInput } from './sign-up.dto';
 
@@ -32,19 +33,19 @@ export class SignUpUseCase {
       });
 
       if (existingEmailProvider) {
-        throw new ConflictException('Email already registered');
+        throw new UserEmailAlreadyExistsError(data.email);
       }
 
       const user = await this.findUserByEmailUseCase.execute(data.email, { manager });
 
       if (user) {
-        throw new ConflictException('Email already registered');
+        throw new UserEmailAlreadyExistsError(data.email);
       }
 
       const existingUsername = await this.findUserByUserNameUseCase.execute(data.userName, { manager });
 
       if (existingUsername) {
-        throw new ConflictException('User name already registered');
+        throw new UsernameAlreadyExistsError(data.userName);
       }
 
       return this.createUserUseCase.execute(

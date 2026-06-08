@@ -1,10 +1,11 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { type ConfigType } from '@nestjs/config';
 import jwtConfig from '@/config/jwt.config';
 import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 import { type JwtPayloadDto } from '@/modules/auth/presentation/dto/jwt-payload.dto';
 import { type LogoutUseCaseDto } from './logout.dto';
+import { InvalidAccessTokenError, InvalidRefreshTokenError } from '@/modules/auth/application/errors';
 
 @Injectable()
 export class LogoutUseCase {
@@ -21,7 +22,7 @@ export class LogoutUseCase {
     const accessPayload = this.jwtService.decode<JwtPayloadDto>(accessToken);
 
     if (!accessPayload || !accessPayload.exp) {
-      throw new UnauthorizedException('Invalid access token');
+      throw new InvalidAccessTokenError();
     }
 
     let rtPayload: JwtPayloadDto;
@@ -32,11 +33,11 @@ export class LogoutUseCase {
         ignoreExpiration: true,
       });
     } catch {
-      throw new UnauthorizedException('Refresh token invalid or expired or not found');
+      throw new InvalidRefreshTokenError('Refresh token invalid or expired or not found.');
     }
 
     if (!rtPayload.jti || rtPayload.sub !== userId) {
-      throw new UnauthorizedException('Refresh token invalid or expired or not found');
+      throw new InvalidRefreshTokenError('Refresh token invalid or expired or not found.');
     }
 
     const currentTime = Math.floor(Date.now() / 1000);

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
@@ -8,6 +8,8 @@ import { IUserRepository } from '@/modules/users/domain/repositories/user.respos
 import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { type LinkEmailProviderUseCaseDto } from './link-email-provider.dto';
 import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { AuthProviderAlreadyLinkedError } from '@/modules/auth/application/errors';
+import { UserEmailAlreadyExistsError, UserNotFoundError } from '@/modules/users/application/errors';
 
 @Injectable()
 export class LinkEmailProviderUseCase {
@@ -29,21 +31,21 @@ export class LinkEmailProviderUseCase {
       });
 
       if (existingEmailProvider) {
-        throw new ConflictException('Email already registered');
+        throw new UserEmailAlreadyExistsError(data.email);
       }
 
       // Busca o usuário atual
       const user = await this.findUserByIdUseCase.execute(data.userId, { manager });
 
       if (!user) {
-        throw new ConflictException('User not found');
+        throw new UserNotFoundError();
       }
 
       // Verifica se o usuário já possui um provider EMAIL
       const hasEmailProvider = user.authProviders.some(provider => provider.provider === AuthProviderType.EMAIL);
 
       if (hasEmailProvider) {
-        throw new ConflictException('User already has an email provider');
+        throw new AuthProviderAlreadyLinkedError(AuthProviderType.EMAIL);
       }
 
       // Adiciona o novo provider EMAIL ao usuário

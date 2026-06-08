@@ -1,7 +1,8 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { type ConfigType } from '@nestjs/config';
 import jwtConfig from '@/config/jwt.config';
+import { InvalidRefreshTokenError } from '@/modules/auth/application/errors';
 
 interface RefreshTokenPayload {
   jti?: string;
@@ -17,7 +18,7 @@ export class RefreshTokenValidationService {
 
   getSessionJti(rawRefreshToken: unknown): string {
     if (typeof rawRefreshToken !== 'string' || rawRefreshToken.trim() === '') {
-      throw new UnauthorizedException('Refresh token not found');
+      throw new InvalidRefreshTokenError('Refresh token not found.');
     }
 
     let payload: RefreshTokenPayload;
@@ -28,11 +29,11 @@ export class RefreshTokenValidationService {
         issuer: this.jwtConfiguration.issuer,
       });
     } catch {
-      throw new UnauthorizedException('Refresh token invalid or expired');
+      throw new InvalidRefreshTokenError('Refresh token invalid or expired.');
     }
 
     if (!payload.jti) {
-      throw new UnauthorizedException('Token identifier (jti) missing');
+      throw new InvalidRefreshTokenError('Token identifier (jti) missing.');
     }
 
     return payload.jti;

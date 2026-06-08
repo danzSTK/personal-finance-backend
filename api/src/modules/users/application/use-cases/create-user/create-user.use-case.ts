@@ -7,8 +7,9 @@ import { IUserRepository } from '@/modules/users/domain/repositories/user.respos
 import { Email } from '@/modules/users/domain/value-objects/email.value-object';
 import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
+import { UserEmailAlreadyExistsError, UsernameAlreadyExistsError } from '@/modules/users/application/errors';
 import { OutboxWriteService } from '@/shared/outbox/services/outbox-write.service';
-import { ConflictException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
@@ -42,7 +43,7 @@ export class CreateUserUseCase {
     const existingUserByEmail = await this.userRepository.findByEmail(email, options);
 
     if (existingUserByEmail) {
-      throw new ConflictException('User with this email already registered');
+      throw new UserEmailAlreadyExistsError(email.value);
     }
 
     let userName: UserName | null = null;
@@ -53,7 +54,7 @@ export class CreateUserUseCase {
       const existingUserByUserName = await this.userRepository.findByUserName(userName, options);
 
       if (existingUserByUserName) {
-        throw new ConflictException('User with this username already registered');
+        throw new UsernameAlreadyExistsError(userName.value);
       }
     }
 
