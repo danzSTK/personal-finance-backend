@@ -1,4 +1,5 @@
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { ArchiveCategoryUseCase } from '@/modules/categories/application/use-cases/archive-category/archive-category.use-case';
 import { CreateCategoryUseCase } from '@/modules/categories/application/use-cases/create-category/create-category.use-case';
 import { DeleteCategoryWithMergeUseCase } from '@/modules/categories/application/use-cases/delete-category-with-merge/delete-category-with-merge.use-case';
@@ -54,8 +55,14 @@ export class CategoriesController {
       'Cria uma categoria gerenciável pelo usuário. Tipos técnicos como TRANSFER e ADJUSTMENT são reservados ao sistema.',
   })
   @ApiResponse({ status: 201, description: 'Categoria criada com sucesso', type: CategoryResponseDto })
-  @ApiBadRequestResponse({ description: 'Body inválido ou tipo técnico enviado para criação manual' })
-  @ApiConflictResponse({ description: 'Já existe uma categoria ativa com o mesmo nome canônico e tipo' })
+  @ApiBadRequestResponse({
+    description: 'Body inválido ou tipo técnico enviado para criação manual',
+    type: PlatformErrorResponseDto,
+  })
+  @ApiConflictResponse({
+    description: 'Já existe uma categoria ativa com o mesmo nome canônico e tipo',
+    type: PlatformErrorResponseDto,
+  })
   async create(@CurrentUser() user: User, @Body() body: CreateCategoryDto): Promise<CategoryResponseDto> {
     const category = await this.createCategoryUseCase.execute({
       userId: user.id,
@@ -91,7 +98,10 @@ export class CategoriesController {
       'Lista categorias do usuário para tela de gerenciamento. Categorias sistêmicas e técnicas não aparecem nesta rota.',
   })
   @ApiOkResponse({ description: 'Lista paginada de categorias', type: ListCategoriesResponseDto })
-  @ApiBadRequestResponse({ description: 'Parâmetros de paginação, busca ou tipo inválidos' })
+  @ApiBadRequestResponse({
+    description: 'Parâmetros de paginação, busca ou tipo inválidos',
+    type: PlatformErrorResponseDto,
+  })
   async list(@CurrentUser() user: User, @Query() query: ListCategoriesQueryDto): Promise<ListCategoriesResponseDto> {
     const output = await this.listCategoriesUseCase.execute({
       userId: user.id,
@@ -114,7 +124,10 @@ export class CategoriesController {
   })
   @ApiParam({ name: 'id', description: 'ID da categoria', format: 'uuid' })
   @ApiOkResponse({ description: 'Categoria encontrada', type: CategoryResponseDto })
-  @ApiNotFoundResponse({ description: 'Categoria não encontrada ou não gerenciável pelo usuário' })
+  @ApiNotFoundResponse({
+    description: 'Categoria não encontrada ou não gerenciável pelo usuário',
+    type: PlatformErrorResponseDto,
+  })
   async getById(@CurrentUser() user: User, @Param('id') categoryId: string): Promise<CategoryResponseDto> {
     const category = await this.getCategoryUseCase.execute({
       userId: user.id,
@@ -132,9 +145,12 @@ export class CategoriesController {
   })
   @ApiParam({ name: 'id', description: 'ID da categoria', format: 'uuid' })
   @ApiOkResponse({ description: 'Categoria atualizada com sucesso', type: CategoryResponseDto })
-  @ApiBadRequestResponse({ description: 'Body inválido' })
-  @ApiNotFoundResponse({ description: 'Categoria não encontrada' })
-  @ApiConflictResponse({ description: 'Categoria não editável ou nome duplicado para o mesmo tipo' })
+  @ApiBadRequestResponse({ description: 'Body inválido', type: PlatformErrorResponseDto })
+  @ApiNotFoundResponse({ description: 'Categoria não encontrada', type: PlatformErrorResponseDto })
+  @ApiConflictResponse({
+    description: 'Categoria não editável ou nome duplicado para o mesmo tipo',
+    type: PlatformErrorResponseDto,
+  })
   async update(
     @CurrentUser() user: User,
     @Param('id') categoryId: string,
@@ -158,8 +174,11 @@ export class CategoriesController {
   })
   @ApiParam({ name: 'id', description: 'ID da categoria', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Categoria arquivada com sucesso' })
-  @ApiNotFoundResponse({ description: 'Categoria não encontrada' })
-  @ApiConflictResponse({ description: 'Categoria sistêmica ou técnica não pode ser arquivada' })
+  @ApiNotFoundResponse({ description: 'Categoria não encontrada', type: PlatformErrorResponseDto })
+  @ApiConflictResponse({
+    description: 'Categoria sistêmica ou técnica não pode ser arquivada',
+    type: PlatformErrorResponseDto,
+  })
   async archive(@CurrentUser() user: User, @Param('id') categoryId: string): Promise<void> {
     await this.archiveCategoryUseCase.execute({
       userId: user.id,
@@ -177,8 +196,11 @@ export class CategoriesController {
   })
   @ApiParam({ name: 'id', description: 'ID da categoria', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Categoria desarquivada com sucesso' })
-  @ApiNotFoundResponse({ description: 'Categoria não encontrada' })
-  @ApiConflictResponse({ description: 'Categoria não gerenciável ou nome duplicado ao reativar' })
+  @ApiNotFoundResponse({ description: 'Categoria não encontrada', type: PlatformErrorResponseDto })
+  @ApiConflictResponse({
+    description: 'Categoria não gerenciável ou nome duplicado ao reativar',
+    type: PlatformErrorResponseDto,
+  })
   async unarchive(@CurrentUser() user: User, @Param('id') categoryId: string): Promise<void> {
     await this.unarchiveCategoryUseCase.execute({
       userId: user.id,
@@ -195,8 +217,11 @@ export class CategoriesController {
   })
   @ApiParam({ name: 'id', description: 'ID da categoria', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Categoria deletada com sucesso' })
-  @ApiNotFoundResponse({ description: 'Categoria não encontrada' })
-  @ApiConflictResponse({ description: 'Categoria não gerenciável ou possui transações vinculadas' })
+  @ApiNotFoundResponse({ description: 'Categoria não encontrada', type: PlatformErrorResponseDto })
+  @ApiConflictResponse({
+    description: 'Categoria não gerenciável ou possui transações vinculadas',
+    type: PlatformErrorResponseDto,
+  })
   async delete(@CurrentUser() user: User, @Param('id') categoryId: string): Promise<void> {
     await this.deleteCategoryUseCase.execute({
       userId: user.id,
@@ -215,9 +240,12 @@ export class CategoriesController {
   @ApiParam({ name: 'id', description: 'ID da categoria origem', format: 'uuid' })
   @ApiBody({ type: DeleteCategoryWithMergeDto })
   @ApiNoContentResponse({ description: 'Transações movidas e categoria deletada com sucesso' })
-  @ApiBadRequestResponse({ description: 'Body inválido' })
-  @ApiNotFoundResponse({ description: 'Categoria origem não encontrada' })
-  @ApiConflictResponse({ description: 'Destino inválido, arquivado, incompatível ou igual à origem' })
+  @ApiBadRequestResponse({ description: 'Body inválido', type: PlatformErrorResponseDto })
+  @ApiNotFoundResponse({ description: 'Categoria origem não encontrada', type: PlatformErrorResponseDto })
+  @ApiConflictResponse({
+    description: 'Destino inválido, arquivado, incompatível ou igual à origem',
+    type: PlatformErrorResponseDto,
+  })
   async deleteWithMerge(
     @CurrentUser() user: User,
     @Param('id') categoryId: string,

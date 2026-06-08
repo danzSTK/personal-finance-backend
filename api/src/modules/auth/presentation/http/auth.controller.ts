@@ -2,6 +2,7 @@ import { CurrentSessionInfo } from '@/common/decorators/current-session-info.dec
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { IsPublic } from '@/common/decorators/is-public.decorator';
 import { RefreshToken } from '@/common/decorators/refresh-token.decorator';
+import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
 import { AUTH_CONSTANTS } from '@/common/models/constants';
 import { type SessionMetadata } from '@/common/models/interfaces';
@@ -116,8 +117,8 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Dados de registro inválidos' })
-  @ApiResponse({ status: 409, description: 'E-mail ou username já cadastrado' })
+  @ApiResponse({ status: 400, description: 'Dados de registro inválidos', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 409, description: 'E-mail ou username já cadastrado', type: PlatformErrorResponseDto })
   async signUp(
     @Body() signUpDto: RegisterDto,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
@@ -180,7 +181,7 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Credenciais inválidas' })
+  @ApiResponse({ status: 401, description: 'Credenciais inválidas', type: PlatformErrorResponseDto })
   async signIn(
     @CurrentUser() user: User,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
@@ -286,6 +287,7 @@ export class AuthController {
   @ApiResponse({
     status: 401,
     description: 'Access token inválido/expirado ou refresh token ausente/inválido/expirado',
+    type: PlatformErrorResponseDto,
   })
   async getSessions(@CurrentUser() user: User, @RefreshToken() refreshToken: unknown) {
     const currentSessionJti = this.refreshTokenValidationService.getSessionJti(refreshToken);
@@ -306,8 +308,8 @@ export class AuthController {
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
   @ApiResponse({ status: 204, description: 'Sessão revogada com sucesso' })
-  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
-  @ApiResponse({ status: 404, description: 'Sessão não encontrada' })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 404, description: 'Sessão não encontrada', type: PlatformErrorResponseDto })
   async revokeSession(@CurrentUser() user: User, @Param('jti') jti: string) {
     await this.revokeSessionUseCase.execute({ userId: user.id, jti });
   }
@@ -342,7 +344,7 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado' })
+  @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado', type: PlatformErrorResponseDto })
   async refresh(
     @CurrentUser() refreshStrategyResponse: RefreshStrategyResponse,
     @CurrentSessionInfo() sessionInfo: SessionMetadata,
@@ -377,7 +379,7 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
   async logout(
     @CurrentUser() user: User,
     @Req() req: AuthRequest,
@@ -424,8 +426,12 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
-  @ApiResponse({ status: 409, description: 'Usuário já possui provider de email ou email já cadastrado' })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
+  @ApiResponse({
+    status: 409,
+    description: 'Usuário já possui provider de email ou email já cadastrado',
+    type: PlatformErrorResponseDto,
+  })
   async linkEmailProvider(
     @CurrentUser() user: User,
     @Body() linkEmailProviderDto: LinkEmailProviderDto,
@@ -461,7 +467,7 @@ export class AuthController {
     status: 302,
     description: 'Redireciona para Google OAuth',
   })
-  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
   linkGoogle() {
     // Guards cuidam da autenticação JWT, state e redirect OAuth
   }

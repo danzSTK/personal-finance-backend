@@ -8,6 +8,8 @@ status: current
 
 Todos os erros HTTP da API devem seguir um formato previsível para o frontend.
 
+Para o padrão interno de implementação, leia [Platform Error Handling](../errors/README.md).
+
 ```json
 {
   "statusCode": 409,

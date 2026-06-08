@@ -1,4 +1,5 @@
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { ArchiveAccountUseCase } from '@/modules/accounts/application/use-cases/archive-account/archive-account.use-case';
 import { CreateAccountUseCase } from '@/modules/accounts/application/use-cases/create-account/create-account.use-case';
 import { ListAccountsUseCase } from '@/modules/accounts/application/use-cases/list-accounts/list-accounts.use-case';
@@ -29,6 +30,13 @@ export class AccountsController {
   @ApiCookieAuth('accessToken')
   @ApiOperation({ summary: 'Criar conta' })
   @ApiResponse({ status: 201, description: 'Conta criada com sucesso', type: AccountResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Body inválido ou regra de domínio inválida',
+    type: PlatformErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Sessão ausente ou inválida', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 409, description: 'Conflito de regra de negócio', type: PlatformErrorResponseDto })
   async create(@CurrentUser() user: User, @Body() body: CreateAccountDto): Promise<AccountResponseDto> {
     const account = await this.createAccountUseCase.execute({
       userId: user.id,
@@ -48,6 +56,14 @@ export class AccountsController {
   @ApiCookieAuth('accessToken')
   @ApiOperation({ summary: 'Atualizar conta' })
   @ApiResponse({ status: 200, description: 'Conta atualizada com sucesso', type: AccountResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Body inválido ou regra de domínio inválida',
+    type: PlatformErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Sessão ausente ou inválida', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 404, description: 'Conta não encontrada', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 409, description: 'Conta arquivada ou patch vazio', type: PlatformErrorResponseDto })
   async update(
     @CurrentUser() user: User,
     @Param('id') accountId: string,
@@ -66,6 +82,7 @@ export class AccountsController {
   @ApiCookieAuth('accessToken')
   @ApiOperation({ summary: 'Listar contas do usuário autenticado' })
   @ApiResponse({ status: 200, description: 'Lista de contas', type: [AccountResponseDto] })
+  @ApiResponse({ status: 401, description: 'Sessão ausente ou inválida', type: PlatformErrorResponseDto })
   async list(@CurrentUser() user: User, @Query() query: ListAccountsQueryDto): Promise<AccountResponseDto[]> {
     const accounts = await this.listAccountsUseCase.execute({
       userId: user.id,
@@ -80,6 +97,13 @@ export class AccountsController {
   @ApiCookieAuth('accessToken')
   @ApiOperation({ summary: 'Arquivar conta' })
   @ApiResponse({ status: 204, description: 'Conta arquivada com sucesso' })
+  @ApiResponse({ status: 401, description: 'Sessão ausente ou inválida', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 404, description: 'Conta não encontrada', type: PlatformErrorResponseDto })
+  @ApiResponse({
+    status: 409,
+    description: 'Conta default, agendada ou última ativa não pode ser arquivada',
+    type: PlatformErrorResponseDto,
+  })
   async archive(@CurrentUser() user: User, @Param('id') accountId: string): Promise<void> {
     await this.archiveAccountUseCase.execute({
       userId: user.id,
@@ -92,6 +116,9 @@ export class AccountsController {
   @ApiCookieAuth('accessToken')
   @ApiOperation({ summary: 'Desarquivar conta' })
   @ApiResponse({ status: 204, description: 'Conta desarquivada com sucesso' })
+  @ApiResponse({ status: 401, description: 'Sessão ausente ou inválida', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 404, description: 'Conta não encontrada', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 409, description: 'Conta não está arquivada', type: PlatformErrorResponseDto })
   async unarchive(@CurrentUser() user: User, @Param('id') accountId: string): Promise<void> {
     await this.unarchiveAccountUseCase.execute({
       userId: user.id,
@@ -106,6 +133,9 @@ export class AccountsController {
   @ApiCookieAuth('accessToken')
   @ApiOperation({ summary: 'Definir conta padrão' })
   @ApiResponse({ status: 204, description: 'Conta padrão atualizada com sucesso' })
+  @ApiResponse({ status: 401, description: 'Sessão ausente ou inválida', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 404, description: 'Conta não encontrada', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 409, description: 'Conta arquivada ou já default', type: PlatformErrorResponseDto })
   async setDefault(@CurrentUser() user: User, @Param('id') accountId: string): Promise<void> {
     await this.setDefaultAccountUseCase.execute({
       userId: user.id,

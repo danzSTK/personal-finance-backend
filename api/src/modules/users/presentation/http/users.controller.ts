@@ -1,4 +1,5 @@
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { IsPublic } from '@/common/decorators/is-public.decorator';
 import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
@@ -46,7 +47,7 @@ export class UsersController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
   getMe(@CurrentUser() user: User): UserProfileResponseDto {
     return UserProfileResponseDto.fromEntity(user);
   }
