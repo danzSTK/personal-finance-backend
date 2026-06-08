@@ -8,7 +8,7 @@ area: platform-errors
 - [x] Criar `DomainError` e `ApplicationError`.
 - [x] Criar erros específicos começando por username.
 - [x] Criar `AppExceptionFilter`.
-- [ ] Padronizar `ValidationPipe.exceptionFactory`.
+- [x] Padronizar `ValidationPipe.exceptionFactory`.
 - [ ] Migrar `UserName` para `InvalidUsernameFormatError`.
 - [ ] Migrar use cases de auth/users para `ApplicationError`.
 - [ ] Migrar accounts/categories para `DomainError` e `ApplicationError`.
