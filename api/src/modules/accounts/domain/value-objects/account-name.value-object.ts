@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { InvalidAccountNameError } from '@/modules/accounts/domain/errors';
 
 export class AccountName {
   private constructor(private readonly _value: string) {}
@@ -11,11 +11,11 @@ export class AccountName {
     const normalized = raw.trim();
 
     if (!normalized) {
-      throw new BadRequestException('Account name is required');
+      throw new InvalidAccountNameError('Account name is required.');
     }
 
     if (normalized.length > 255) {
-      throw new BadRequestException('Account name is too long');
+      throw new InvalidAccountNameError('Account name is too long.');
     }
 
     return new AccountName(normalized);

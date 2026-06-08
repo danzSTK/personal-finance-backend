@@ -1,7 +1,12 @@
 import { getPostgresConstraintName, isPostgresUniqueViolation } from '@/common/utils/database-errors';
 import { UnarchiveCategoryUseCaseInput } from '@/modules/categories/application/use-cases/unarchive-category/unarchive-category.dto';
+import {
+  CategoryNameAlreadyExistsError,
+  CategoryNotFoundError,
+  CategoryNotManageableApplicationError,
+} from '@/modules/categories/application/errors';
 import { ICategoryRepository } from '@/modules/categories/domain/repositories/category.repository.interface';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 const UNIQUE_ACTIVE_CATEGORY_NAME_CONSTRAINT = 'UQ_categories_user_type_name_not_archived';
 
@@ -13,11 +18,11 @@ export class UnarchiveCategoryUseCase {
     const category = await this.categoryRepository.findByIdAndUserId(data.categoryId, data.userId);
 
     if (!category) {
-      throw new NotFoundException('Category not found');
+      throw new CategoryNotFoundError();
     }
 
     if (!category.canBeManagedByUser) {
-      throw new ConflictException('System or technical categories cannot be unarchived');
+      throw new CategoryNotManageableApplicationError('System or technical categories cannot be unarchived.');
     }
 
     if (category.isArchived) {
@@ -29,7 +34,7 @@ export class UnarchiveCategoryUseCase {
       );
 
       if (alreadyExists) {
-        throw new ConflictException('An active category with this name already exists for this type');
+        throw new CategoryNameAlreadyExistsError();
       }
     }
 
@@ -42,7 +47,7 @@ export class UnarchiveCategoryUseCase {
         isPostgresUniqueViolation(error) &&
         getPostgresConstraintName(error) === UNIQUE_ACTIVE_CATEGORY_NAME_CONSTRAINT
       ) {
-        throw new ConflictException('An active category with this name already exists for this type');
+        throw new CategoryNameAlreadyExistsError();
       }
 
       throw error;

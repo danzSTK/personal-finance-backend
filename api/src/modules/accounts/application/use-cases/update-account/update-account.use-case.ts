@@ -1,8 +1,13 @@
 import { applyIfDefined } from '@/common/utils/utils';
 import { UpdateAccountUseCaseInput } from '@/modules/accounts/application/use-cases/update-account/update-account.dto';
+import {
+  AccountArchivedError,
+  AccountNotFoundError,
+  AccountUpdateEmptyError,
+} from '@/modules/accounts/application/errors';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class UpdateAccountUseCase {
@@ -12,17 +17,17 @@ export class UpdateAccountUseCase {
     const account = await this.accountRepository.findByIdAndUserId(data.accountId, data.userId);
 
     if (!account) {
-      throw new NotFoundException('Account not found');
+      throw new AccountNotFoundError();
     }
 
     if (account.isArchived) {
-      throw new ConflictException('Archived account cannot be updated');
+      throw new AccountArchivedError('Archived account cannot be updated.');
     }
 
     const hasAnyField = Object.values(data.patch).some(v => v !== undefined);
 
     if (!hasAnyField || !data) {
-      throw new ConflictException('At least one field must be provided for update');
+      throw new AccountUpdateEmptyError();
     }
 
     applyIfDefined(data.patch.name, value => account.changerName(value));

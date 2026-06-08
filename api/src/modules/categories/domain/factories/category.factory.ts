@@ -1,5 +1,6 @@
 import { DefaultCategoryTemplate } from '@/modules/categories/domain/defaults/default-category.templates';
 import { Category, CreateCategoryProps } from '@/modules/categories/domain/entities/category.entity';
+import { TechnicalCategoryCannotBeCreatedError } from '@/modules/categories/domain/errors';
 import { randomUUID } from 'node:crypto';
 
 type CreateManualCategoryInput = Omit<CreateCategoryProps, 'isSystem'>;
@@ -11,7 +12,7 @@ type CreateTemplateCategoryInput = {
 export class CategoryFactory {
   static createManualCategory(data: CreateManualCategoryInput): Category {
     if (!Category.canBeCreatedManually(data.type)) {
-      throw new Error('Technical category types cannot be created manually.');
+      throw new TechnicalCategoryCannotBeCreatedError();
     }
 
     return Category.create(

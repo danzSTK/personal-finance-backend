@@ -11,5 +11,5 @@ area: platform-errors
 - [x] Padronizar `ValidationPipe.exceptionFactory`.
 - [x] Migrar `UserName` para `InvalidUsernameFormatError`.
 - [x] Migrar use cases de auth/users para `ApplicationError`.
-- [ ] Migrar accounts/categories para `DomainError` e `ApplicationError`.
+- [x] Migrar accounts/categories para `DomainError` e `ApplicationError`.
 - [ ] Documentar catálogo de error codes em `docs/integrations/errors.md`.

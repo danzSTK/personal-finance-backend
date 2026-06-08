@@ -2,8 +2,9 @@ import {
   GetCategoryUseCaseInput,
   GetCategoryUseCaseOutput,
 } from '@/modules/categories/application/use-cases/get-category/get-category.dto';
+import { CategoryNotFoundError } from '@/modules/categories/application/errors';
 import { ICategoryRepository } from '@/modules/categories/domain/repositories/category.repository.interface';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class GetCategoryUseCase {
@@ -13,7 +14,7 @@ export class GetCategoryUseCase {
     const category = await this.categoryRepository.findByIdAndUserId(data.categoryId, data.userId);
 
     if (!category || category.isSystem || !category.isVisibleInManagement) {
-      throw new NotFoundException('Category not found');
+      throw new CategoryNotFoundError();
     }
 
     return category;

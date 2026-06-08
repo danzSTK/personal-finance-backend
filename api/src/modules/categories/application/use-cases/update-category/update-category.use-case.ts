@@ -4,8 +4,14 @@ import {
   UpdateCategoryUseCaseInput,
   UpdateCategoryUseCaseOutput,
 } from '@/modules/categories/application/use-cases/update-category/update-category.dto';
+import {
+  CategoryNameAlreadyExistsError,
+  CategoryNotFoundError,
+  CategoryNotManageableApplicationError,
+  CategoryUpdateEmptyError,
+} from '@/modules/categories/application/errors';
 import { ICategoryRepository } from '@/modules/categories/domain/repositories/category.repository.interface';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 const UNIQUE_ACTIVE_CATEGORY_NAME_CONSTRAINT = 'UQ_categories_user_type_name_not_archived';
 
@@ -17,17 +23,17 @@ export class UpdateCategoryUseCase {
     const category = await this.categoryRepository.findByIdAndUserId(data.categoryId, data.userId);
 
     if (!category) {
-      throw new NotFoundException('Category not found');
+      throw new CategoryNotFoundError();
     }
 
     if (!category.isEditable) {
-      throw new ConflictException('Only active user-managed categories can be updated');
+      throw new CategoryNotManageableApplicationError('Only active user-managed categories can be updated.');
     }
 
     const hasAnyField = Object.values(data.patch).some(value => value !== undefined);
 
     if (!hasAnyField) {
-      throw new ConflictException('At least one field must be provided for update');
+      throw new CategoryUpdateEmptyError();
     }
 
     const previousName = category.name;
@@ -48,7 +54,7 @@ export class UpdateCategoryUseCase {
       );
 
       if (alreadyExists) {
-        throw new ConflictException('An active category with this name already exists for this type');
+        throw new CategoryNameAlreadyExistsError();
       }
     }
 
@@ -59,7 +65,7 @@ export class UpdateCategoryUseCase {
         isPostgresUniqueViolation(error) &&
         getPostgresConstraintName(error) === UNIQUE_ACTIVE_CATEGORY_NAME_CONSTRAINT
       ) {
-        throw new ConflictException('An active category with this name already exists for this type');
+        throw new CategoryNameAlreadyExistsError();
       }
 
       throw error;

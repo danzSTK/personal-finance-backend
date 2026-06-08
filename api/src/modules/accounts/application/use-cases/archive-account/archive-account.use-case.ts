@@ -1,5 +1,11 @@
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  AccountHasScheduledTransactionsError,
+  AccountMustRemainActiveError,
+  AccountNotFoundError,
+} from '@/modules/accounts/application/errors';
+import { AccountCannotBeArchivedError } from '@/modules/accounts/domain/errors';
+import { Injectable } from '@nestjs/common';
 import { ArchiveAccountUseCaseInput } from './archive-account.dto';
 
 @Injectable()
@@ -10,11 +16,11 @@ export class ArchiveAccountUseCase {
     const account = await this.accountRepository.findByIdAndUserId(data.accountId, data.userId);
 
     if (!account) {
-      throw new NotFoundException('Account not found');
+      throw new AccountNotFoundError();
     }
 
     if (account.isDefault) {
-      throw new ConflictException('Default account cannot be archived');
+      throw new AccountCannotBeArchivedError('Default account cannot be archived.');
     }
 
     const hasFutureTransactions = await this.accountRepository.hasFutureScheduledTransactions(
@@ -24,13 +30,13 @@ export class ArchiveAccountUseCase {
     );
 
     if (hasFutureTransactions) {
-      throw new ConflictException('Account with scheduled future transactions cannot be archived');
+      throw new AccountHasScheduledTransactionsError();
     }
 
     const hasAnotherActiveAccount = await this.accountRepository.hasAnotherActiveAccount(data.userId, data.accountId);
 
     if (!hasAnotherActiveAccount) {
-      throw new ConflictException('At least one active account must remain');
+      throw new AccountMustRemainActiveError();
     }
 
     account.archive();

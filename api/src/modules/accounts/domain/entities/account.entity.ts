@@ -1,5 +1,11 @@
 import { AccountType } from '@/common/models/enums/account-type.enum';
-import { ConflictException } from '@nestjs/common';
+import {
+  AccountArchivedMutationError,
+  AccountCannotBeArchivedError,
+  AccountCannotBeDefaultError,
+  InvalidAccountError,
+  InvalidAccountNameError,
+} from '@/modules/accounts/domain/errors';
 
 export interface AccountProps {
   userId: string;
@@ -71,11 +77,11 @@ export class Account {
     }
 
     if (this.props.isArchived) {
-      throw new Error('Cannot change name of an archived account');
+      throw new AccountArchivedMutationError('Cannot change name of an archived account.');
     }
 
     if (!name || name.trim() === '' || name.length > 255 || name.length < 3) {
-      throw new Error('Invalid account name');
+      throw new InvalidAccountNameError();
     }
 
     this.props.name = name;
@@ -89,7 +95,7 @@ export class Account {
     }
 
     if (this.props.isArchived) {
-      throw new Error('Cannot change type of an archived account');
+      throw new AccountArchivedMutationError('Cannot change type of an archived account.');
     }
 
     this.props.type = type;
@@ -102,11 +108,11 @@ export class Account {
     }
 
     if (this.props.isArchived) {
-      throw new Error('Cannot change color of an archived account');
+      throw new AccountArchivedMutationError('Cannot change color of an archived account.');
     }
 
     if (color && (color.trim() === '' || color.length > 20)) {
-      throw new Error('Invalid account color');
+      throw new InvalidAccountError('Invalid account color.');
     }
 
     this.props.color = color;
@@ -119,11 +125,11 @@ export class Account {
     }
 
     if (this.props.isArchived) {
-      throw new Error('Cannot change icon of an archived account');
+      throw new AccountArchivedMutationError('Cannot change icon of an archived account.');
     }
 
     if (icon && (icon.trim() === '' || icon.length > 100)) {
-      throw new Error('Invalid account icon');
+      throw new InvalidAccountError('Invalid account icon.');
     }
 
     this.props.icon = icon;
@@ -136,7 +142,7 @@ export class Account {
     }
 
     if (this.props.isArchived) {
-      throw new Error('Cannot change includeInTotal of an archived account');
+      throw new AccountArchivedMutationError('Cannot change includeInTotal of an archived account.');
     }
 
     this.props.includeInTotal = includeInTotal;
@@ -145,7 +151,7 @@ export class Account {
 
   archive(): void {
     if (this.props.isDefault) {
-      throw new ConflictException('Default account cannot be archived');
+      throw new AccountCannotBeArchivedError('Default account cannot be archived.');
     }
 
     if (this.props.isArchived) {
@@ -167,7 +173,7 @@ export class Account {
 
   setAsDefault(): void {
     if (this.props.isArchived) {
-      throw new ConflictException('Archived account cannot be set as default');
+      throw new AccountCannotBeDefaultError('Archived account cannot be set as default.');
     }
 
     if (this.props.isDefault) {

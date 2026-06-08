@@ -7,9 +7,10 @@ import {
   ListCategoriesUseCaseInput,
   ListCategoriesUseCaseOutput,
 } from '@/modules/categories/application/use-cases/list-categories/list-categories.dto';
+import { CategoryInvalidListQueryError } from '@/modules/categories/application/errors';
 import { Category } from '@/modules/categories/domain/entities/category.entity';
 import { ICategoryRepository } from '@/modules/categories/domain/repositories/category.repository.interface';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ListCategoriesUseCase {
@@ -17,18 +18,18 @@ export class ListCategoriesUseCase {
 
   async execute(data: ListCategoriesUseCaseInput): Promise<ListCategoriesUseCaseOutput> {
     if (data.type && Category.isTechnicalType(data.type)) {
-      throw new BadRequestException('Technical categories are not available in category management');
+      throw new CategoryInvalidListQueryError('Technical categories are not available in category management.');
     }
 
     const page = data.page ?? CATEGORY_LIST_DEFAULT_PAGE;
     const limit = data.limit ?? CATEGORY_LIST_DEFAULT_LIMIT;
 
     if (!Number.isInteger(page) || page < 1) {
-      throw new BadRequestException('Page must be a positive integer');
+      throw new CategoryInvalidListQueryError('Page must be a positive integer.');
     }
 
     if (!Number.isInteger(limit) || limit < 1 || limit > CATEGORY_LIST_MAX_LIMIT) {
-      throw new BadRequestException(`Limit must be between 1 and ${CATEGORY_LIST_MAX_LIMIT}`);
+      throw new CategoryInvalidListQueryError(`Limit must be between 1 and ${CATEGORY_LIST_MAX_LIMIT}.`);
     }
 
     const search = data.search?.trim() || undefined;

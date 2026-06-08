@@ -1,6 +1,7 @@
 import { UnarchiveAccountUseCaseInput } from '@/modules/accounts/application/use-cases/unarchive-account/unarchive-account.dto';
+import { AccountNotArchivedError, AccountNotFoundError } from '@/modules/accounts/application/errors';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class UnarchiveAccountUseCase {
@@ -10,11 +11,11 @@ export class UnarchiveAccountUseCase {
     const account = await this.accountRepository.findByIdAndUserId(data.accountId, data.userId);
 
     if (!account) {
-      throw new NotFoundException('Account not found');
+      throw new AccountNotFoundError();
     }
 
     if (!account.isArchived) {
-      throw new ConflictException('Account is not archived');
+      throw new AccountNotArchivedError();
     }
 
     account.unarchive();

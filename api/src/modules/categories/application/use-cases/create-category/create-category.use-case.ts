@@ -3,10 +3,10 @@ import {
   CreateCategoryUseCaseInput,
   CreateCategoryUseCaseOutput,
 } from '@/modules/categories/application/use-cases/create-category/create-category.dto';
-import { Category } from '@/modules/categories/domain/entities/category.entity';
+import { CategoryNameAlreadyExistsError } from '@/modules/categories/application/errors';
 import { CategoryFactory } from '@/modules/categories/domain/factories/category.factory';
 import { ICategoryRepository } from '@/modules/categories/domain/repositories/category.repository.interface';
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 const UNIQUE_ACTIVE_CATEGORY_NAME_CONSTRAINT = 'UQ_categories_user_type_name_not_archived';
 
@@ -15,10 +15,6 @@ export class CreateCategoryUseCase {
   constructor(private readonly categoryRepository: ICategoryRepository) {}
 
   async execute(data: CreateCategoryUseCaseInput): Promise<CreateCategoryUseCaseOutput> {
-    if (!Category.canBeCreatedManually(data.type)) {
-      throw new BadRequestException('Technical category types cannot be created manually');
-    }
-
     const category = CategoryFactory.createManualCategory(data);
     const alreadyExists = await this.categoryRepository.existsActiveByNameAndType(
       category.userId,
@@ -27,7 +23,7 @@ export class CreateCategoryUseCase {
     );
 
     if (alreadyExists) {
-      throw new ConflictException('An active category with this name already exists for this type');
+      throw new CategoryNameAlreadyExistsError();
     }
 
     try {
@@ -37,7 +33,7 @@ export class CreateCategoryUseCase {
         isPostgresUniqueViolation(error) &&
         getPostgresConstraintName(error) === UNIQUE_ACTIVE_CATEGORY_NAME_CONSTRAINT
       ) {
-        throw new ConflictException('An active category with this name already exists for this type');
+        throw new CategoryNameAlreadyExistsError();
       }
 
       throw error;

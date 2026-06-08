@@ -1,5 +1,6 @@
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { AccountAlreadyDefaultError, AccountNotFoundError } from '@/modules/accounts/application/errors';
+import { Injectable } from '@nestjs/common';
 import { type SetDefaultAccountUseCaseInput } from './set-default-account.dto';
 
 @Injectable()
@@ -10,19 +11,15 @@ export class SetDefaultAccountUseCase {
     const account = await this.accountRepository.findByIdAndUserId(data.accountId, data.userId);
 
     if (!account) {
-      throw new NotFoundException('Account not found');
-    }
-
-    if (account.isArchived) {
-      throw new ConflictException('Archived account cannot be set as default');
+      throw new AccountNotFoundError();
     }
 
     if (account.isDefault) {
-      throw new ConflictException('Account is already set as default');
+      throw new AccountAlreadyDefaultError();
     }
 
-    await this.accountRepository.unsetDefaultAccount(data.userId);
     account.setAsDefault();
+    await this.accountRepository.unsetDefaultAccount(data.userId);
     await this.accountRepository.save(account);
   }
 }

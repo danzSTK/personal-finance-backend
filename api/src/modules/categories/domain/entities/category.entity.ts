@@ -9,6 +9,7 @@ import {
   isIconKey,
 } from '@/common/models/constants';
 import { CategoryType, ColorToken, IconKey } from '@/common/models/enums';
+import { CategoryNotManageableError, InvalidCategoryError } from '@/modules/categories/domain/errors';
 
 export interface CategoryProps {
   userId: string;
@@ -168,7 +169,7 @@ export class Category {
 
   rename(displayName: string): void {
     if (!this.isEditable) {
-      throw new Error('Cannot rename a system or non-editable category.');
+      throw new CategoryNotManageableError('Cannot rename a system or non-editable category.');
     }
 
     const validatedDisplayName = Category.validateDisplayName(displayName);
@@ -180,7 +181,7 @@ export class Category {
 
   changeDescription(description: string | null): void {
     if (!this.isEditable) {
-      throw new Error('Cannot change description of a system or non-editable category.');
+      throw new CategoryNotManageableError('Cannot change description of a system or non-editable category.');
     }
 
     Category.validateDescription(description);
@@ -191,7 +192,7 @@ export class Category {
 
   changeColorToken(colorToken: ColorToken | null): void {
     if (!this.isEditable) {
-      throw new Error('Cannot change color token of a system or non-editable category.');
+      throw new CategoryNotManageableError('Cannot change color token of a system or non-editable category.');
     }
 
     Category.validateColorToken(colorToken);
@@ -202,7 +203,7 @@ export class Category {
 
   changeIconKey(iconKey: IconKey | null): void {
     if (!this.isEditable) {
-      throw new Error('Cannot change icon key of a system or non-editable category.');
+      throw new CategoryNotManageableError('Cannot change icon key of a system or non-editable category.');
     }
 
     Category.validateIconKey(iconKey);
@@ -213,7 +214,7 @@ export class Category {
 
   changeIncludeInReports(includeInReports: boolean): void {
     if (!this.isEditable) {
-      throw new Error('Cannot change report inclusion of a system or non-editable category.');
+      throw new CategoryNotManageableError('Cannot change report inclusion of a system or non-editable category.');
     }
 
     this.props.includeInReports = includeInReports;
@@ -222,7 +223,7 @@ export class Category {
 
   changeSortOrder(sortOrder: number): void {
     if (!this.isEditable) {
-      throw new Error('Cannot change sort order of a system or non-editable category.');
+      throw new CategoryNotManageableError('Cannot change sort order of a system or non-editable category.');
     }
 
     Category.validateSortOrder(sortOrder);
@@ -237,7 +238,7 @@ export class Category {
     }
 
     if (!this.canBeManagedByUser) {
-      throw new Error('Cannot archive a system or non-editable category.');
+      throw new CategoryNotManageableError('Cannot archive a system or non-editable category.');
     }
 
     this.props.isArchived = true;
@@ -251,7 +252,7 @@ export class Category {
     }
 
     if (!this.canBeManagedByUser) {
-      throw new Error('Cannot unarchive a system or non-editable category.');
+      throw new CategoryNotManageableError('Cannot unarchive a system or non-editable category.');
     }
 
     this.props.isArchived = false;
@@ -263,7 +264,7 @@ export class Category {
     const name = Category.normalizeName(displayName);
 
     if (!CATEGORY_NAME_REGEX.test(name)) {
-      throw new Error(
+      throw new InvalidCategoryError(
         'Category name must contain at least one letter and only lowercase letters separated by hyphens.',
       );
     }
@@ -287,7 +288,7 @@ export class Category {
     const trimmed = displayName.trim();
 
     if (trimmed.length < CATEGORY_DISPLAY_NAME_MIN_LENGTH || trimmed.length > CATEGORY_DISPLAY_NAME_MAX_LENGTH) {
-      throw new Error(
+      throw new InvalidCategoryError(
         `Category display name must be between ${CATEGORY_DISPLAY_NAME_MIN_LENGTH} and ${CATEGORY_DISPLAY_NAME_MAX_LENGTH} characters.`,
       );
     }
@@ -297,7 +298,9 @@ export class Category {
 
   private static validateDescription(description: string | null): void {
     if (description !== null && description.length > CATEGORY_DESCRIPTION_MAX_LENGTH) {
-      throw new Error(`Category description must be at most ${CATEGORY_DESCRIPTION_MAX_LENGTH} characters.`);
+      throw new InvalidCategoryError(
+        `Category description must be at most ${CATEGORY_DESCRIPTION_MAX_LENGTH} characters.`,
+      );
     }
   }
 
@@ -307,7 +310,7 @@ export class Category {
     }
 
     if (colorToken.trim() === '' || colorToken.length > CATEGORY_COLOR_TOKEN_MAX_LENGTH || !isColorToken(colorToken)) {
-      throw new Error('Category color token must be one of the official product color tokens.');
+      throw new InvalidCategoryError('Category color token must be one of the official product color tokens.');
     }
   }
 
@@ -317,13 +320,13 @@ export class Category {
     }
 
     if (iconKey.trim() === '' || iconKey.length > CATEGORY_ICON_KEY_MAX_LENGTH || !isIconKey(iconKey)) {
-      throw new Error('Category icon key must be one of the official product icon keys.');
+      throw new InvalidCategoryError('Category icon key must be one of the official product icon keys.');
     }
   }
 
   private static validateSortOrder(sortOrder: number): void {
     if (!Number.isInteger(sortOrder) || sortOrder < 0) {
-      throw new Error('Sort order must be a non-negative integer.');
+      throw new InvalidCategoryError('Sort order must be a non-negative integer.');
     }
   }
 }
