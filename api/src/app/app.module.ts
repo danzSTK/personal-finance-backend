@@ -1,6 +1,7 @@
 import { AppController } from '@/app/app.controller';
 import { AppService } from '@/app/app.service';
 import { CommonModule } from '@/common/common.module';
+import { AppExceptionFilter } from '@/common/filters';
 import { ConfigModule } from '@/config/config.module';
 import { ENTITIES } from '@/config/entities';
 import throttleConfig from '@/config/throttle.config';
@@ -14,7 +15,7 @@ import { OutboxModule } from '@/shared/outbox';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppStatus } from '../common/models/enums';
@@ -86,6 +87,10 @@ import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: AppExceptionFilter,
     },
   ],
 })
