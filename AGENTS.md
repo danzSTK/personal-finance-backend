@@ -53,6 +53,8 @@ Do not generate full implementation code on the first response unless the user e
 
 ## Architecture Rules
 
+When implementing or changing error handling, use the repo skill `platform-errors`. Domain and application errors should be framework-independent and translated to the frontend HTTP contract by a global exception filter.
+
 Each domain module under `api/src/modules/<domain>/` follows this structure:
 
 ```text
