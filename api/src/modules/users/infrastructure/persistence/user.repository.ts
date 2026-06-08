@@ -96,6 +96,18 @@ export class UserRepository implements IUserRepository {
     return UserMapper.toDomain(useOrm);
   }
 
+  async usernameAlreadyExists(userName: UserName, options?: IRepositoryOptions): Promise<boolean> {
+    const repository = options?.manager ? options.manager.getRepository(UserOrmEntity) : this.userRepository;
+
+    const count = await repository.count({
+      where: {
+        userName: userName.value,
+      },
+    });
+
+    return count > 0;
+  }
+
   async save(user: User, options?: IRepositoryOptions): Promise<User> {
     const repo = options?.manager ? options.manager.getRepository(UserOrmEntity) : this.userRepository;
 

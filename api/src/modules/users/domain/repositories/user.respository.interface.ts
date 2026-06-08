@@ -13,5 +13,7 @@ export abstract class IUserRepository {
     providerUserId: string,
     options?: IRepositoryOptions,
   ): Promise<User | null>;
+
+  abstract usernameAlreadyExists(userName: UserName, options?: IRepositoryOptions): Promise<boolean>;
   abstract save(user: User, options?: IRepositoryOptions): Promise<User>;
 }

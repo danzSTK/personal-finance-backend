@@ -39,6 +39,26 @@ export class CachedUserRepository implements IUserRepository {
     private readonly userRepository: UserRepository,
     private readonly cache: RedisService,
   ) {}
+  async usernameAlreadyExists(userName: UserName, options?: IRepositoryOptions): Promise<boolean> {
+    if (options?.manager) {
+      return this.userRepository.usernameAlreadyExists(userName, { manager: options.manager });
+    }
+
+    const cacheKey = CacheKeys.users.usernameAlreadyExists(userName.value);
+    const cached = await this.cache.get<string>(cacheKey);
+
+    if (cached) {
+      return true;
+    }
+
+    const result = await this.userRepository.usernameAlreadyExists(userName);
+
+    if (result) {
+      await this.cache.set(cacheKey, 'true', this.cacheTtl);
+    }
+
+    return result;
+  }
 
   private readonly cacheTtl = 1000 * 60 * 5;
   async findById(id: string, options?: IRepositoryOptions): Promise<User | null> {
@@ -222,6 +242,7 @@ export class CachedUserRepository implements IUserRepository {
       this.cache.del(CacheKeys.users.byId(user.id)),
       this.cache.del(CacheKeys.users.byEmailIndex(user.email.value)),
       user.userName ? this.cache.del(CacheKeys.users.byUserNameIndex(user.userName.value)) : Promise.resolve(),
+      user.userName ? this.cache.del(CacheKeys.users.usernameAlreadyExists(user.userName?.value)) : Promise.resolve(),
     ]);
   }
 }

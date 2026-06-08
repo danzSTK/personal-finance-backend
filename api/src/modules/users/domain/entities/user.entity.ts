@@ -113,6 +113,15 @@ export class User extends AggregateRoot {
     return new User(props, id);
   }
 
+  changeUserName(newUserName: UserName): void {
+    if (this.props.userName?.equals(newUserName)) {
+      return;
+    }
+
+    this.props.userName = newUserName;
+    this.props.updatedAt = new Date();
+  }
+
   get jsonObject() {
     return {
       id: this.id,

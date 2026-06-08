@@ -1,14 +1,17 @@
-import { Controller, Get } from '@nestjs/common';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { User } from '@/modules/users/domain/entities/user.entity';
-import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { IsPublic } from '@/common/decorators/is-public.decorator';
 import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { CheckUsernameAvailabilityUseCase } from '@/modules/users/application/use-cases/check-username-availability/check-username.use-case';
+import { CheckUsernameAvailabilityUseCaseOutput } from '@/modules/users/application/use-cases/check-username-availability/check-username.dto';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { Controller, Get, Param } from '@nestjs/common';
+import { ApiCookieAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor() {}
+  constructor(private readonly checkUsernameAvailabilityUseCase: CheckUsernameAvailabilityUseCase) {}
 
   @Get('me')
   @ApiCookieAuth('accessToken')
@@ -46,5 +49,32 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado' })
   getMe(@CurrentUser() user: User): UserProfileResponseDto {
     return UserProfileResponseDto.fromEntity(user);
+  }
+
+  @IsPublic()
+  @Get('usernames/:username/availability')
+  @ApiOperation({
+    summary: 'Verificar disponibilidade de username',
+    description: 'Valida o formato do username pelo domínio e informa se ele já está em uso.',
+  })
+  @ApiParam({ name: 'username', example: 'john_doe' })
+  @ApiResponse({
+    status: 200,
+    description: 'Resultado da disponibilidade do username',
+    schema: {
+      type: 'object',
+      properties: {
+        username: { type: 'string', example: 'john_doe' },
+        available: { type: 'boolean', example: true },
+        reason: {
+          type: 'string',
+          example: 'AVAILABLE',
+          enum: ['AVAILABLE', 'INVALID_FORMAT', 'ALREADY_EXISTS', 'INVALID'],
+        },
+      },
+    },
+  })
+  checkUsernameAvailability(@Param('username') username: string): Promise<CheckUsernameAvailabilityUseCaseOutput> {
+    return this.checkUsernameAvailabilityUseCase.execute({ username });
   }
 }

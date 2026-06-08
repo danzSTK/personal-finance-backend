@@ -7,7 +7,7 @@ export class UserName {
   private constructor(value: string) {
     this._value = value;
   }
-
+  // TODO: Migrar erros para domain exceptions
   static create(userName: string): UserName {
     const normalized = userName.trim().toLowerCase();
 
