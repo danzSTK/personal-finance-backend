@@ -3,9 +3,10 @@ import {
   CheckUsernameAvailabilityUseCaseInput,
   CheckUsernameAvailabilityUseCaseOutput,
 } from '@/modules/users/application/use-cases/check-username-availability/check-username.dto';
+import { InvalidUsernameFormatError } from '@/modules/users/domain/errors';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class CheckUsernameAvailabilityUseCase {
@@ -30,7 +31,7 @@ export class CheckUsernameAvailabilityUseCase {
         username: userName.value,
       };
     } catch (error) {
-      if (error instanceof BadRequestException) {
+      if (error instanceof InvalidUsernameFormatError) {
         return {
           available: false,
           reason: CheckUsernameAvailabilityReason.INVALID_FORMAT,
