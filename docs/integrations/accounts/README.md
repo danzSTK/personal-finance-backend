@@ -47,7 +47,7 @@ Detalhes: [Default CASH provisioning](./default-cash-provisioning.md).
   "name": "Nubank",
   "type": "BANK",
   "initialBalance": 1000,
-  "color": "#2563eb",
+  "color": "blue",
   "icon": "landmark",
   "includeInTotal": true,
   "isArchived": false,
@@ -58,6 +58,8 @@ Detalhes: [Default CASH provisioning](./default-cash-provisioning.md).
 ```
 
 O response não expõe `userId`; o vínculo com usuário vem da sessão autenticada.
+
+`color` e `icon` são tokens oficiais do produto. Use o catálogo exposto em `GET /categories/metadata` para montar seletores e renderizar fallback visual quando necessário.
 
 ## Tipos
 

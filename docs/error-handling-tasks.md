@@ -12,4 +12,4 @@ area: platform-errors
 - [x] Migrar `UserName` para `InvalidUsernameFormatError`.
 - [x] Migrar use cases de auth/users para `ApplicationError`.
 - [x] Migrar accounts/categories para `DomainError` e `ApplicationError`.
-- [ ] Documentar catálogo de error codes em `docs/integrations/errors.md`.
+- [x] Documentar catálogo de error codes em `docs/integrations/errors.md`.

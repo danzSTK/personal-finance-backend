@@ -1,3 +1,4 @@
+import { ACCOUNT_NAME_MAX_LENGTH, ACCOUNT_NAME_MIN_LENGTH } from '@/common/models/constants';
 import { InvalidAccountNameError } from '@/modules/accounts/domain/errors';
 
 export class AccountName {
@@ -14,7 +15,11 @@ export class AccountName {
       throw new InvalidAccountNameError('Account name is required.');
     }
 
-    if (normalized.length > 255) {
+    if (normalized.length < ACCOUNT_NAME_MIN_LENGTH) {
+      throw new InvalidAccountNameError('Account name is too short.');
+    }
+
+    if (normalized.length > ACCOUNT_NAME_MAX_LENGTH) {
       throw new InvalidAccountNameError('Account name is too long.');
     }
 

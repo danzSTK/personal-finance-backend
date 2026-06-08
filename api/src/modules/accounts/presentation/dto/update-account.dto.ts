@@ -1,5 +1,6 @@
 import { IsOptionalButNotNull } from '@/common/decorators/is-optional-but-not-null.decorator';
-import { AccountType } from '@/common/models/enums';
+import { ACCOUNT_NAME_MAX_LENGTH, ACCOUNT_NAME_MIN_LENGTH } from '@/common/models/constants';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { AccountResponseDto } from '@/modules/accounts/presentation/dto/account.response.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -11,8 +12,8 @@ export class UpdateAccountDto {
   @IsOptionalButNotNull()
   @IsString()
   @IsNotEmpty()
-  @MinLength(3)
-  @MaxLength(255)
+  @MinLength(ACCOUNT_NAME_MIN_LENGTH)
+  @MaxLength(ACCOUNT_NAME_MAX_LENGTH)
   name?: string;
 
   @ApiProperty({ enum: AccountType, example: AccountType.BANK })
@@ -20,17 +21,15 @@ export class UpdateAccountDto {
   @IsEnum(AccountType)
   type?: AccountType;
 
-  @ApiPropertyOptional({ example: '#a902eb' })
+  @ApiPropertyOptional({ enum: ColorToken, example: ColorToken.BLUE })
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  color?: string | null;
+  @IsEnum(ColorToken)
+  color?: ColorToken | null;
 
-  @ApiPropertyOptional({ example: 'wallet' })
+  @ApiPropertyOptional({ enum: IconKey, example: IconKey.WALLET })
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  icon?: string | null;
+  @IsEnum(IconKey)
+  icon?: IconKey | null;
 
   @ApiPropertyOptional({ example: false, default: false })
   @IsOptionalButNotNull()

@@ -1,13 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
-import { AccountType } from '@/common/models/enums/account-type.enum';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
+import { ACCOUNT_NAME_MAX_LENGTH, ACCOUNT_NAME_MIN_LENGTH } from '@/common/models/constants';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 
 export class CreateAccountDto {
   @ApiProperty({ example: 'Conta principal' })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(255)
+  @MinLength(ACCOUNT_NAME_MIN_LENGTH)
+  @MaxLength(ACCOUNT_NAME_MAX_LENGTH)
   name: string;
 
   @ApiProperty({ enum: AccountType, example: AccountType.BANK })
@@ -21,17 +33,15 @@ export class CreateAccountDto {
   @IsOptional()
   initialBalance?: number;
 
-  @ApiPropertyOptional({ example: '#a902eb' })
+  @ApiPropertyOptional({ enum: ColorToken, example: ColorToken.BLUE })
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  color?: string | null;
+  @IsEnum(ColorToken)
+  color?: ColorToken | null;
 
-  @ApiPropertyOptional({ example: 'wallet' })
+  @ApiPropertyOptional({ enum: IconKey, example: IconKey.WALLET })
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  icon?: string | null;
+  @IsEnum(IconKey)
+  icon?: IconKey | null;
 
   @ApiPropertyOptional({ example: true, default: true })
   @Type(() => Boolean)

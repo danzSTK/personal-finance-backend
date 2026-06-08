@@ -1,4 +1,4 @@
-import { AccountType } from '@/common/models/enums/account-type.enum';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 
 export interface CreateAccountUseCaseInput {
@@ -6,8 +6,8 @@ export interface CreateAccountUseCaseInput {
   name: string;
   type: AccountType;
   initialBalance?: number;
-  color?: string | null;
-  icon?: string | null;
+  color?: ColorToken | null;
+  icon?: IconKey | null;
   includeInTotal?: boolean;
   isDefault?: boolean;
 }

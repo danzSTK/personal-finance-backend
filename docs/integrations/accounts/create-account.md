@@ -20,7 +20,7 @@ POST /accounts
   "name": "Nubank",
   "type": "BANK",
   "initialBalance": 1000,
-  "color": "#8b5cf6",
+  "color": "purple",
   "icon": "credit-card",
   "includeInTotal": true,
   "isDefault": false
@@ -31,11 +31,11 @@ POST /accounts
 
 | Campo | Tipo | Obrigatório | Observação |
 |---|---|---:|---|
-| `name` | `string` | sim | Nome exibido ao usuário |
+| `name` | `string` | sim | Nome exibido ao usuário; mínimo 3 e máximo 255 caracteres |
 | `type` | `BANK \| CREDIT_CARD \| INVESTMENT` | sim | Tipo da account criada pelo usuário |
 | `initialBalance` | `number` | não | Default `0` quando omitido; não aceita valor negativo |
-| `color` | `string \| null` | não | Cor visual da account; máximo 20 caracteres |
-| `icon` | `string \| null` | não | Ícone visual da account; máximo 100 caracteres |
+| `color` | `ColorToken \| null` | não | Token oficial de cor; use catálogo de metadata |
+| `icon` | `IconKey \| null` | não | Token oficial de ícone; use catálogo de metadata |
 | `includeInTotal` | `boolean` | não | Default `true`; define se entra em totais agregados |
 | `isDefault` | `boolean` | não | Quando `true`, torna esta account a default |
 
@@ -47,7 +47,7 @@ POST /accounts
   "name": "Nubank",
   "type": "BANK",
   "initialBalance": 1000,
-  "color": "#8b5cf6",
+  "color": "purple",
   "icon": "credit-card",
   "includeInTotal": true,
   "isArchived": false,
@@ -61,6 +61,7 @@ POST /accounts
 
 - Não envie `userId`; o backend usa a sessão autenticada.
 - Não use `POST /accounts` para criar `CASH`; a `CASH` default é criada pelo backend no onboarding.
+- Não envie hex, SVG ou classe CSS em `color`/`icon`; envie apenas tokens oficiais.
 - Se `isDefault=true`, a nova account vira default e a default anterior deixa de ser default.
 - Se o usuário ainda não tiver default ativa, a nova account pode virar default automaticamente.
 

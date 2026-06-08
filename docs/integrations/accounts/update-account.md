@@ -20,7 +20,7 @@ Envie pelo menos um campo editável.
 ```json
 {
   "name": "Conta principal",
-  "color": "#2563eb",
+  "color": "blue",
   "icon": "landmark",
   "includeInTotal": true
 }
@@ -32,8 +32,8 @@ Envie pelo menos um campo editável.
 |---|---|---|
 | `name` | `string` | Nome exibido ao usuário; mínimo 3 e máximo 255 caracteres; não aceita `null` |
 | `type` | `CASH \| BANK \| CREDIT_CARD \| INVESTMENT` | Tipo da account; não aceita `null` |
-| `color` | `string \| null` | `null` remove a cor; máximo 20 caracteres |
-| `icon` | `string \| null` | `null` remove o ícone; máximo 100 caracteres |
+| `color` | `ColorToken \| null` | `null` remove a cor; caso informado, deve ser token oficial |
+| `icon` | `IconKey \| null` | `null` remove o ícone; caso informado, deve ser token oficial |
 | `includeInTotal` | `boolean` | Define se entra em totais agregados; não aceita `null` |
 
 `initialBalance` não é editado por este endpoint.
@@ -43,6 +43,7 @@ Envie pelo menos um campo editável.
 - Accounts arquivadas não aceitam update comum.
 - Body vazio é conflito de regra.
 - `userId` vem da sessão, nunca do body.
+- Não envie hex, SVG ou classe CSS em `color`/`icon`; envie apenas tokens oficiais.
 - Para `CASH`, o frontend deve expor apenas edição de `name`, `color`, `icon` e `includeInTotal`.
 
 ## Resposta
@@ -53,7 +54,7 @@ Envie pelo menos um campo editável.
   "name": "Conta principal",
   "type": "BANK",
   "initialBalance": 1000,
-  "color": "#2563eb",
+  "color": "blue",
   "icon": "landmark",
   "includeInTotal": true,
   "isArchived": false,

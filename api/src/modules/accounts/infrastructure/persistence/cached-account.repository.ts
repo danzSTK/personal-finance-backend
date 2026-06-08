@@ -1,4 +1,4 @@
-import { AccountType } from '@/common/models/enums/account-type.enum';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { RedisService } from '@/database/redis/redis.service';
@@ -13,8 +13,8 @@ interface CachedAccount {
   name: string;
   type: AccountType;
   initialBalance: number;
-  color: string | null;
-  icon: string | null;
+  color: ColorToken | null;
+  icon: IconKey | null;
   includeInTotal: boolean;
   isArchived: boolean;
   isDefault: boolean;

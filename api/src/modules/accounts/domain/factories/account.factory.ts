@@ -1,4 +1,4 @@
-import { AccountType } from '@/common/models/enums';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { randomUUID } from 'node:crypto';
 
@@ -7,8 +7,8 @@ interface CreateManualAccountInput {
   name: string;
   type: AccountType;
   initialBalance?: number;
-  color?: string | null;
-  icon?: string | null;
+  color?: ColorToken | null;
+  icon?: IconKey | null;
   includeInTotal?: boolean;
 }
 

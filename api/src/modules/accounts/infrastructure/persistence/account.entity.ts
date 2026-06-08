@@ -1,4 +1,4 @@
-import { AccountType } from '@/common/models/enums';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { Transaction } from '@/entities/transaction.entity';
 import { UserOrmEntity } from '@/modules/users/infrastructure/persistence/user-orm-entity';
 import {
@@ -52,10 +52,10 @@ export class AccountOrmEntity {
   initial_balance: number;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
-  color: string | null;
+  color: ColorToken | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  icon: string | null;
+  icon: IconKey | null;
 
   @Column({ type: 'boolean', default: true })
   include_in_total: boolean;

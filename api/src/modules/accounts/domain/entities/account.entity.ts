@@ -1,4 +1,12 @@
-import { AccountType } from '@/common/models/enums/account-type.enum';
+import {
+  ACCOUNT_COLOR_TOKEN_MAX_LENGTH,
+  ACCOUNT_ICON_KEY_MAX_LENGTH,
+  ACCOUNT_NAME_MAX_LENGTH,
+  ACCOUNT_NAME_MIN_LENGTH,
+  isColorToken,
+  isIconKey,
+} from '@/common/models/constants';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import {
   AccountArchivedMutationError,
   AccountCannotBeArchivedError,
@@ -12,8 +20,8 @@ export interface AccountProps {
   name: string;
   type: AccountType;
   initialBalance: number;
-  color: string | null;
-  icon: string | null;
+  color: ColorToken | null;
+  icon: IconKey | null;
   includeInTotal: boolean;
   isArchived: boolean;
   isDefault: boolean;
@@ -43,11 +51,11 @@ export class Account {
     return this.props.initialBalance;
   }
 
-  get color(): string | null {
+  get color(): ColorToken | null {
     return this.props.color;
   }
 
-  get icon(): string | null {
+  get icon(): IconKey | null {
     return this.props.icon;
   }
 
@@ -80,7 +88,7 @@ export class Account {
       throw new AccountArchivedMutationError('Cannot change name of an archived account.');
     }
 
-    if (!name || name.trim() === '' || name.length > 255 || name.length < 3) {
+    if (!name || name.trim() === '' || name.length > ACCOUNT_NAME_MAX_LENGTH || name.length < ACCOUNT_NAME_MIN_LENGTH) {
       throw new InvalidAccountNameError();
     }
 
@@ -102,7 +110,7 @@ export class Account {
     this.props.updatedAt = new Date();
   }
 
-  changerColor(color: string | null) {
+  changerColor(color: ColorToken | null) {
     if (this.props.color === color) {
       return;
     }
@@ -111,7 +119,7 @@ export class Account {
       throw new AccountArchivedMutationError('Cannot change color of an archived account.');
     }
 
-    if (color && (color.trim() === '' || color.length > 20)) {
+    if (color && (color.trim() === '' || color.length > ACCOUNT_COLOR_TOKEN_MAX_LENGTH || !isColorToken(color))) {
       throw new InvalidAccountError('Invalid account color.');
     }
 
@@ -119,7 +127,7 @@ export class Account {
     this.props.updatedAt = new Date();
   }
 
-  changerIcon(icon: string | null) {
+  changerIcon(icon: IconKey | null) {
     if (this.props.icon === icon) {
       return;
     }
@@ -128,7 +136,7 @@ export class Account {
       throw new AccountArchivedMutationError('Cannot change icon of an archived account.');
     }
 
-    if (icon && (icon.trim() === '' || icon.length > 100)) {
+    if (icon && (icon.trim() === '' || icon.length > ACCOUNT_ICON_KEY_MAX_LENGTH || !isIconKey(icon))) {
       throw new InvalidAccountError('Invalid account icon.');
     }
 
