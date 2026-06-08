@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "categories/decisions/categories.md",
+                "file": "errors/README.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "categories"
+              "title": "README"
             }
           }
         ]
@@ -197,8 +197,15 @@
   },
   "active": "9b878a4cce55b3c0",
   "lastOpenFiles": [
-    "Excalidraw/Events-flow.excalidraw.md",
+    "Excalidraw/Request-lifecycle-errors.excalidraw.md",
+    "errors/README.md",
+    "erros exceptions/Padrão DOmain erro e Application error.md",
+    "errors",
+    "Excalidraw/Request-lify-cicle-erros.excalidraw.md",
+    "integrations/errors.md",
     "categories/decisions/categories.md",
+    "erros exceptions",
+    "Excalidraw/Events-flow.excalidraw.md",
     "integrations/categories/get-category-metadata.md",
     "categories/reference/visual-tokens.md",
     "categories/reference",
@@ -225,19 +232,12 @@
     "Fluxo de novos usuários BE.canvas",
     "accounts/flows/transfer-between-accounts.md",
     "accounts/flows/unarchive-account.md",
-    "accounts/flows/update-account.md",
-    "accounts/flows/set-default-account.md",
-    "accounts/flows/onboarding-cash-account.md",
-    "accounts/flows/delete-account.md",
-    "accounts/flows/create-account.md",
     "accounts/accounts.canvas",
     "auth/google-provider-link.canvas",
     "auth/auth.canvas",
     "Sem título.canvas",
     "integrations/accounts",
     "accounts/reference",
-    "accounts/flows",
-    "accounts/decisions",
-    "accounts/concepts"
+    "accounts/flows"
   ]
 }
