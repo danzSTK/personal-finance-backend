@@ -61,6 +61,7 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | Code | Status | Quando |
 |---|---:|---|
 | `VALIDATION_ERROR` | `400` | Body/query/params falham na validação de DTO |
+| `UNAUTHORIZED` | `401` | Guard/autenticação rejeitou uma request sem sessão válida |
 | `INTERNAL_SERVER_ERROR` | `500` | Erro inesperado; mensagem interna não é exposta |
 
 ## Auth And Sessions
@@ -82,6 +83,8 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | `USER_EMAIL_ALREADY_EXISTS` | `409` | Email já está registrado |
 | `USERNAME_ALREADY_EXISTS` | `409` | Username já está registrado |
 | `USER_NOT_FOUND` | `404` | Usuário esperado não existe |
+| `USER_UPDATE_INPUT_VOID` | `400` | PATCH de perfil não informou nenhum campo editável |
+| `INVALID_USER` | `400` | Nome ou outro dado simples do usuário viola uma regra de domínio |
 
 ## Accounts
 
