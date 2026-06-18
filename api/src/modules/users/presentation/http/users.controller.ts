@@ -1,18 +1,23 @@
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { IsPublic } from '@/common/decorators/is-public.decorator';
+import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
-import { CheckUsernameAvailabilityUseCase } from '@/modules/users/application/use-cases/check-username-availability/check-username.use-case';
 import { CheckUsernameAvailabilityUseCaseOutput } from '@/modules/users/application/use-cases/check-username-availability/check-username.dto';
+import { CheckUsernameAvailabilityUseCase } from '@/modules/users/application/use-cases/check-username-availability/check-username.use-case';
+import { UpdateUserProfileUseCase } from '@/modules/users/application/use-cases/update-user-profile/update-user-profile.use-case';
 import { User } from '@/modules/users/domain/entities/user.entity';
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiCookieAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { UpdateUserProfileDto } from '@/modules/users/presentation/dto/update-user-profile.dto';
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { ApiBody, ApiCookieAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly checkUsernameAvailabilityUseCase: CheckUsernameAvailabilityUseCase) {}
+  constructor(
+    private readonly checkUsernameAvailabilityUseCase: CheckUsernameAvailabilityUseCase,
+    private readonly updateUserProfileUseCase: UpdateUserProfileUseCase,
+  ) {}
 
   @Get('me')
   @ApiCookieAuth('accessToken')
@@ -50,6 +55,34 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
   getMe(@CurrentUser() user: User): UserProfileResponseDto {
     return UserProfileResponseDto.fromEntity(user);
+  }
+
+  @Patch('me')
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({
+    summary: 'Atualizar perfil do usuário autenticado',
+    description:
+      'Atualiza firstName e/ou lastName. Campos omitidos permanecem inalterados e null remove o valor atual.',
+  })
+  @ApiBody({ type: UpdateUserProfileDto })
+  @ApiResponse({ status: 200, description: 'Perfil atualizado com sucesso', type: UserProfileResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Body inválido, patch vazio (USER_UPDATE_INPUT_VOID) ou nome inválido (INVALID_USER)',
+    type: PlatformErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
+  async updateUserProfile(
+    @CurrentUser() user: User,
+    @Body() data: UpdateUserProfileDto,
+  ): Promise<UserProfileResponseDto> {
+    const updateProfileResponse = await this.updateUserProfileUseCase.execute({
+      user,
+      firstName: data.firstName,
+      lastName: data.lastName,
+    });
+
+    return UserProfileResponseDto.fromEntity(updateProfileResponse);
   }
 
   @IsPublic()

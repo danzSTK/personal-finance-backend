@@ -1,4 +1,11 @@
+import {
+  USER_FIRST_NAME_MAX_LENGTH,
+  USER_FIRST_NAME_MIN_LENGTH,
+  USER_LAST_NAME_MAX_LENGTH,
+  USER_LAST_NAME_MIN_LENGTH,
+} from '@/common/models/constants';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { InvalidUserError } from '@/modules/users/domain/errors/invalid-user.error';
 import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
 import { AggregateRoot } from '@/shared/domain/aggregate-root';
 import { ConflictException } from '@nestjs/common';
@@ -58,6 +65,28 @@ export class User extends AggregateRoot {
 
   get updatedAt(): Date {
     return this.props.updatedAt;
+  }
+
+  changerFirstName(newFirstName: string | null): void {
+    if (this.props.firstName === newFirstName) {
+      return;
+    }
+
+    User.validateFirstName(newFirstName);
+
+    this.props.firstName = newFirstName ? newFirstName.trim() : null;
+    this.props.updatedAt = new Date();
+  }
+
+  changerLastName(newLastName: string | null): void {
+    if (this.props.lastName === newLastName) {
+      return;
+    }
+
+    User.validateLastName(newLastName);
+
+    this.props.lastName = newLastName ? newLastName.trim() : null;
+    this.props.updatedAt = new Date();
   }
 
   hasAuthProvider(provider: AuthProviderType, providerUserId: string): boolean {
@@ -133,5 +162,29 @@ export class User extends AggregateRoot {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
+  }
+
+  private static validateFirstName(firstName: string | null): void {
+    if (firstName === null) {
+      return;
+    }
+
+    const length = firstName.trim().length;
+
+    if (length < USER_FIRST_NAME_MIN_LENGTH || length > USER_FIRST_NAME_MAX_LENGTH) {
+      throw new InvalidUserError('First name must be between 2 and 255 characters long.');
+    }
+  }
+
+  private static validateLastName(lastName: string | null): void {
+    if (lastName === null) {
+      return;
+    }
+
+    const length = lastName.trim().length;
+
+    if (length < USER_LAST_NAME_MIN_LENGTH || length > USER_LAST_NAME_MAX_LENGTH) {
+      throw new InvalidUserError('Last name must be between 2 and 255 characters long.');
+    }
   }
 }
