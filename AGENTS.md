@@ -172,7 +172,10 @@ Never ship entity schema changes without a migration. Never modify applied migra
 
 ## Code Style
 
-- Use Conventional Commits in Portuguese.
+- Use Conventional Commits in Portuguese with `<type>(<scope>): <description>`.
+- Prefer module or bounded-context scopes, such as `feat(assets)`, `fix(auth)` and `docs(accounts)`.
+- Use standard types such as `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci` and `perf`.
+- Keep the description concise, lowercase, without a trailing period, and separate independent code/docs contexts into distinct commits.
 - Avoid `any`.
 - Handle promises deliberately; do not leave floating promises.
 - Use Prettier and the repo ESLint config.
