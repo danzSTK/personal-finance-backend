@@ -25,6 +25,7 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 | `accounts`        | Contas financeiras do usuário, como `CASH`, `BANK`, `CREDIT_CARD` e `INVESTMENT`.   |
 | `categories`      | Categorias financeiras de receita/despesa do usuário.                               |
 | `transactions`    | Movimentações financeiras registradas para usuário, conta e categoria.              |
+| `assets`          | Metadados e ciclo de vida dos objetos armazenados no Object Storage.                 |
 | `outbox_messages` | Mensagens do transactional outbox para publicar eventos de domínio com resiliência. |
 
 ## Convenções
@@ -50,6 +51,7 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | `first_name` | `varchar(255)` | `nullable` | Primeiro nome do usuário. |
 | `last_name` | `varchar(255)` | `nullable` | Sobrenome do usuário. |
 | `status` | `varchar(50)` | `not null default 'PENDING_PROFILE'` | Estado operacional do usuário: `PENDING_PROFILE`, `ACTIVE` ou `BLOCKED`. |
+| `avatar_asset_id` | `uuid` | `nullable` | Referência ao asset que representa o avatar atual do usuário. |
 | `created_at` | `timestamptz` | `not null default now()` | Quando o usuário foi criado. |
 | `updated_at` | `timestamptz` | `not null default now()` | Última atualização do usuário. |
 
@@ -60,6 +62,8 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | `PK_users` | primary key | `id` | Garante identidade única da linha. |
 | `CHK_users_status` | check | `status IN ('PENDING_PROFILE', 'ACTIVE', 'BLOCKED')` | Impede estados de usuário fora do contrato do domínio. |
 | `UQ_074a1f262efaca6aba16f7ed920` | unique | `user_name` | Evita dois usuários com o mesmo `user_name`. A entidade declara o nome lógico `UQ_user_name`, mas a migration histórica criou esse nome automático. |
+| `UQ_users_avatar_asset_id` | unique | `avatar_asset_id` | Impede que o mesmo asset seja usado como avatar atual por usuários diferentes. |
+| `FK_users_avatar_asset` | foreign key | `avatar_asset_id -> assets.id ON DELETE SET NULL` | Mantém o usuário válido caso uma linha de asset seja removida fisicamente. |
 
 ### Índices
 
@@ -76,6 +80,8 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | `accounts.user_id -> users.id` | `ON DELETE CASCADE` | Remove contas quando o usuário é removido. |
 | `categories.user_id -> users.id` | `ON DELETE CASCADE` | Remove categorias quando o usuário é removido. |
 | `transactions.user_id -> users.id` | `ON DELETE CASCADE` | Remove transações quando o usuário é removido. |
+| `assets.user_id -> users.id` | `ON DELETE RESTRICT` | Exige que os objetos do usuário sejam tratados antes de remover sua identidade. |
+| `users.avatar_asset_id -> assets.id` | `ON DELETE SET NULL` | Identifica o avatar atual sem fazer o módulo users armazenar dados do R2. |
 
 ### Triggers
 
@@ -259,6 +265,63 @@ Representa movimentações financeiras. Cada transação pertence a um usuário,
 | --- | --- | --- |
 | `trg_transactions_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente em updates. |
 
+## `assets`
+
+Representa o registro relacional dos objetos armazenados no Object Storage. Os bytes ficam no R2; esta tabela controla propriedade, finalidade, localização e ciclo de vida.
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identidade do asset e componente estável da storage key. |
+| `user_id` | `uuid` | `not null` | Proprietário do objeto para isolamento multi-tenant e autorização. |
+| `purpose` | `varchar(50)` | `not null` | Finalidade estável do produto. Inicialmente aceita `USER_AVATAR`. |
+| `status` | `varchar(30)` | `not null default 'PENDING_UPLOAD'` | Estado operacional do objeto: `PENDING_UPLOAD`, `READY`, `DELETE_PENDING`, `DELETED` ou `FAILED`. |
+| `bucket` | `varchar(63)` | `not null` | Nome do bucket definido pela configuração do backend. Não faz parte da storage key. |
+| `storage_key` | `varchar(1024)` | `not null` | Caminho relativo e único do objeto dentro do bucket. |
+| `content_type` | `varchar(255)` | `nullable` | MIME type confirmado depois da validação e processamento. |
+| `size_bytes` | `bigint` | `nullable` | Tamanho final do objeto armazenado, em bytes. |
+| `checksum` | `varchar(64)` | `nullable` | SHA-256 hexadecimal minúsculo calculado sobre o arquivo final. |
+| `metadata` | `jsonb` | `not null default '{}'` | Propriedades técnicas, como largura, altura e formato, sem regra de negócio. |
+| `failure_code` | `varchar(100)` | `nullable` | Código operacional estável de falha; não contém HTTP status nem erro bruto do SDK. |
+| `ready_at` | `timestamptz` | `nullable` | Momento em que o upload foi confirmado e o asset ficou disponível. |
+| `deleted_at` | `timestamptz` | `nullable` | Momento em que a remoção física foi confirmada. |
+| `created_at` | `timestamptz` | `not null default now()` | Quando o registro foi reservado. |
+| `updated_at` | `timestamptz` | `not null default now()` | Última transição ou atualização operacional. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_assets` | primary key | `id` | Garante identidade única do asset. |
+| `FK_assets_user` | foreign key | `user_id -> users.id ON DELETE RESTRICT` | Preserva metadata necessária à limpeza do R2 antes da exclusão do usuário. |
+| `CHK_assets_purpose` | check | `purpose IN ('USER_AVATAR')` | Impede finalidades arbitrárias ou desconhecidas. |
+| `CHK_assets_status` | check | status dentro do ciclo definido | Impede estados operacionais não reconhecidos. |
+| `CHK_assets_bucket_not_empty` | check | bucket não vazio | Evita localização incompleta. |
+| `CHK_assets_storage_key` | check | key não vazia e sem `/` inicial | Mantém a key relativa ao bucket. |
+| `CHK_assets_size_bytes` | check | tamanho nulo ou não negativo | Impede tamanhos inválidos. |
+| `CHK_assets_checksum` | check | SHA-256 hexadecimal minúsculo ou nulo | Garante formato consistente para integridade. |
+| `CHK_assets_metadata` | check | JSONB deve ser objeto | Evita arrays e escalares no metadata técnico. |
+| `CHK_assets_ready_state` | check | `READY` exige `ready_at` | Mantém coerência do upload confirmado. |
+| `CHK_assets_deleted_state` | check | somente `DELETED` possui `deleted_at` | Mantém coerência da remoção física. |
+| `CHK_assets_failure_state` | check | somente `FAILED` possui `failure_code` | Mantém coerência do diagnóstico operacional. |
+
+### Índices
+
+| Nome | Colunas/filtro | Utilidade |
+| --- | --- | --- |
+| `UQ_assets_bucket_storage_key` | `(bucket, storage_key)`, unique | Garante que uma localização física represente somente um asset. |
+| `idx_assets_user_purpose_status` | `(user_id, purpose, status)` | Busca os assets de um usuário por finalidade e estado. |
+| `idx_assets_status_updated_at` | `(status, updated_at) WHERE status IN ('PENDING_UPLOAD', 'DELETE_PENDING', 'FAILED')` | Alimenta reconciliação e limpeza sem varrer assets saudáveis. |
+
+### Triggers
+
+| Nome | Função | Utilidade |
+| --- | --- | --- |
+| `trg_assets_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente em transições persistidas. |
+
+Mais detalhes de domínio estão em [Assets](../assets/README.md).
+
 ## `outbox_messages`
 
 Representa a fila transacional do padrão outbox. Cada linha é um evento de domínio salvo junto com a transação de negócio.
@@ -329,6 +392,7 @@ Usada por:
 - `trg_accounts_updated_at`
 - `trg_categories_updated_at`
 - `trg_transactions_updated_at`
+- `trg_assets_updated_at`
 - `trg_outbox_messages_updated_at`
 
 ### `accounts_account_type_enum`

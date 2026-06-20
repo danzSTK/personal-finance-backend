@@ -17,6 +17,12 @@ O fluxo atual permite alterar:
 
 Fluxo: [Update user profile](./flows/update-user-profile.md).
 
+## Avatar
+
+A troca de avatar está planejada como fluxo próprio porque coordena processamento de imagem, assets, Object Storage e outbox.
+
+Fluxo: [Update user avatar](./flows/update-user-avatar.md).
+
 ## Fluxos Separados
 
 `username` não faz parte do update genérico porque exige normalização, consulta de disponibilidade, unicidade e tratamento de concorrência.
