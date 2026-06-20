@@ -8,6 +8,7 @@ import throttleConfig from '@/config/throttle.config';
 import { RedisModule } from '@/database/redis/redis.module';
 import { AccountsModule } from '@/modules/accounts/accounts.module';
 import { AuthModule } from '@/modules/auth/auth.module';
+import { AssetsModule } from '@/modules/assets/assets.module';
 import { CategoriesModule } from '@/modules/categories/categories.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { AppEventsModule } from '@/shared/events';
@@ -71,6 +72,7 @@ import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module
     SessionModule,
     HealthModule,
     AccountsModule,
+    AssetsModule,
     CategoriesModule,
   ],
   controllers: [AppController],

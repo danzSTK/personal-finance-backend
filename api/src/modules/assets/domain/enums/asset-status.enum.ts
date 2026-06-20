@@ -1,0 +1,7 @@
+export enum AssetStatus {
+  PENDING_UPLOAD = 'PENDING_UPLOAD',
+  READY = 'READY',
+  DELETE_PENDING = 'DELETE_PENDING',
+  DELETED = 'DELETED',
+  FAILED = 'FAILED',
+}
