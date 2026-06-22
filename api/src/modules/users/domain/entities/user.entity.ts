@@ -7,6 +7,7 @@ import {
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
 import { InvalidUserError } from '@/modules/users/domain/errors/invalid-user.error';
 import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
+import { UserAvatarUpdatedEvent } from '@/modules/users/domain/events/user-avatar-updated.event';
 import { AggregateRoot } from '@/shared/domain/aggregate-root';
 import { ConflictException } from '@nestjs/common';
 import { AuthProviderFactory } from '../factories/auth-provider.factory';
@@ -22,6 +23,7 @@ export interface UserProps {
   lastName: string | null;
   email: Email;
   status: UserStatus;
+  avatarAssetId: string | null;
   authProviders: AuthProvider[];
   createdAt: Date;
   updatedAt: Date;
@@ -53,6 +55,10 @@ export class User extends AggregateRoot {
 
   get status(): UserStatus {
     return this.props.status;
+  }
+
+  get avatarAssetId(): string | null {
+    return this.props.avatarAssetId;
   }
 
   get authProviders(): ReadonlyArray<AuthProvider> {
@@ -151,6 +157,26 @@ export class User extends AggregateRoot {
     this.props.updatedAt = new Date();
   }
 
+  changeAvatarAsset(currentAssetId: string): string | null {
+    const normalizedAssetId = currentAssetId.trim();
+
+    if (!normalizedAssetId) {
+      throw new InvalidUserError('Avatar asset id cannot be empty.');
+    }
+
+    const previousAssetId = this.props.avatarAssetId;
+
+    if (previousAssetId === normalizedAssetId) {
+      return previousAssetId;
+    }
+
+    this.props.avatarAssetId = normalizedAssetId;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(UserAvatarUpdatedEvent.create(this.id, previousAssetId, normalizedAssetId));
+
+    return previousAssetId;
+  }
+
   get jsonObject() {
     return {
       id: this.id,
@@ -159,6 +185,7 @@ export class User extends AggregateRoot {
       lastName: this.lastName,
       email: this.email.value,
       status: this.status,
+      avatarAssetId: this.avatarAssetId,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

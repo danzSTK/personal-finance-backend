@@ -36,6 +36,25 @@ export class UserRepository implements IUserRepository {
     return user;
   }
 
+  async findByIdForUpdate(id: string, options: Required<IRepositoryOptions>): Promise<User | null> {
+    const repository = options.manager.getRepository(UserOrmEntity);
+    const lockedUser = await repository.findOne({
+      where: { id },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!lockedUser) {
+      return null;
+    }
+
+    const userWithProviders = await repository.findOne({
+      where: { id },
+      relations: ['authProviders'],
+    });
+
+    return userWithProviders ? UserMapper.toDomain(userWithProviders) : null;
+  }
+
   async findByEmail(email: Email, options?: IRepositoryOptions): Promise<User | null> {
     const repository = options?.manager ? options.manager.getRepository(UserOrmEntity) : this.userRepository;
 

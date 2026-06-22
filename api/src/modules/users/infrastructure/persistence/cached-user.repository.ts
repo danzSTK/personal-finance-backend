@@ -28,6 +28,7 @@ interface CachedUser {
   firstName: string | null;
   lastName: string | null;
   status: UserStatus;
+  avatarAssetId?: string | null;
   createdAt: string;
   updatedAt: string;
   authProviders: CachedAuthProvider[];
@@ -39,6 +40,10 @@ export class CachedUserRepository implements IUserRepository {
     private readonly userRepository: UserRepository,
     private readonly cache: RedisService,
   ) {}
+
+  findByIdForUpdate(id: string, options: Required<IRepositoryOptions>): Promise<User | null> {
+    return this.userRepository.findByIdForUpdate(id, options);
+  }
   async usernameAlreadyExists(userName: UserName, options?: IRepositoryOptions): Promise<boolean> {
     if (options?.manager) {
       return this.userRepository.usernameAlreadyExists(userName, { manager: options.manager });
@@ -195,6 +200,7 @@ export class CachedUserRepository implements IUserRepository {
       firstName: user.firstName,
       lastName: user.lastName,
       status: user.status,
+      avatarAssetId: user.avatarAssetId,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
       authProviders: user.authProviders.map(ap => ({
@@ -210,13 +216,14 @@ export class CachedUserRepository implements IUserRepository {
   }
 
   private hydrateUser(cached: CachedUser): User {
-    return User.create(
+    return User.reconstitute(
       {
         email: Email.reconstitute(cached.email),
         userName: cached.userName ? UserName.create(cached.userName) : null,
         firstName: cached.firstName,
         lastName: cached.lastName,
         status: cached.status,
+        avatarAssetId: cached.avatarAssetId ?? null,
         createdAt: new Date(cached.createdAt),
         updatedAt: new Date(cached.updatedAt),
         authProviders: cached.authProviders.map(ap =>

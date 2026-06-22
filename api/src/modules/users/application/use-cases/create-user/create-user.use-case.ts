@@ -82,6 +82,7 @@ export class CreateUserUseCase {
         firstName: data.firstName ?? null,
         lastName: data.lastName ?? null,
         status: data.status ?? UserStatus.PENDING_PROFILE,
+        avatarAssetId: null,
         authProviders,
         createdAt: new Date(),
         updatedAt: new Date(),
