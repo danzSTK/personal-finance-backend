@@ -1,19 +1,20 @@
+import objectStorageConfig from '@/config/object-storage.config';
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
-import { join } from 'path';
 import Joi from 'joi';
+import { join } from 'path';
+import appConfig from './app.config';
 import databaseConfig from './database.config';
-import jwtConfig from './jwt.config';
 import googleOauthConfig from './google-oauth.config';
+import jwtConfig from './jwt.config';
 import redisConfig from './redis.config';
 import throttleConfig from './throttle.config';
-import appConfig from './app.config';
 
 @Module({
   imports: [
     NestConfigModule.forRoot({
       cache: true,
-      load: [databaseConfig, jwtConfig, googleOauthConfig, redisConfig, throttleConfig, appConfig],
+      load: [databaseConfig, jwtConfig, googleOauthConfig, redisConfig, throttleConfig, appConfig, objectStorageConfig],
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
       validationSchema: Joi.object({
@@ -50,6 +51,15 @@ import appConfig from './app.config';
         THROTTLE_AUTH_SIGNUP_TTL: Joi.number().optional(),
         THROTTLE_AUTH_SIGNUP_LIMIT: Joi.number().optional(),
         THROTTLE_AUTH_SIGNUP_BLOCKED_TTL: Joi.number().optional(),
+
+        // storage r2
+        R2_ENDPOINT: Joi.string().required(),
+        R2_ACCOUNT_ID: Joi.string().required(),
+        R2_ACCESS_KEY_ID: Joi.string().required(),
+        R2_SECRET_ACCESS_KEY: Joi.string().required(),
+        R2_PUBLIC_BUCKET_NAME: Joi.string().required(),
+        R2_PRIVATE_BUCKET_NAME: Joi.string().required(),
+        R2_PUBLIC_BASE_URL: Joi.string().uri().required(),
 
         // app
         CSRF_ALLOWED_ORIGINS: Joi.string()
