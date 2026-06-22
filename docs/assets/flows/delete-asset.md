@@ -5,6 +5,7 @@ status: planned
 related:
   - ../concepts/asset-status.md
   - ../decisions/retain-deleted-asset-records.md
+  - ../../events/user-avatar-updated.md
 ---
 
 # Delete Asset
@@ -20,3 +21,5 @@ Remove um objeto que deixou de ser referenciado.
 5. O asset muda para `DELETED` e recebe `deleted_at`.
 
 Se o provider falhar temporariamente, o status permanece `DELETE_PENDING` para retry.
+
+Na substituição de avatar, o consumidor planejado de `user.avatar.updated` usa `previousAssetId` para iniciar esse fluxo. A repetição do evento e um objeto já ausente precisam resultar em sucesso idempotente.

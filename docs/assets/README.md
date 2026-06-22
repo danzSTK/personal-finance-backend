@@ -54,10 +54,13 @@ Implementado:
 - estados do ciclo de vida;
 - entidade de domínio e entidade ORM;
 - `StorageKey` value object e factories de criação/key;
+- `AssetMapper`, `IAssetRepository` e implementação TypeORM com suporte a transações;
+- binding do repository no `AssetsModule`;
 - registro do módulo no NestJS e TypeORM.
 
 Pendente:
 
-- repository, mapper e casos de uso;
-- integração com avatar;
+- casos de uso de registro, confirmação e remoção;
+- integração HTTP e processamento de imagem do avatar;
+- consumidor idempotente para remover o avatar substituído;
 - reconciliação e limpeza.

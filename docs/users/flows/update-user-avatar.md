@@ -11,6 +11,16 @@ related:
 
 Trocar avatar é uma regra do módulo `users`: o usuário decide qual asset representa sua imagem atual. Assets controla o ciclo de vida; Object Storage movimenta os bytes.
 
+## Base Implementada
+
+- `User.avatarAssetId` representa a referência atual sem levar detalhes de storage para o domínio de users;
+- `User.changeAvatarAsset()` troca a referência e registra `UserAvatarUpdatedEvent` somente quando o asset muda;
+- `UserRepository.findByIdForUpdate()` bloqueia a linha com `pessimistic_write` durante a transação;
+- `UserAvatarUpdatedEventHydrator` valida e reconstitui o evento lido da outbox;
+- `AssetMapper` e `IAssetRepository` permitem persistir o ciclo de vida do novo e do antigo asset usando o mesmo `EntityManager`.
+
+O use case que coordena essas peças ainda não está implementado.
+
 ## Entrada Planejada
 
 - usuário autenticado;
@@ -27,6 +37,8 @@ Trocar avatar é uma regra do módulo `users`: o usuário decide qual asset repr
 6. Em uma transação PostgreSQL, o novo asset muda para `READY`, `users.avatar_asset_id` aponta para ele e o evento de substituição entra na outbox.
 7. O avatar antigo muda para `DELETE_PENDING`.
 8. Um consumidor idempotente remove o objeto antigo e marca o asset como `DELETED`.
+
+Evento relacionado: [user.avatar.updated](../../events/user-avatar-updated.md).
 
 ## Falhas
 

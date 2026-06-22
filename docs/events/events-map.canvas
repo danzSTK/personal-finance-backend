@@ -7,7 +7,10 @@
 		{"id":"outbox","type":"text","text":"outbox\nDurable publication\noutbox_messages\nOutboxProcessorService\nEventRegistry + hydrators","x":0,"y":220,"width":360,"height":170},
 		{"id":"accounts-consumer","type":"file","file":"accounts/flows/onboarding-cash-account.md","x":500,"y":-180,"width":360,"height":140},
 		{"id":"categories-consumer","type":"text","text":"categories\nPlanned consumer\nCreate default categories\nIdempotent by user + seed","x":520,"y":40,"width":340,"height":140},
-		{"id":"email-consumer","type":"text","text":"notifications/email\nPlanned consumer\nQueue welcome email job\nDeduplicate by user + template","x":520,"y":250,"width":340,"height":140}
+		{"id":"email-consumer","type":"text","text":"notifications/email\nPlanned consumer\nQueue welcome email job\nDeduplicate by user + template","x":520,"y":250,"width":340,"height":140},
+		{"id":"user-avatar-updated","type":"file","file":"events/user-avatar-updated.md","x":0,"y":520,"width":320,"height":140},
+		{"id":"avatar-producer","type":"file","file":"users/flows/update-user-avatar.md","x":-500,"y":500,"width":340,"height":140},
+		{"id":"avatar-assets-consumer","type":"file","file":"assets/flows/delete-asset.md","x":500,"y":500,"width":340,"height":140}
 	],
 	"edges":[
 		{"id":"architecture-to-user-created","fromNode":"events-architecture","fromSide":"right","toNode":"user-created","toSide":"left","label":"catalog"},
@@ -16,6 +19,10 @@
 		{"id":"user-created-to-outbox","fromNode":"user-created","fromSide":"bottom","toNode":"outbox","toSide":"top","label":"stored and published"},
 		{"id":"user-created-to-accounts","fromNode":"user-created","fromSide":"right","toNode":"accounts-consumer","toSide":"left","label":"current"},
 		{"id":"user-created-to-categories","fromNode":"user-created","fromSide":"right","toNode":"categories-consumer","toSide":"left","label":"planned"},
-		{"id":"user-created-to-email","fromNode":"user-created","fromSide":"right","toNode":"email-consumer","toSide":"left","label":"planned"}
+		{"id":"user-created-to-email","fromNode":"user-created","fromSide":"right","toNode":"email-consumer","toSide":"left","label":"planned"},
+		{"id":"architecture-to-avatar-updated","fromNode":"events-architecture","fromSide":"bottom","toNode":"user-avatar-updated","toSide":"top","label":"catalog"},
+		{"id":"avatar-producer-to-event","fromNode":"avatar-producer","fromSide":"right","toNode":"user-avatar-updated","toSide":"left","label":"contract current"},
+		{"id":"avatar-event-to-outbox","fromNode":"user-avatar-updated","fromSide":"top","toNode":"outbox","toSide":"bottom","label":"publication planned"},
+		{"id":"avatar-event-to-assets","fromNode":"user-avatar-updated","fromSide":"right","toNode":"avatar-assets-consumer","toSide":"left","label":"consumer planned"}
 	]
 }

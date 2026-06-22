@@ -19,7 +19,9 @@ Fluxo: [Update user profile](./flows/update-user-profile.md).
 
 ## Avatar
 
-A troca de avatar está planejada como fluxo próprio porque coordena processamento de imagem, assets, Object Storage e outbox.
+A troca de avatar é um fluxo próprio porque coordena processamento de imagem, assets, Object Storage e outbox.
+
+A base de domínio já existe: `User` mantém `avatarAssetId`, registra `UserAvatarUpdatedEvent` ao trocar a referência e o repository oferece leitura com lock pessimista. Upload, endpoint e consumidor de limpeza ainda estão planejados.
 
 Fluxo: [Update user avatar](./flows/update-user-avatar.md).
 

@@ -7,6 +7,7 @@ related:
   - ./events-map.canvas
   - ./add-event.md
   - ./user-created.md
+  - ./user-avatar-updated.md
 ---
 
 # Events
@@ -28,9 +29,10 @@ Guia para criar novos eventos: [Add event](./add-event.md).
 
 ## Eventos Documentados
 
-| Evento | Status | Produtor | Consumidores |
-|---|---|---|---|
-| [user.created](./user-created.md) | current | `users` | `accounts` atual; `categories` e `notifications/email` planejados |
+| Evento                                          | Status                             | Produtor | Consumidores                                                      |
+| ----------------------------------------------- | ---------------------------------- | -------- | ----------------------------------------------------------------- |
+| [user.created](./user-created.md)               | current                            | `users`  | `accounts` atual; `categories` e `notifications/email` planejados |
+| [user.avatar.updated](./user-avatar-updated.md) | current contract; planned emission | `users`  | remoção do asset anterior planejada em `assets`                   |
 
 ## Por Que Outbox
 
@@ -65,9 +67,10 @@ Com outbox:
 
 Eventos não são publicados no momento em que a entidade é manipulada. A entidade apenas registra o fato em memória.
 
-Exemplo atual:
+Exemplos atuais:
 
 - `User.create()` adiciona `UserCreatedEvent` no aggregate.
+- `User.changeAvatarAsset()` adiciona `UserAvatarUpdatedEvent` quando a referência realmente muda.
 - `CreateUserUseCase` salva o usuário.
 - O mesmo use case chama `user.pullDomainEvents()`.
 - `OutboxWriteService.storeEvents()` grava as mensagens usando o mesmo `EntityManager` da transação.
@@ -115,11 +118,11 @@ Um hydrator deve:
 - validar `payload` recebido como `unknown`;
 - chamar um método de reconstituição do evento, como `UserCreatedEvent.rehydrate()`.
 
-Exemplo atual:
+Exemplos atuais:
 
 - `UserCreatedEventHydrator` fica em `api/src/modules/users/infrastructure/events/`.
-- Ele valida o payload com Zod.
-- Ele reconstitui `UserCreatedEvent`.
+- `UserAvatarUpdatedEventHydrator` fica no mesmo módulo.
+- Ambos validam o payload com Zod e reconstituem a versão correta do evento.
 
 Hydrator é infraestrutura do módulo, não domínio. Ele pode depender de validação runtime, como Zod, sem contaminar entidade ou evento de domínio com preocupação de borda.
 
@@ -158,13 +161,13 @@ Idempotência deve vir de regra de aplicação mais garantia no banco. Para `CAS
 
 Estados principais em `outbox_messages`:
 
-| Status | Significado |
-|---|---|
-| `PENDING` | Mensagem gravada e pronta para primeira tentativa |
-| `PROCESSING` | Mensagem reivindicada por um worker |
-| `PUBLISHED` | Evento publicado com sucesso |
-| `FAILED` | Falhou, mas ainda pode tentar novamente |
-| `DEAD` | Esgotou tentativas |
+| Status       | Significado                                       |
+| ------------ | ------------------------------------------------- |
+| `PENDING`    | Mensagem gravada e pronta para primeira tentativa |
+| `PROCESSING` | Mensagem reivindicada por um worker               |
+| `PUBLISHED`  | Evento publicado com sucesso                      |
+| `FAILED`     | Falhou, mas ainda pode tentar novamente           |
+| `DEAD`       | Esgotou tentativas                                |
 
 Campos operacionais importantes:
 
