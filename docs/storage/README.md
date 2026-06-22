@@ -1,7 +1,7 @@
 ---
 area: storage
 type: architecture
-status: planned
+status: current
 related:
   - ../assets/README.md
   - ./Dados%20iniciais%20%28manuais%29.md
@@ -83,11 +83,24 @@ O R2 guarda o objeto em `bucket + key`. A URL é derivada em tempo de resposta:
 {publicBaseUrl}/{storageKey}
 ```
 
+`publicBaseUrl` é o domínio público conectado ao bucket público e, por isso, o nome do bucket não aparece novamente no path. O adapter rejeita a construção de URL pública para qualquer bucket diferente do `publicBucketName` configurado.
+
 Separar `publicBaseUrl` da key permite trocar domínio público, CDN ou configuração do ambiente sem atualizar todas as linhas de `assets`.
+
+## Checksum
+
+A plataforma mantém SHA-256 em hexadecimal minúsculo no domínio e no PostgreSQL. O header S3 `ChecksumSHA256` exige Base64, então o adapter valida o hexadecimal e converte somente na fronteira antes do `PutObjectCommand`.
 
 ## Falhas E Observabilidade
 
-Erros brutos do SDK não atravessam o contrato. O adapter deve registrar contexto técnico seguro e retornar uma falha classificada para a camada de aplicação decidir retry, `FAILED` ou `DELETE_PENDING`.
+Erros brutos do SDK não atravessam o contrato. O adapter os traduz para `ObjectStorageError`, incluindo operação, código técnico, retry, status HTTP do provider, request id e quantidade de tentativas quando disponíveis.
+
+Casos esperados não são tratados como falha:
+
+- `HEAD` de objeto ausente retorna `null`;
+- `DELETE` de objeto ausente retorna sucesso idempotente.
+
+Falhas de acesso, configuração, rate limit, indisponibilidade, timeout e rede recebem códigos técnicos diferentes. A camada de aplicação decidirá como convertê-los em estado do asset ou `ApplicationError`.
 
 Logs podem conter operação, bucket, key, request id e código técnico. Nunca devem conter credenciais, corpo completo do objeto ou segredo retornado pelo provider.
 
@@ -97,4 +110,14 @@ Cada consumidor define seus próprios limites e processamento antes de chamar Ob
 
 ## Estado Atual
 
-Ainda não existem contrato, adapter, configuração nem dependência do SDK. A tabela e o domínio de assets foram preparados primeiro para definir o ciclo de vida persistido.
+Já existem:
+
+- contrato `IObjectStorage`;
+- adapter `S3ObjectStorageAdapter`;
+- provider configurado do `S3Client`;
+- configuração validada do R2;
+- upload, head, delete e construção de URL pública;
+- tradução tipada de falhas S3 e de rede;
+- testes unitários do adapter e do mapper de erros.
+
+Ainda não existem casos de uso que coordenem assets e Object Storage.

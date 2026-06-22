@@ -59,6 +59,5 @@ Implementado:
 Pendente:
 
 - repository, mapper e casos de uso;
-- infraestrutura Object Storage;
 - integração com avatar;
 - reconciliação e limpeza.
