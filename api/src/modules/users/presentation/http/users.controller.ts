@@ -5,11 +5,30 @@ import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
 import { CheckUsernameAvailabilityUseCaseOutput } from '@/modules/users/application/use-cases/check-username-availability/check-username.dto';
 import { CheckUsernameAvailabilityUseCase } from '@/modules/users/application/use-cases/check-username-availability/check-username.use-case';
+import { RemoveUserAvatarUseCase } from '@/modules/users/application/use-cases/remove-user-avatar/remove-user-avatar.use-case';
 import { UpdateUserProfileUseCase } from '@/modules/users/application/use-cases/update-user-profile/update-user-profile.use-case';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import { UpdateUserProfileDto } from '@/modules/users/presentation/dto/update-user-profile.dto';
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
-import { ApiBody, ApiCookieAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseFilePipeBuilder,
+  Patch,
+  Put,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { ApiBody, ApiConsumes, ApiCookieAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+import { USER_AVATAR_MAX_INPUT_BYTES } from '@/common/models/constants';
+import { UpdateUserAvatarUseCase } from '@/modules/users/application/use-cases/update-user-avatar/update-user-avatar.use-case';
+import { UpdateUserAvatarResponseDto } from '@/modules/users/presentation/dto/update-user-avatar.response.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('users')
 @Controller('users')
@@ -17,6 +36,8 @@ export class UsersController {
   constructor(
     private readonly checkUsernameAvailabilityUseCase: CheckUsernameAvailabilityUseCase,
     private readonly updateUserProfileUseCase: UpdateUserProfileUseCase,
+    private readonly updateUserAvatarUseCase: UpdateUserAvatarUseCase,
+    private readonly removeUserAvatarUseCase: RemoveUserAvatarUseCase,
   ) {}
 
   @Get('me')
@@ -83,6 +104,64 @@ export class UsersController {
     });
 
     return UserProfileResponseDto.fromEntity(updateProfileResponse);
+  }
+
+  @Put('me/avatar')
+  @ApiCookieAuth('accessToken')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Atualizar avatar do usuário autenticado' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, type: UpdateUserAvatarResponseDto })
+  @ApiResponse({ status: 400, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 401, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 413, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 415, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 422, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 503, type: PlatformErrorResponseDto })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        files: 1,
+        fileSize: USER_AVATAR_MAX_INPUT_BYTES,
+      },
+    }),
+  )
+  async updateAvatar(
+    @CurrentUser() user: User,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addMaxSizeValidator({ maxSize: USER_AVATAR_MAX_INPUT_BYTES })
+        .build({ fileIsRequired: true }),
+    )
+    file: Express.Multer.File,
+  ): Promise<UpdateUserAvatarResponseDto> {
+    const output = await this.updateUserAvatarUseCase.execute({
+      userId: user.id,
+      bytes: file.buffer,
+    });
+
+    return UpdateUserAvatarResponseDto.fromOutput(output);
+  }
+
+  @Delete('me/avatar')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({ summary: 'Remover avatar do usuário autenticado' })
+  @ApiResponse({ status: 204, description: 'Avatar removido ou usuário já estava sem avatar' })
+  @ApiResponse({ status: 401, type: PlatformErrorResponseDto })
+  async removeAvatar(@CurrentUser() user: User): Promise<void> {
+    await this.removeUserAvatarUseCase.execute({ userId: user.id });
   }
 
   @IsPublic()

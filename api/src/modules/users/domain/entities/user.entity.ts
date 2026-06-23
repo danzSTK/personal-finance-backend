@@ -8,6 +8,7 @@ import { AuthProviderType, UserStatus } from '@/common/models/enums';
 import { InvalidUserError } from '@/modules/users/domain/errors/invalid-user.error';
 import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
 import { UserAvatarUpdatedEvent } from '@/modules/users/domain/events/user-avatar-updated.event';
+import { UserAvatarRemovedEvent } from '@/modules/users/domain/events/user-avatar-removed.event';
 import { AggregateRoot } from '@/shared/domain/aggregate-root';
 import { ConflictException } from '@nestjs/common';
 import { AuthProviderFactory } from '../factories/auth-provider.factory';
@@ -173,6 +174,20 @@ export class User extends AggregateRoot {
     this.props.avatarAssetId = normalizedAssetId;
     this.props.updatedAt = new Date();
     this.addDomainEvent(UserAvatarUpdatedEvent.create(this.id, previousAssetId, normalizedAssetId));
+
+    return previousAssetId;
+  }
+
+  removeAvatarAsset(): string | null {
+    const previousAssetId = this.props.avatarAssetId;
+
+    if (!previousAssetId) {
+      return null;
+    }
+
+    this.props.avatarAssetId = null;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(UserAvatarRemovedEvent.create(this.id, previousAssetId));
 
     return previousAssetId;
   }

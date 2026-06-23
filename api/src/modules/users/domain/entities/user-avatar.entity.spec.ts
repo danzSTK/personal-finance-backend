@@ -2,6 +2,7 @@ import { UserStatus } from '@/common/models/enums';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import { InvalidUserError } from '@/modules/users/domain/errors/invalid-user.error';
 import { UserAvatarUpdatedEvent } from '@/modules/users/domain/events/user-avatar-updated.event';
+import { UserAvatarRemovedEvent } from '@/modules/users/domain/events/user-avatar-removed.event';
 import { Email } from '@/modules/users/domain/value-objects/email.value-object';
 
 describe('User avatar', () => {
@@ -38,6 +39,25 @@ describe('User avatar', () => {
     const user = createUser(null);
 
     expect(() => user.changeAvatarAsset(' ')).toThrow(InvalidUserError);
+  });
+
+  it('removes the avatar reference and records the previous asset', () => {
+    const user = createUser(previousAssetId);
+
+    const previous = user.removeAvatarAsset();
+    const [event] = user.pullDomainEvents();
+
+    expect(previous).toBe(previousAssetId);
+    expect(user.avatarAssetId).toBeNull();
+    expect(event).toBeInstanceOf(UserAvatarRemovedEvent);
+    expect((event as UserAvatarRemovedEvent).toPayload()).toEqual({ userId, previousAssetId });
+  });
+
+  it('does not emit an event when the user has no avatar', () => {
+    const user = createUser(null);
+
+    expect(user.removeAvatarAsset()).toBeNull();
+    expect(user.pullDomainEvents()).toEqual([]);
   });
 
   function createUser(avatarAssetId: string | null): User {

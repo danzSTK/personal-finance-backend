@@ -8,6 +8,7 @@ import { IUserRepository } from '@/modules/users/domain/repositories/user.respos
 import { Email } from '@/modules/users/domain/value-objects/email.value-object';
 import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
+import { IUserCacheInvalidator } from '@/modules/users/application/ports/user-cache-invalidator.interface';
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from './user.repository';
 
@@ -39,6 +40,7 @@ export class CachedUserRepository implements IUserRepository {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly cache: RedisService,
+    private readonly cacheInvalidator: IUserCacheInvalidator,
   ) {}
 
   findByIdForUpdate(id: string, options: Required<IRepositoryOptions>): Promise<User | null> {
@@ -177,9 +179,16 @@ export class CachedUserRepository implements IUserRepository {
   }
 
   async save(user: User, options?: IRepositoryOptions): Promise<User> {
+    if (options?.manager) {
+      const saved = await this.userRepository.save(user, options);
+      await this.cacheInvalidator.invalidate(saved);
+
+      return saved;
+    }
+
     const saved = await this.userRepository.save(user, options);
 
-    await Promise.all([this.invalidateUserCache(user)]);
+    await this.cacheInvalidator.invalidate(saved);
 
     const userRefreshed = await this.userRepository.findById(saved.id, options);
 
@@ -242,14 +251,5 @@ export class CachedUserRepository implements IUserRepository {
       },
       cached.id,
     );
-  }
-
-  private async invalidateUserCache(user: User): Promise<void> {
-    await Promise.all([
-      this.cache.del(CacheKeys.users.byId(user.id)),
-      this.cache.del(CacheKeys.users.byEmailIndex(user.email.value)),
-      user.userName ? this.cache.del(CacheKeys.users.byUserNameIndex(user.userName.value)) : Promise.resolve(),
-      user.userName ? this.cache.del(CacheKeys.users.usernameAlreadyExists(user.userName?.value)) : Promise.resolve(),
-    ]);
   }
 }
