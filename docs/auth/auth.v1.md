@@ -1,3 +1,4 @@
+Esta versão está desatualizada. A documentação atual começa em [Auth](./README.md).
 # Authentication & Session Management
 
 ## 1. Objetivo

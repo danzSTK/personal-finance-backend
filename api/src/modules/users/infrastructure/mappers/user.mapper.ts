@@ -8,13 +8,14 @@ import { AuthProviderMapper } from './auth-provider.mapper';
 export class UserMapper {
   // ORM -> Domain (Usado no repository ao buscar do banco)
   static toDomain(entity: UserOrmEntity) {
-    return User.create(
+    return User.reconstitute(
       {
         email: Email.create(entity.email),
         userName: entity.userName ? UserName.create(entity.userName) : null,
         firstName: entity.firstName,
         lastName: entity.lastName,
         status: entity.status,
+        avatarAssetId: entity.avatarAssetId,
         authProviders: entity.authProviders?.map(ap => AuthProviderMapper.toDomain(ap)) ?? [],
         createdAt: entity.created_at,
         updatedAt: entity.updated_at,
@@ -31,6 +32,7 @@ export class UserMapper {
       firstName: user.firstName,
       lastName: user.lastName,
       status: user.status,
+      avatarAssetId: user.avatarAssetId,
       created_at: user.createdAt,
       updated_at: user.updatedAt,
       authProviders: user.authProviders.map(ap => AuthProviderMapper.toOrm(ap, user.id)) as AuthProviderOrmEntity[],

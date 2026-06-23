@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppStatus } from './common/models/enums';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { createValidationException } from './common/validation';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -34,6 +35,7 @@ async function bootstrap() {
       transformOptions: {
         enableImplicitConversion: true, // Habilita conversão implícita de tipos
       },
+      exceptionFactory: createValidationException,
     }),
   );
 

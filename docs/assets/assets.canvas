@@ -1,0 +1,23 @@
+{
+  "nodes": [
+    {"id":"asset","type":"file","file":"assets/concepts/asset.md","x":0,"y":0,"width":320,"height":180},
+    {"id":"purpose","type":"file","file":"assets/concepts/asset-purpose.md","x":400,"y":-220,"width":320,"height":180},
+    {"id":"status","type":"file","file":"assets/concepts/asset-status.md","x":400,"y":0,"width":320,"height":180},
+    {"id":"key","type":"file","file":"assets/concepts/storage-key.md","x":400,"y":220,"width":320,"height":180},
+    {"id":"metadata","type":"file","file":"assets/concepts/asset-metadata.md","x":0,"y":300,"width":320,"height":180},
+    {"id":"storage","type":"file","file":"storage/README.md","x":800,"y":220,"width":320,"height":180},
+    {"id":"register","type":"file","file":"assets/flows/register-asset.md","x":800,"y":-220,"width":320,"height":180},
+    {"id":"delete","type":"file","file":"assets/flows/delete-asset.md","x":800,"y":0,"width":320,"height":180},
+    {"id":"questions","type":"file","file":"assets/reference/open-questions.md","x":800,"y":440,"width":320,"height":180}
+  ],
+  "edges": [
+    {"id":"asset-purpose","fromNode":"asset","fromSide":"right","toNode":"purpose","toSide":"left"},
+    {"id":"asset-status","fromNode":"asset","fromSide":"right","toNode":"status","toSide":"left"},
+    {"id":"asset-key","fromNode":"asset","fromSide":"right","toNode":"key","toSide":"left"},
+    {"id":"asset-metadata","fromNode":"asset","fromSide":"bottom","toNode":"metadata","toSide":"top"},
+    {"id":"key-storage","fromNode":"key","fromSide":"right","toNode":"storage","toSide":"left"},
+    {"id":"status-delete","fromNode":"status","fromSide":"right","toNode":"delete","toSide":"left"},
+    {"id":"purpose-register","fromNode":"purpose","fromSide":"right","toNode":"register","toSide":"left"},
+    {"id":"key-questions","fromNode":"key","fromSide":"bottom","toNode":"questions","toSide":"left"}
+  ]
+}

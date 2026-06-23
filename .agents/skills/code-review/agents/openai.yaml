@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Review"
+  short_description: "Revisar mudanças deste repositório em português."
+  default_prompt: "Revise minhas mudanças não commitadas."

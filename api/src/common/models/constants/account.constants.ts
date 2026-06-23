@@ -1,0 +1,4 @@
+export const ACCOUNT_NAME_MIN_LENGTH = 3;
+export const ACCOUNT_NAME_MAX_LENGTH = 255;
+export const ACCOUNT_COLOR_TOKEN_MAX_LENGTH = 30;
+export const ACCOUNT_ICON_KEY_MAX_LENGTH = 50;

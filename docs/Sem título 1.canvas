@@ -1,0 +1,16 @@
+{
+	"nodes":[
+		{"id":"861a422b8c9715ff","type":"text","text":"FE avatar feature","x":-600,"y":-20,"width":250,"height":60},
+		{"id":"e09afd8aadb316c5","type":"text","text":"put route/users/me/avatar","x":-144,"y":-21,"width":250,"height":60},
+		{"id":"9f0dbf47159f50ec","type":"text","text":"A imagem enviada deve ser do tipo png, jpeg, jpg ou wepb.\n\no tipo será fortemente validado pelos bytes confirmando n somente pelo content-type\n\nDeve ser menor que 5mb","x":320,"y":-150,"width":250,"height":320},
+		{"id":"30b4ccc975ee1d8c","x":865,"y":-20,"width":250,"height":60,"type":"text","text":"upload avatar use-case"},
+		{"id":"489522a0f3aaac93","x":1340,"y":-150,"width":250,"height":320,"type":"text","text":"1. processa a imagem para webp.\n2. calcula o SHA-256 do buffer final.\n3. gera assetId.\n4. Gera Key única usando o AssetsId.\n5. joga para o banco assets com pending_process\n6. Salva no r2"},
+		{"id":"a0e11a1d84a5e01d","x":1780,"y":-20,"width":250,"height":60,"type":"text","text":"Transaction: \n1. Pega o id do assets atualiza no banco para ready com todos os outros dados necessário\n2. atualiza o user com o assetId\n3. gera evento de useravatarupdate"}
+	],
+	"edges":[
+		{"id":"3b87b705b2c6aa79","fromNode":"861a422b8c9715ff","fromSide":"right","toNode":"e09afd8aadb316c5","toSide":"left"},
+		{"id":"730ab4ecfae8cf15","fromNode":"e09afd8aadb316c5","fromSide":"right","toNode":"9f0dbf47159f50ec","toSide":"left"},
+		{"id":"69715c3306020607","fromNode":"9f0dbf47159f50ec","fromSide":"right","toNode":"30b4ccc975ee1d8c","toSide":"left"},
+		{"id":"488be146201edb93","fromNode":"30b4ccc975ee1d8c","fromSide":"right","toNode":"489522a0f3aaac93","toSide":"left"}
+	]
+}

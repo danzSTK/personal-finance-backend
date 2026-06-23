@@ -1,0 +1,23 @@
+{
+	"nodes":[
+		{"id":"title","type":"text","text":"# Link GOOGLE Provider\nMapa do fluxo de vínculo Google. A regra textual vive nas notas Markdown.","x":-520,"y":-360,"width":380,"height":120},
+		{"id":"user-authenticated","type":"text","text":"Usuário autenticado\nCookie accessToken válido","x":-520,"y":-120,"width":260,"height":100},
+		{"id":"link-google-flow","type":"file","file":"auth/flows/link-google-provider.md","x":-160,"y":-120,"width":300,"height":120},
+		{"id":"google-state","type":"file","file":"auth/decisions/google-link-state-in-redis.md","x":240,"y":-120,"width":330,"height":120},
+		{"id":"redis","type":"file","file":"auth/reference/redis-keys.md","x":660,"y":-120,"width":300,"height":120},
+		{"id":"oauth-google","type":"file","file":"integrations/auth/oauth-google.md","x":-260,"y":140,"width":400,"height":180},
+		{"id":"providers","type":"file","file":"auth/concepts/auth-provider.md","x":240,"y":140,"width":300,"height":120},
+		{"id":"error-codes","type":"file","file":"auth/reference/error-codes.md","x":640,"y":140,"width":300,"height":120},
+		{"id":"frontend-redirect","type":"text","text":"Frontend redirect\nsuccess=google ou error=<code>","x":240,"y":400,"width":320,"height":100}
+	],
+	"edges":[
+		{"id":"edge-user-flow","fromNode":"user-authenticated","fromSide":"right","toNode":"link-google-flow","toSide":"left"},
+		{"id":"edge-flow-state","fromNode":"link-google-flow","fromSide":"right","toNode":"google-state","toSide":"left"},
+		{"id":"edge-state-redis","fromNode":"google-state","fromSide":"right","toNode":"redis","toSide":"left"},
+		{"id":"edge-flow-oauth","fromNode":"link-google-flow","fromSide":"bottom","toNode":"oauth-google","toSide":"top"},
+		{"id":"edge-flow-provider","fromNode":"link-google-flow","fromSide":"bottom","toNode":"providers","toSide":"top"},
+		{"id":"edge-state-errors","fromNode":"google-state","fromSide":"bottom","toNode":"error-codes","toSide":"top"},
+		{"id":"edge-errors-frontend","fromNode":"error-codes","fromSide":"bottom","toNode":"frontend-redirect","toSide":"right"},
+		{"id":"edge-provider-frontend","fromNode":"providers","fromSide":"bottom","toNode":"frontend-redirect","toSide":"top"}
+	]
+}

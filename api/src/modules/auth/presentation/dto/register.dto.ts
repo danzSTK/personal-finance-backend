@@ -1,7 +1,16 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
 import { TrimAndLowerCase } from '@/common/decorators/normalize-string.decorator';
+import {
+  USER_FIRST_NAME_MAX_LENGTH,
+  USER_FIRST_NAME_MIN_LENGTH,
+  USER_LAST_NAME_MAX_LENGTH,
+  USER_LAST_NAME_MIN_LENGTH,
+  USER_NAME_MAX_LENGTH,
+  USER_NAME_MIN_LENGTH,
+  USER_PASSWORD_MAX_LENGTH,
+  USER_PASSWORD_MIN_LENGTH,
+} from '@/common/models/constants';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { USER_NAME_MAX_LENGTH, USER_NAME_MIN_LENGTH } from '@/common/models/constants';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty({
@@ -21,25 +30,25 @@ export class RegisterDto {
   @ApiPropertyOptional({
     description: 'Primeiro nome do usuário',
     example: 'João',
-    minLength: 2,
-    maxLength: 255,
+    minLength: USER_FIRST_NAME_MIN_LENGTH,
+    maxLength: USER_FIRST_NAME_MAX_LENGTH,
   })
   @IsOptional()
   @IsString()
-  @Length(2, 255, {
-    message: 'First name must be between 2 and 255 characters long.',
+  @Length(USER_FIRST_NAME_MIN_LENGTH, USER_FIRST_NAME_MAX_LENGTH, {
+    message: `First name must be between ${USER_FIRST_NAME_MIN_LENGTH} and ${USER_FIRST_NAME_MAX_LENGTH} characters long.`,
   })
   firstName?: string;
 
   @ApiPropertyOptional({
     description: 'Sobrenome do usuário',
     example: 'Silva',
-    minLength: 2,
-    maxLength: 255,
+    minLength: USER_LAST_NAME_MIN_LENGTH,
+    maxLength: USER_LAST_NAME_MAX_LENGTH,
   })
   @IsOptional()
   @IsString()
-  @Length(2, 255, {
+  @Length(USER_LAST_NAME_MIN_LENGTH, USER_LAST_NAME_MAX_LENGTH, {
     message: 'Last name must be between 2 and 255 characters long.',
   })
   lastName?: string;
@@ -57,12 +66,12 @@ export class RegisterDto {
   @ApiProperty({
     description: 'Senha do usuário',
     example: 'senhaSegura123',
-    minLength: 6,
-    maxLength: 50,
+    minLength: USER_PASSWORD_MIN_LENGTH,
+    maxLength: USER_PASSWORD_MAX_LENGTH,
     format: 'password',
   })
   @IsString()
-  @Length(6, 50, {
+  @Length(USER_PASSWORD_MIN_LENGTH, USER_PASSWORD_MAX_LENGTH, {
     message: 'The password must be between 6 and 50 characters long.',
   })
   password!: string;

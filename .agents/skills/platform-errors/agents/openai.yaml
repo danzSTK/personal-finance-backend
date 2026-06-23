@@ -1,0 +1,4 @@
+interface:
+  display_name: "Platform Errors"
+  short_description: "Padrão de erros da plataforma"
+  default_prompt: "Use $platform-errors para implementar ou revisar tratamento de erros seguindo o contrato da plataforma."

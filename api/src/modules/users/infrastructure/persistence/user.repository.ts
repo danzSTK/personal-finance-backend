@@ -1,13 +1,14 @@
-import { InjectRepository } from '@nestjs/typeorm';
+import { AuthProviderType } from '@/common/models/enums';
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { User } from '@/modules/users/domain/entities/user.entity';
-import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { UserOrmEntity } from './user-orm-entity';
-import { Repository } from 'typeorm';
-import { UserMapper } from '../mappers/user.mapper';
-import { Injectable } from '@nestjs/common';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { Email } from '@/modules/users/domain/value-objects/email.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
-import { AuthProviderType } from '@/common/models/enums';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UserMapper } from '../mappers/user.mapper';
+import { UserOrmEntity } from './user-orm-entity';
 
 @Injectable()
 export class UserRepository implements IUserRepository {
@@ -33,6 +34,25 @@ export class UserRepository implements IUserRepository {
     const user = UserMapper.toDomain(userOrm);
 
     return user;
+  }
+
+  async findByIdForUpdate(id: string, options: Required<IRepositoryOptions>): Promise<User | null> {
+    const repository = options.manager.getRepository(UserOrmEntity);
+    const lockedUser = await repository.findOne({
+      where: { id },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!lockedUser) {
+      return null;
+    }
+
+    const userWithProviders = await repository.findOne({
+      where: { id },
+      relations: ['authProviders'],
+    });
+
+    return userWithProviders ? UserMapper.toDomain(userWithProviders) : null;
   }
 
   async findByEmail(email: Email, options?: IRepositoryOptions): Promise<User | null> {
@@ -93,6 +113,18 @@ export class UserRepository implements IUserRepository {
     }
 
     return UserMapper.toDomain(useOrm);
+  }
+
+  async usernameAlreadyExists(userName: UserName, options?: IRepositoryOptions): Promise<boolean> {
+    const repository = options?.manager ? options.manager.getRepository(UserOrmEntity) : this.userRepository;
+
+    const count = await repository.count({
+      where: {
+        userName: userName.value,
+      },
+    });
+
+    return count > 0;
   }
 
   async save(user: User, options?: IRepositoryOptions): Promise<User> {

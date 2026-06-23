@@ -5,7 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: personal-finance-api
     restart: always
-    env_file: .env
+    env_file:
+      - ${API_ENV_FILE:-.env}
     environment:
       # Sobrescreve o .env: dentro do Docker, os hosts são os nomes dos serviços
       POSTGRES_HOST: ${POSTGRES_HOST}
@@ -42,4 +43,3 @@ volumes:
 networks:
   app-network:
     driver: bridge
-

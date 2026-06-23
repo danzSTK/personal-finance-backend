@@ -1,26 +1,49 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { CreateUserUseCaseInput, CreateUserUseCaseOutput } from './create-user.dto';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
-import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
-import { User } from '@/modules/users/domain/entities/user.entity';
 import { UserStatus } from '@/common/models/enums';
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { AuthProvider } from '@/modules/users/domain/entities/auth-provider.entity';
-import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { User } from '@/modules/users/domain/entities/user.entity';
 import { AuthProviderFactory } from '@/modules/users/domain/factories/auth-provider.factory';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
+import { UserEmailAlreadyExistsError, UsernameAlreadyExistsError } from '@/modules/users/application/errors';
+import { OutboxWriteService } from '@/shared/outbox/services/outbox-write.service';
+import { Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
+import { DataSource, EntityManager } from 'typeorm';
+import { CreateUserUseCaseInput, CreateUserUseCaseOutput } from './create-user.dto';
 
 @Injectable()
 export class CreateUserUseCase {
-  constructor(private readonly userRepository: IUserRepository) {}
+  constructor(
+    private readonly userRepository: IUserRepository,
+    private readonly outboxWriteService: OutboxWriteService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
+  ) {}
 
   async execute(data: CreateUserUseCaseInput, options?: IRepositoryOptions): Promise<CreateUserUseCaseOutput> {
+    if (options?.manager) {
+      return this.executeWithManager(data, {
+        manager: options.manager,
+      });
+    }
+
+    return this.dataSource.transaction(manager => this.executeWithManager(data, { manager }));
+  }
+
+  private async executeWithManager(
+    data: CreateUserUseCaseInput,
+    options: { manager: EntityManager },
+  ): Promise<CreateUserUseCaseOutput> {
     const email = Email.create(data.email);
 
     const existingUserByEmail = await this.userRepository.findByEmail(email, options);
 
     if (existingUserByEmail) {
-      throw new ConflictException('User with this email already registered');
+      throw new UserEmailAlreadyExistsError(email.value);
     }
 
     let userName: UserName | null = null;
@@ -31,7 +54,7 @@ export class CreateUserUseCase {
       const existingUserByUserName = await this.userRepository.findByUserName(userName, options);
 
       if (existingUserByUserName) {
-        throw new ConflictException('User with this username already registered');
+        throw new UsernameAlreadyExistsError(userName.value);
       }
     }
 
@@ -59,6 +82,7 @@ export class CreateUserUseCase {
         firstName: data.firstName ?? null,
         lastName: data.lastName ?? null,
         status: data.status ?? UserStatus.PENDING_PROFILE,
+        avatarAssetId: null,
         authProviders,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -66,6 +90,13 @@ export class CreateUserUseCase {
       userId,
     );
 
-    return this.userRepository.save(user, options);
+    const savedUser = await this.userRepository.save(user, options);
+    const domainEvents = user.pullDomainEvents();
+
+    await this.outboxWriteService.storeEvents(domainEvents, {
+      manager: options.manager,
+    });
+
+    return savedUser;
   }
 }

@@ -1,8 +1,11 @@
+import { AccountType, CategoryType } from '@/common/models/enums';
+
 export const CacheKeys = {
   users: {
     byId: (userId: string) => `users:id:${userId}`,
     byEmailIndex: (email: string) => `users:email-index:${email}`,
     byUserNameIndex: (userName: string) => `users:username-index:${userName}`,
+    usernameAlreadyExists: (userName: string) => `users:username-exists:${userName}`,
   },
 
   auth: {
@@ -12,5 +15,20 @@ export const CacheKeys = {
 
     userSessions: (userId: string) => `auth:sessions:${userId}`,
     googleLinkState: (state: string) => `auth:google-link:${state}`,
+  },
+
+  accounts: {
+    byId: (accountId: string) => `accounts:id:${accountId}`,
+    listByUserId: (userId: string, includeArchived: boolean = false) =>
+      `accounts:list:user:${userId}:archived:${includeArchived ? '1' : '0'}`,
+    byUserIdAndType: (userId: string, type: AccountType) => `accounts:user:${userId}:type:${type}`,
+  },
+
+  categories: {
+    byId: (categoryId: string) => `categories:id:${categoryId}`,
+    listByUserId: (userId: string, includeArchived: boolean = false) =>
+      `categories:list:user:${userId}:archived:${includeArchived ? '1' : '0'}`,
+    listByUserIdAndType: (userId: string, type: CategoryType, includeArchived: boolean = false) =>
+      `categories:list:user:${userId}:type:${type}:archived:${includeArchived ? '1' : '0'}`,
   },
 };

@@ -1,26 +1,33 @@
-import { Module } from '@nestjs/common';
 import { AppController } from '@/app/app.controller';
 import { AppService } from '@/app/app.service';
-import { ConfigModule } from '@/config/config.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigType } from '@nestjs/config';
-import { ENTITIES } from '@/config/entities';
-import { UsersModule } from '@/modules/users/users.module';
-import databaseConfig from '../config/database.config';
-import { AuthModule } from '@/modules/auth/auth.module';
 import { CommonModule } from '@/common/common.module';
-import { RedisModule } from '@/database/redis/redis.module';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AppExceptionFilter } from '@/common/filters';
+import { ConfigModule } from '@/config/config.module';
+import { ENTITIES } from '@/config/entities';
 import throttleConfig from '@/config/throttle.config';
+import { RedisModule } from '@/database/redis/redis.module';
+import { AccountsModule } from '@/modules/accounts/accounts.module';
+import { AssetsModule } from '@/modules/assets/assets.module';
+import { AuthModule } from '@/modules/auth/auth.module';
+import { CategoriesModule } from '@/modules/categories/categories.module';
+import { UsersModule } from '@/modules/users/users.module';
+import { AppEventsModule } from '@/shared/events';
+import { OutboxModule } from '@/shared/outbox';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { APP_GUARD } from '@nestjs/core';
-import { RedisService } from '../database/redis/redis.service';
-import { SessionModule } from '../shared/session-tracking/session-metadata.module';
-import { HealthModule } from '../modules/health/health.module';
-import appConfig from '../config/app.config';
+import { Module } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppStatus } from '../common/models/enums';
+import appConfig from '../config/app.config';
+import databaseConfig from '../config/database.config';
+import { RedisService } from '../database/redis/redis.service';
+import { HealthModule } from '../modules/health/health.module';
 import { JwtAuthGuard } from '../shared/guards/jwt-auth.guard';
 import { OriginGuard } from '../shared/guards/origin.guard';
+import { SessionModule } from '../shared/session-tracking/session-metadata.module';
+import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module';
 
 @Module({
   imports: [
@@ -56,11 +63,17 @@ import { OriginGuard } from '../shared/guards/origin.guard';
       }),
     }),
     RedisModule,
+    AppEventsModule,
+    OutboxModule,
+    OutboxRehydratorsModule,
     UsersModule,
     AuthModule,
     CommonModule,
     SessionModule,
     HealthModule,
+    AccountsModule,
+    AssetsModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [
@@ -76,6 +89,10 @@ import { OriginGuard } from '../shared/guards/origin.guard';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: AppExceptionFilter,
     },
   ],
 })

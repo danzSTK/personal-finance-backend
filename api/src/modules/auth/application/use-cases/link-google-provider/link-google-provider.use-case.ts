@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
@@ -6,6 +6,11 @@ import { AuthProviderType } from '@/common/models/enums';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
 import { type LinkGoogleProviderUseCaseDto } from './link-google-provider.dto';
+import {
+  AuthProviderAlreadyLinkedError,
+  AuthProviderLinkedToAnotherUserError,
+} from '@/modules/auth/application/errors';
+import { UserNotFoundError } from '@/modules/users/application/errors';
 
 @Injectable()
 export class LinkGoogleProviderUseCase {
@@ -26,21 +31,21 @@ export class LinkGoogleProviderUseCase {
       );
 
       if (existingGoogleProvider && existingGoogleProvider.id !== data.userId) {
-        throw new ConflictException('Google account already linked to another user');
+        throw new AuthProviderLinkedToAnotherUserError(AuthProviderType.GOOGLE);
       }
 
       // Busca o usuário atual
       const user = await this.findUserByIdUseCase.execute(data.userId, { manager });
 
       if (!user) {
-        throw new ConflictException('User not found');
+        throw new UserNotFoundError();
       }
 
       // Verifica se o usuário já possui um provider GOOGLE
       const hasGoogleProvider = user.authProviders.some(provider => provider.provider === AuthProviderType.GOOGLE);
 
       if (hasGoogleProvider) {
-        throw new ConflictException('User already has a Google provider');
+        throw new AuthProviderAlreadyLinkedError(AuthProviderType.GOOGLE);
       }
 
       // Adiciona o novo provider GOOGLE ao usuário

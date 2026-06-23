@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 import { type RevokeSessionUseCaseDto } from './revoke-session.dto';
+import { SessionNotFoundError } from '@/modules/auth/application/errors';
 
 @Injectable()
 export class RevokeSessionUseCase {
@@ -12,7 +13,7 @@ export class RevokeSessionUseCase {
     const exists = await this.sessionRepository.sessionExists(userId, jti);
 
     if (!exists) {
-      throw new NotFoundException('Session not found');
+      throw new SessionNotFoundError();
     }
 
     await this.sessionRepository.revokeSession(userId, jti);

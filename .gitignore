@@ -1,6 +1,12 @@
 # Env
 .env
+.env.bitwarden.local
+.env.bws.runtime
 
+
+#claude
+CLAUDE.md
+.claude/
 # Docker
 postgres_data/
 *.log

@@ -1,14 +1,16 @@
-import { Injectable } from '@nestjs/common';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
-import { IRepositoryOptions, IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { UserRepository } from './user.repository';
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
+import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { RedisService } from '@/database/redis/redis.service';
 import { User } from '@/modules/users/domain/entities/user.entity';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
-import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
-import { CacheKeys } from '@/common/utils/cache-keys.factory';
-import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
 import { AuthProviderFactory } from '@/modules/users/domain/factories/auth-provider.factory';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
+import { IUserCacheInvalidator } from '@/modules/users/application/ports/user-cache-invalidator.interface';
+import { Injectable } from '@nestjs/common';
+import { UserRepository } from './user.repository';
 
 interface CachedAuthProvider {
   id: string;
@@ -27,6 +29,7 @@ interface CachedUser {
   firstName: string | null;
   lastName: string | null;
   status: UserStatus;
+  avatarAssetId?: string | null;
   createdAt: string;
   updatedAt: string;
   authProviders: CachedAuthProvider[];
@@ -37,7 +40,32 @@ export class CachedUserRepository implements IUserRepository {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly cache: RedisService,
+    private readonly cacheInvalidator: IUserCacheInvalidator,
   ) {}
+
+  findByIdForUpdate(id: string, options: Required<IRepositoryOptions>): Promise<User | null> {
+    return this.userRepository.findByIdForUpdate(id, options);
+  }
+  async usernameAlreadyExists(userName: UserName, options?: IRepositoryOptions): Promise<boolean> {
+    if (options?.manager) {
+      return this.userRepository.usernameAlreadyExists(userName, { manager: options.manager });
+    }
+
+    const cacheKey = CacheKeys.users.usernameAlreadyExists(userName.value);
+    const cached = await this.cache.get<string>(cacheKey);
+
+    if (cached) {
+      return true;
+    }
+
+    const result = await this.userRepository.usernameAlreadyExists(userName);
+
+    if (result) {
+      await this.cache.set(cacheKey, 'true', this.cacheTtl);
+    }
+
+    return result;
+  }
 
   private readonly cacheTtl = 1000 * 60 * 5;
   async findById(id: string, options?: IRepositoryOptions): Promise<User | null> {
@@ -151,9 +179,16 @@ export class CachedUserRepository implements IUserRepository {
   }
 
   async save(user: User, options?: IRepositoryOptions): Promise<User> {
+    if (options?.manager) {
+      const saved = await this.userRepository.save(user, options);
+      await this.cacheInvalidator.invalidate(saved);
+
+      return saved;
+    }
+
     const saved = await this.userRepository.save(user, options);
 
-    await Promise.all([this.invalidateUserCache(user)]);
+    await this.cacheInvalidator.invalidate(saved);
 
     const userRefreshed = await this.userRepository.findById(saved.id, options);
 
@@ -174,6 +209,7 @@ export class CachedUserRepository implements IUserRepository {
       firstName: user.firstName,
       lastName: user.lastName,
       status: user.status,
+      avatarAssetId: user.avatarAssetId,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
       authProviders: user.authProviders.map(ap => ({
@@ -189,13 +225,14 @@ export class CachedUserRepository implements IUserRepository {
   }
 
   private hydrateUser(cached: CachedUser): User {
-    return User.create(
+    return User.reconstitute(
       {
         email: Email.reconstitute(cached.email),
         userName: cached.userName ? UserName.create(cached.userName) : null,
         firstName: cached.firstName,
         lastName: cached.lastName,
         status: cached.status,
+        avatarAssetId: cached.avatarAssetId ?? null,
         createdAt: new Date(cached.createdAt),
         updatedAt: new Date(cached.updatedAt),
         authProviders: cached.authProviders.map(ap =>
@@ -214,13 +251,5 @@ export class CachedUserRepository implements IUserRepository {
       },
       cached.id,
     );
-  }
-
-  private async invalidateUserCache(user: User): Promise<void> {
-    await Promise.all([
-      this.cache.del(CacheKeys.users.byId(user.id)),
-      this.cache.del(CacheKeys.users.byEmailIndex(user.email.value)),
-      user.userName ? this.cache.del(CacheKeys.users.byUserNameIndex(user.userName.value)) : Promise.resolve(),
-    ]);
   }
 }

@@ -1,16 +1,16 @@
+import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
 import {
-  Entity,
-  PrimaryGeneratedColumn,
+  Check,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
-  Check,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
-import { Account } from './account.entity';
-import { Category } from './category.entity';
+import { CategoryOrmEntity } from '../modules/categories/infrastructure/persistence/model/category.entity';
 import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
 
 @Entity('transactions')
@@ -73,21 +73,21 @@ export class Transaction {
   })
   user: UserOrmEntity;
 
-  @ManyToOne(() => Account, account => account.transactions, {
+  @ManyToOne(() => AccountOrmEntity, account => account.transactions, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({
     name: 'account_id',
     foreignKeyConstraintName: 'FK_transactions_account',
   })
-  account: Account;
+  account: AccountOrmEntity;
 
-  @ManyToOne(() => Category, category => category.transactions, {
+  @ManyToOne(() => CategoryOrmEntity, category => category.transactions, {
     onDelete: 'NO ACTION',
   })
   @JoinColumn({
     name: 'category_id',
     foreignKeyConstraintName: 'FK_transactions_category',
   })
-  category: Category;
+  category: CategoryOrmEntity;
 }

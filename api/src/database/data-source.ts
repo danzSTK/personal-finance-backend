@@ -1,8 +1,8 @@
-import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import { join } from 'path';
-import { ENTITIES } from '../config/entities';
+import { DataSource } from 'typeorm';
 import { AppStatus } from '../common/models/enums';
+import { ENTITIES } from '../config/entities';
 
 // Carrega o .env da raiz
 if (process.env.NODE_ENV !== AppStatus.PRODUCTION) {
@@ -20,7 +20,5 @@ export const AppDataSource = new DataSource({
   migrations: [join(__dirname, './migrations/*{.ts,.js}')],
   synchronize: false,
   logging: process.env.NODE_ENV === AppStatus.PRODUCTION ? ['error'] : true,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: process.env.NODE_ENV === AppStatus.PRODUCTION ? { rejectUnauthorized: false } : false,
 });
