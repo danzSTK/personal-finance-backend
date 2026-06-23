@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: flow
-status: draft
+status: planned
 endpoint: DELETE /transactions/:id
 related:
   - ../concepts/transaction.md
@@ -10,19 +10,23 @@ related:
 
 # Delete Transaction
 
-Remove uma transaction quando a regra de produto permitir.
+Remove ou inativa uma transaction conforme a decisão final do domínio.
 
-## Fluxo Planejado
+## Estado
 
-1. Controller recebe o identificador da transaction.
-2. `userId` vem de `@CurrentUser()`.
-3. Use case busca a transaction por `id` e `userId`.
-4. Use case valida se delete físico é permitido.
-5. Repositório remove ou inativa conforme a decisão final.
-6. Controller retorna `204`.
+Este fluxo ainda não deve antecipar detalhes de implementação.
 
-## Decisão Pendente
+A documentação do fluxo deve ser preenchida quando o caso de uso for implementado.
 
-Ainda falta decidir se transactions terão delete físico, archive/inactivation ou ambos.
+Quem implementar o fluxo deve documentar:
 
-Para preservar histórico financeiro, a tendência é usar inativação como comportamento padrão e permitir delete físico apenas para erros recentes sem vínculos relevantes.
+- se haverá delete físico, inativação ou ambos;
+- validações executadas;
+- restrições para preservar histórico financeiro;
+- impacto em saldo e relatórios;
+- erros possíveis;
+- resposta esperada.
+
+## Regras Já Definidas
+
+A implementação deve respeitar os conceitos, decisões e invariants já documentados em transactions.
