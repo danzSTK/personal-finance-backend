@@ -16,7 +16,7 @@ O `userId` nunca deve ser enviado no body; o backend identifica o usuário pela 
 
 ## Endpoints
 
-- [GET /users/me](../auth/get-me.md)
+- [GET /users/me](../auth/get-me.md) retorna o perfil autenticado com `avatarUrl` quando houver avatar pronto.
 - [PATCH /users/me](./update-user-profile.md)
 - [PUT /users/me/avatar](./update-user-avatar.md)
 - [DELETE /users/me/avatar](./remove-user-avatar.md)

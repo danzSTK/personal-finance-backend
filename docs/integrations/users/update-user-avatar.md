@@ -37,6 +37,8 @@ O backend não confia no MIME informado pelo navegador. O formato é detectado p
 
 O `url` já está pronto para exibição. O frontend não deve montar URL nem interpretar a storage key.
 
+Após a troca, `GET /users/me` também retorna esse avatar em `avatarUrl` enquanto o asset atual estiver `READY`.
+
 ## Erros
 
 | Status | Code                                           | Quando                                      |

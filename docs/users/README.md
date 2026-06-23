@@ -23,6 +23,8 @@ A troca de avatar é um fluxo próprio porque coordena processamento de imagem, 
 
 A implementação mantém `avatarAssetId` no domínio, registra eventos de atualização/remoção e usa lock pessimista para serializar alterações concorrentes.
 
+Na leitura do perfil, `GET /users/me` resolve o asset atual para `avatarUrl` pública somente quando ele está `READY`.
+
 Fluxo: [Update user avatar](./flows/update-user-avatar.md).
 
 Remoção: [Remove user avatar](./flows/remove-user-avatar.md).

@@ -14,16 +14,13 @@ related:
 
 - `PUT /users/me/avatar`;
 - `DELETE /users/me/avatar` idempotente;
+- `GET /users/me` expondo `avatarUrl` quando o avatar atual está `READY`;
 - processamento JPEG/PNG/WebP para WebP `512x512`;
 - persistência do ciclo de vida em `assets`;
 - eventos `user.avatar.updated` e `user.avatar.removed` via outbox;
 - remoção assíncrona e idempotente no Object Storage.
 
 ## Pendente
-
-### Leitura Do Perfil
-
-`GET /users/me` ainda precisa expor a URL pública do avatar atual. A projeção deve resolver `avatarAssetId` para um asset `READY` e montar a URL por `IObjectStorage`, sem expor bucket ou storage key.
 
 ### Reconciliação
 

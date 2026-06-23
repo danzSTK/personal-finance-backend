@@ -15,6 +15,7 @@ Trocar avatar é uma regra do módulo `users`: o usuário decide qual asset repr
 
 - `User.avatarAssetId` representa a referência atual sem levar detalhes de storage para o domínio de users;
 - `User.changeAvatarAsset()` troca a referência e registra `UserAvatarUpdatedEvent` somente quando o asset muda;
+- `GET /users/me` resolve `avatarAssetId` para `avatarUrl` somente quando o asset está `READY`;
 - `UserRepository.findByIdForUpdate()` bloqueia a linha com `pessimistic_write` durante a transação;
 - `UserAvatarUpdatedEventHydrator` valida e reconstitui o evento lido da outbox;
 - `AssetMapper` e `IAssetRepository` permitem persistir o ciclo de vida do novo e do antigo asset usando o mesmo `EntityManager`.
@@ -46,3 +47,5 @@ Evento relacionado: [user.avatar.updated](../../events/user-avatar-updated.md).
 - falha ao excluir o avatar antigo mantém `DELETE_PENDING` para retry.
 
 Endpoint e contrato HTTP: [Update user avatar integration](../../integrations/users/update-user-avatar.md).
+
+Leitura do perfil: [GET /users/me](../../integrations/auth/get-me.md).

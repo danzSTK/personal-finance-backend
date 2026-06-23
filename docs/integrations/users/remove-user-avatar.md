@@ -32,4 +32,6 @@ Não há body de resposta. A operação é idempotente: se o usuário já estive
 
 O `204` confirma que o usuário não referencia mais o avatar. A remoção física no R2 ocorre depois pelo evento `user.avatar.removed`.
 
+Depois da remoção, `GET /users/me` retorna `avatarUrl: null`.
+
 Falhas no Object Storage mantêm o asset em `DELETE_PENDING` e são repetidas pela outbox. O frontend não precisa aguardar nem repetir o DELETE por causa dessa limpeza.
