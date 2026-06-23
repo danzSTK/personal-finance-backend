@@ -1,10 +1,14 @@
 ---
 area: transactions
 type: flow
-status: draft
+status: planned
 endpoint: POST /transactions
 related:
   - ../concepts/transaction.md
+  - ../concepts/transaction-type.md
+  - ../concepts/transaction-status.md
+  - ../concepts/transaction-date.md
+  - ../concepts/transaction-amount.md
   - ../reference/invariants.md
 ---
 
@@ -12,17 +16,21 @@ related:
 
 Cria uma transaction para o usuário autenticado.
 
-## Fluxo Planejado
+## Estado
 
-1. Controller recebe dados da transaction.
-2. `userId` vem de `@CurrentUser()`.
-3. Use case valida se account pertence ao usuário.
-4. Use case valida se category pertence ao usuário.
-5. Use case valida compatibilidade entre tipo da transaction e category.
-6. Factory cria a entidade de domínio.
-7. Repositório persiste a transaction.
-8. Controller retorna a representação da transaction criada.
+Este fluxo ainda não deve antecipar detalhes de implementação.
 
-## Observação
+A documentação do fluxo deve ser preenchida quando o caso de uso for implementado.
 
-Este fluxo ainda é rascunho. A forma final depende da validação de type, status, datas e impacto no saldo.
+Quem implementar o fluxo deve documentar:
+
+- entrada esperada;
+- validações executadas;
+- regras de domínio aplicadas;
+- erros possíveis;
+- comportamento transacional;
+- resposta esperada.
+
+## Regras Já Definidas
+
+A implementação deve respeitar os conceitos e decisões já documentados em transactions.
