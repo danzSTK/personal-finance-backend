@@ -7,7 +7,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 @Injectable()
 export class ProvisionDefaultAccountOnUserHandler {
   constructor(private readonly createDefaultAccountUseCase: CreateDefaultAccountUseCase) {}
-  @OnEvent(UserCreatedEvent.eventName)
+  @OnEvent(UserCreatedEvent.eventName, { suppressErrors: false })
   async handle(event: UserCreatedEvent): Promise<Account> {
     // TODO: Implement provisioning of default account for the user based on the event data (event.userId, event.status)
     return await this.createDefaultAccountUseCase.execute({ userId: event.userId });

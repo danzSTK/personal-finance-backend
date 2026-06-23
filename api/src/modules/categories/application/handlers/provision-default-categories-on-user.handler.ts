@@ -8,7 +8,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 export class ProvisionDefaultCategoriesOnUserHandler {
   constructor(private readonly provisionDefaultCategoriesUseCase: ProvisionDefaultCategoriesUseCase) {}
 
-  @OnEvent(UserCreatedEvent.eventName)
+  @OnEvent(UserCreatedEvent.eventName, { suppressErrors: false })
   async handle(event: UserCreatedEvent): Promise<ProvisionDefaultCategoriesUseCaseOutput> {
     return await this.provisionDefaultCategoriesUseCase.execute({
       userId: event.userId,
