@@ -1,7 +1,7 @@
 ---
 area: users
 type: flow
-status: planned
+status: current
 related:
   - ../../assets/README.md
   - ../../storage/README.md
@@ -11,7 +11,7 @@ related:
 
 Trocar avatar é uma regra do módulo `users`: o usuário decide qual asset representa sua imagem atual. Assets controla o ciclo de vida; Object Storage movimenta os bytes.
 
-## Base Implementada
+## Implementação Atual
 
 - `User.avatarAssetId` representa a referência atual sem levar detalhes de storage para o domínio de users;
 - `User.changeAvatarAsset()` troca a referência e registra `UserAvatarUpdatedEvent` somente quando o asset muda;
@@ -19,15 +19,13 @@ Trocar avatar é uma regra do módulo `users`: o usuário decide qual asset repr
 - `UserAvatarUpdatedEventHydrator` valida e reconstitui o evento lido da outbox;
 - `AssetMapper` e `IAssetRepository` permitem persistir o ciclo de vida do novo e do antigo asset usando o mesmo `EntityManager`.
 
-O use case que coordena essas peças ainda não está implementado.
-
-## Entrada Planejada
+## Entrada
 
 - usuário autenticado;
 - uma imagem de no máximo 5 MB;
 - tipo real aceito pela plataforma.
 
-## Fluxo Planejado
+## Fluxo
 
 1. Users valida autenticação e captura o avatar atual.
 2. `file-type` identifica o formato pelos bytes, sem confiar no nome ou MIME enviado.
@@ -47,4 +45,4 @@ Evento relacionado: [user.avatar.updated](../../events/user-avatar-updated.md).
 - objeto enviado com falha posterior no banco será tratado pela reconciliação;
 - falha ao excluir o avatar antigo mantém `DELETE_PENDING` para retry.
 
-O endpoint e o contrato HTTP ainda não foram definidos.
+Endpoint e contrato HTTP: [Update user avatar integration](../../integrations/users/update-user-avatar.md).

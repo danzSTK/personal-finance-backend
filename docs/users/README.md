@@ -21,9 +21,15 @@ Fluxo: [Update user profile](./flows/update-user-profile.md).
 
 A troca de avatar é um fluxo próprio porque coordena processamento de imagem, assets, Object Storage e outbox.
 
-A base de domínio já existe: `User` mantém `avatarAssetId`, registra `UserAvatarUpdatedEvent` ao trocar a referência e o repository oferece leitura com lock pessimista. Upload, endpoint e consumidor de limpeza ainda estão planejados.
+A implementação mantém `avatarAssetId` no domínio, registra eventos de atualização/remoção e usa lock pessimista para serializar alterações concorrentes.
 
 Fluxo: [Update user avatar](./flows/update-user-avatar.md).
+
+Remoção: [Remove user avatar](./flows/remove-user-avatar.md).
+
+Roteiro técnico: [Implement update user avatar](./guides/implement-update-user-avatar.md).
+
+Pendências: [Avatar pending work](./reference/avatar-pending.md).
 
 ## Fluxos Separados
 

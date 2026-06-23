@@ -8,6 +8,7 @@ related:
   - ./add-event.md
   - ./user-created.md
   - ./user-avatar-updated.md
+  - ./user-avatar-removed.md
 ---
 
 # Events
@@ -29,10 +30,11 @@ Guia para criar novos eventos: [Add event](./add-event.md).
 
 ## Eventos Documentados
 
-| Evento                                          | Status                             | Produtor | Consumidores                                                      |
-| ----------------------------------------------- | ---------------------------------- | -------- | ----------------------------------------------------------------- |
-| [user.created](./user-created.md)               | current                            | `users`  | `accounts` atual; `categories` e `notifications/email` planejados |
-| [user.avatar.updated](./user-avatar-updated.md) | current contract; planned emission | `users`  | remoção do asset anterior planejada em `assets`                   |
+| Evento                                          | Status  | Produtor | Consumidores                                                      |
+| ----------------------------------------------- | ------- | -------- | ----------------------------------------------------------------- |
+| [user.created](./user-created.md)               | current | `users`  | `accounts` atual; `categories` e `notifications/email` planejados |
+| [user.avatar.updated](./user-avatar-updated.md) | current | `users`  | remoção idempotente do asset anterior em `assets`                 |
+| [user.avatar.removed](./user-avatar-removed.md) | current | `users`  | remoção idempotente do asset removido em `assets`                 |
 
 ## Por Que Outbox
 

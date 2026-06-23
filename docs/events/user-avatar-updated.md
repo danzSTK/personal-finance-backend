@@ -23,10 +23,10 @@ related:
 | Entidade registra o evento          | current |
 | Contrato e hydrator                 | current |
 | Registro no `EventRegistry`         | current |
-| Use case grava o evento na outbox   | planned |
-| Consumidor remove o avatar anterior | planned |
+| Use case grava o evento na outbox   | current |
+| Consumidor remove o avatar anterior | current |
 
-O contrato já pode ser usado pelo futuro use case, mas nenhuma mensagem será produzida até esse use case persistir o usuário e drenar seus eventos na mesma transação.
+O evento é produzido pelo fluxo `PUT /users/me/avatar` e consumido de forma assíncrona por `assets`.
 
 ## Contrato
 
@@ -48,7 +48,7 @@ Metadados:
 
 Esse evento não usa uma chave global de deduplicação. O mesmo asset pode voltar a ser escolhido no futuro, e uma chave baseada apenas no usuário e no asset suprimiria uma transição legítima. O consumidor deve ser idempotente a partir do estado persistido de `previousAssetId`.
 
-## Produção Planejada
+## Produção
 
 O use case de atualização deve executar em uma única transação PostgreSQL:
 
@@ -60,14 +60,17 @@ O use case de atualização deve executar em uma única transação PostgreSQL:
 
 O lock serializa duas atualizações concorrentes para o mesmo usuário. Sem ele, ambos os requests poderiam observar o mesmo avatar anterior e deixar um asset intermediário sem limpeza.
 
-## Consumo Planejado
+## Consumo
 
 Quando `previousAssetId` não for `null`, o consumidor de `assets` deve:
 
 - localizar o asset pelo ID e pelo `userId` do evento;
-- ignorar com sucesso se ele já estiver `DELETE_PENDING` ou `DELETED`;
+- ignorar com sucesso se ele já estiver `DELETED` ou não existir;
+- retomar a remoção se ele já estiver `DELETE_PENDING`;
 - marcar o asset como `DELETE_PENDING`;
 - solicitar a exclusão idempotente no Object Storage;
 - marcar o asset como `DELETED` depois da confirmação.
 
 `currentAssetId` nunca deve ser removido por esse consumidor. Ownership precisa ser validado mesmo que o payload venha da outbox.
+
+O handler usa `suppressErrors: false`. Assim, falhas no Object Storage chegam ao `OutboxProcessorService`, e a mensagem entra em retry em vez de ser marcada incorretamente como publicada.
