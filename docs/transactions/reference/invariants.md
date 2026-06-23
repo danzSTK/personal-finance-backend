@@ -8,10 +8,12 @@ related:
   - ../concepts/transaction-status.md
   - ../concepts/transaction-date.md
   - ../concepts/transaction-amount.md
+  - ../concepts/transaction-deletion.md
   - ../decisions/transaction-amount-is-positive.md
   - ../decisions/pending-transactions-do-not-affect-current-balance.md
   - ../decisions/transfers-are-neutral.md
   - ../decisions/adjustments-are-technical-transactions.md
+  - ../decisions/transactions-can-be-deleted.md
 ---
 
 # Invariants
@@ -94,6 +96,8 @@ Elas não dependem de controller, endpoint, DTO ou caso de uso específico.
 - Transferência deve ser atômica.
 - Account de origem e account de destino devem pertencer ao mesmo usuário.
 - Account de origem e account de destino devem ser diferentes.
+- Transaction `TRANSFER` não deve ser deletada pelo usuário na V0.
+- Correção de transferência deve ser feita por nova transferência no sentido contrário.
 - Taxa de transferência deve ser registrada como transaction `EXPENSE` separada.
 
 ## Adjustment
@@ -109,6 +113,20 @@ Elas não dependem de controller, endpoint, DTO ou caso de uso específico.
 - Se `type != ADJUSTMENT`, `direction` deve ser vazio.
 - Valores possíveis de `direction` na V0: `INCREASE` e `DECREASE`.
 
+## Deletion
+
+- Transaction não deve ser arquivada.
+- Transaction pode ser deletada pelo usuário, exceto `TRANSFER` na V0.
+- Transaction deletada não deve aparecer em listagens comuns.
+- Transaction deletada não deve afetar saldo atual.
+- Transaction deletada não deve afetar saldo previsto.
+- Transaction deletada não deve aparecer como pendência.
+- Transaction deletada não deve entrar em relatórios comuns.
+- Transaction `PENDING` deletada deixa de afetar projeções.
+- Transaction `EFFECTIVE` deletada tem seus efeitos removidos dos cálculos.
+- Deletar transaction passada pode alterar saldo atual.
+- Delete pode ser implementado como soft delete internamente, mas o comportamento de produto continua sendo delete.
+
 ## Reports
 
 - `TRANSFER` não deve entrar em relatórios comuns de receita ou despesa.
@@ -119,4 +137,4 @@ Elas não dependem de controller, endpoint, DTO ou caso de uso específico.
 
 Transaction registra histórico financeiro.
 
-O domínio deve proteger ownership, amount positivo, status coerente, datas coerentes, type compatível, category compatível e impacto financeiro correto.
+O domínio deve proteger ownership, amount positivo, status coerente, datas coerentes, type compatível, category compatível, delete coerente e impacto financeiro correto.
