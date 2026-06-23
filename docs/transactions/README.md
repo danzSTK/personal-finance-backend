@@ -23,12 +23,12 @@ Na V0, `transactions` ainda nasce como documentação de domínio planejada. O s
 - [Transaction status](./concepts/transaction-status.md)
 - [Transaction date](./concepts/transaction-date.md)
 - [Transaction amount](./concepts/transaction-amount.md)
+- [Transaction deletion](./concepts/transaction-deletion.md)
 
 ### Fluxos
 
 - [Create transaction](./flows/create-transaction.md)
 - [Update transaction](./flows/update-transaction.md)
-- [Archive transaction](./flows/archive-transaction.md)
 - [Delete transaction](./flows/delete-transaction.md)
 - [Confirm pending transaction](./flows/confirm-pending-transaction.md)
 - [Balance adjustment](./flows/balance-adjustment.md)
@@ -39,6 +39,7 @@ Na V0, `transactions` ainda nasce como documentação de domínio planejada. O s
 - [Pending transactions do not affect current balance](./decisions/pending-transactions-do-not-affect-current-balance.md)
 - [Transfers are neutral](./decisions/transfers-are-neutral.md)
 - [Adjustments are technical transactions](./decisions/adjustments-are-technical-transactions.md)
+- [Transactions can be deleted](./decisions/transactions-can-be-deleted.md)
 
 ### Referência
 
@@ -58,7 +59,7 @@ Planejado:
 
 - consolidar entidade de domínio própria;
 - separar claramente tipo, status, datas e impacto financeiro;
-- definir como pendências, transferências e ajustes entram no cálculo de saldo;
+- definir como pendências, transferências, ajustes e exclusões entram nos cálculos;
 - criar integração HTTP somente depois da regra de domínio validada.
 
 ## Limite Desta Documentação
