@@ -4,13 +4,14 @@ type: flow
 status: planned
 endpoint: DELETE /transactions/:id
 related:
-  - ../concepts/transaction.md
+  - ../concepts/transaction-deletion.md
+  - ../decisions/transactions-can-be-deleted.md
   - ../reference/invariants.md
 ---
 
 # Delete Transaction
 
-Remove ou inativa uma transaction conforme a decisão final do domínio.
+Remove uma transaction do histórico ativo do usuário, quando a regra de domínio permitir.
 
 ## Estado
 
@@ -20,13 +21,18 @@ A documentação do fluxo deve ser preenchida quando o caso de uso for implement
 
 Quem implementar o fluxo deve documentar:
 
-- se haverá delete físico, inativação ou ambos;
+- entrada esperada;
 - validações executadas;
-- restrições para preservar histórico financeiro;
-- impacto em saldo e relatórios;
+- bloqueio de delete para `TRANSFER`;
+- comportamento para `PENDING`;
+- comportamento para `EFFECTIVE`;
+- impacto em saldo atual;
+- impacto em saldo previsto;
+- impacto em relatórios;
+- estratégia interna de persistência;
 - erros possíveis;
 - resposta esperada.
 
 ## Regras Já Definidas
 
-A implementação deve respeitar os conceitos, decisões e invariants já documentados em transactions.
+A implementação deve respeitar [Transaction deletion](../concepts/transaction-deletion.md), [Transactions can be deleted](../decisions/transactions-can-be-deleted.md) e os invariants do domínio.
