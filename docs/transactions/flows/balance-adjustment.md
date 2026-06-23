@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: flow
-status: draft
+status: planned
 related:
   - ../concepts/transaction-type.md
   - ../decisions/adjustments-are-technical-transactions.md
@@ -13,22 +13,22 @@ related:
 
 Registra uma correção técnica de saldo por meio de transaction.
 
-## Fluxo Planejado
+## Estado
 
-1. Controller recebe a account, valor, direção e motivo do ajuste.
-2. `userId` vem de `@CurrentUser()`.
-3. Use case valida se a account pertence ao usuário.
-4. Use case obtém a category técnica `ADJUSTMENT` do usuário.
-5. Factory cria uma transaction técnica de ajuste.
-6. Repositório persiste a transaction.
-7. Controller retorna a transaction criada.
+Este fluxo ainda não deve antecipar detalhes de implementação.
 
-## Decisão Pendente
+A documentação do fluxo deve ser preenchida quando o caso de uso for implementado.
 
-Ainda falta validar como representar a direção do ajuste mantendo `amount > 0`.
+Quem implementar o fluxo deve documentar:
 
-Opções possíveis:
+- entrada esperada;
+- uso de `direction` exclusivo para `ADJUSTMENT`;
+- category técnica usada;
+- validações executadas;
+- impacto no saldo atual;
+- erros possíveis;
+- resposta esperada.
 
-- usar um campo de direction;
-- usar transaction type específico para ajuste positivo e negativo;
-- usar uma semântica interna baseada em categoria/tipo.
+## Regras Já Definidas
+
+A implementação deve respeitar a decision [Adjustments are technical transactions](../decisions/adjustments-are-technical-transactions.md).
