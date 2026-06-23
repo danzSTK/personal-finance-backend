@@ -43,7 +43,6 @@ Na V0, `transactions` ainda nasce como documentação de domínio planejada. O s
 ### Referência
 
 - [Invariants](./reference/invariants.md)
-- [Open questions](./reference/open-questions.md)
 - [Schema](./reference/schema.md)
 
 ## Estado Atual
