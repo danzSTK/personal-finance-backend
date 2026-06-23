@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "users/guides/implement-update-user-avatar.md",
+                "file": "users/flows/remove-user-avatar.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "implement-update-user-avatar"
+              "title": "remove-user-avatar"
             }
           }
         ]
@@ -197,6 +197,7 @@
   },
   "active": "9b878a4cce55b3c0",
   "lastOpenFiles": [
+    "users/guides/implement-update-user-avatar.md",
     "users/reference/avatar-pending.md",
     "users/reference",
     "integrations/users/remove-user-avatar.md",
@@ -204,7 +205,6 @@
     "events/user-avatar-removed.md",
     "integrations/users/update-user-avatar.md",
     "Sem título 1.canvas",
-    "users/guides/implement-update-user-avatar.md",
     "users/guides",
     "events/user-avatar-updated.md",
     "Sem título 1.md",
