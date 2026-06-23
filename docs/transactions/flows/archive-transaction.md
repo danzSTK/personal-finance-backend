@@ -1,32 +1,30 @@
 ---
 area: transactions
 type: flow
-status: planned
-endpoint: PATCH /transactions/:id/archive
+status: unsupported
 related:
-  - ../concepts/transaction.md
-  - ../reference/invariants.md
+  - ../concepts/transaction-deletion.md
+  - ../decisions/transactions-can-be-deleted.md
 ---
 
 # Archive Transaction
 
-Arquiva ou inativa uma transaction conforme a decisão final do domínio.
+Transactions não devem ser arquivadas.
 
-## Estado
+Este fluxo não faz parte da V0.
 
-Este fluxo ainda não deve antecipar detalhes de implementação.
+## Decisão
 
-A documentação do fluxo deve ser preenchida quando o caso de uso for implementado.
+Transaction representa histórico financeiro.
 
-Quem implementar o fluxo deve documentar:
+Se o usuário precisa remover uma transaction do histórico ativo, o comportamento de produto é delete.
 
-- diferença entre archive, deactivate e delete;
-- validações executadas;
-- impacto no histórico financeiro;
-- impacto em saldo e relatórios;
-- erros possíveis;
-- resposta esperada.
+Archive deve continuar sendo usado para cadastros como account e category, não para transaction.
 
-## Regras Já Definidas
+## Referência
 
-A implementação deve respeitar os conceitos, decisões e invariants já documentados em transactions.
+Use:
+
+- [Transaction deletion](../concepts/transaction-deletion.md)
+- [Transactions can be deleted](../decisions/transactions-can-be-deleted.md)
+- [Delete transaction](./delete-transaction.md)
