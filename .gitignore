@@ -7,9 +7,15 @@
 #claude
 CLAUDE.md
 .claude/
+
+
+.obsidian/
+
 # Docker
 postgres_data/
 *.log
+
+
 
 docker-compose.override.yml
 
