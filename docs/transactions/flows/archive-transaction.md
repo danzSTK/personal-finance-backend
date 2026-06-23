@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: flow
-status: draft
+status: planned
 endpoint: PATCH /transactions/:id/archive
 related:
   - ../concepts/transaction.md
@@ -10,20 +10,23 @@ related:
 
 # Archive Transaction
 
-Arquiva uma transaction sem remover o histórico físico imediatamente.
+Arquiva ou inativa uma transaction conforme a decisão final do domínio.
 
-## Fluxo Planejado
+## Estado
 
-1. Controller recebe o identificador da transaction.
-2. `userId` vem de `@CurrentUser()`.
-3. Use case busca a transaction por `id` e `userId`.
-4. Use case valida se a transaction pode ser arquivada.
-5. Entidade marca a transaction como arquivada/inativa.
-6. Repositório persiste o novo estado.
-7. Controller retorna `204` ou a representation atualizada.
+Este fluxo ainda não deve antecipar detalhes de implementação.
 
-## Observação
+A documentação do fluxo deve ser preenchida quando o caso de uso for implementado.
 
-O schema atual usa `is_active` e `deactivated_at` como soft delete legado.
+Quem implementar o fluxo deve documentar:
 
-A nomenclatura final entre archive, deactivate e delete ainda precisa ser validada.
+- diferença entre archive, deactivate e delete;
+- validações executadas;
+- impacto no histórico financeiro;
+- impacto em saldo e relatórios;
+- erros possíveis;
+- resposta esperada.
+
+## Regras Já Definidas
+
+A implementação deve respeitar os conceitos, decisões e invariants já documentados em transactions.
