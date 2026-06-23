@@ -2,6 +2,7 @@ import { AssetsModule } from '@/modules/assets/assets.module';
 import { IAvatarImageProcessor } from '@/modules/users/application/ports/avatar-image-processor.interface';
 import { IImageFileTypeDetector } from '@/modules/users/application/ports/image-file-type-detector.interface';
 import { IUserCacheInvalidator } from '@/modules/users/application/ports/user-cache-invalidator.interface';
+import { GetUserProfileUseCase } from '@/modules/users/application/use-cases/get-user-profile/get-user-profile.use-case';
 import { RemoveUserAvatarUseCase } from '@/modules/users/application/use-cases/remove-user-avatar/remove-user-avatar.use-case';
 import { UpdateUserAvatarUseCase } from '@/modules/users/application/use-cases/update-user-avatar/update-user-avatar.use-case';
 import { UpdateUserProfileUseCase } from '@/modules/users/application/use-cases/update-user-profile/update-user-profile.use-case';
@@ -55,6 +56,7 @@ import { UsersController } from './presentation/http/users.controller';
     FindUserByIdUseCase,
     FindUserByEmailUseCase,
     FindUserByUserNameUseCase,
+    GetUserProfileUseCase,
     UpdateUserProfileUseCase,
     UpdateUserAvatarUseCase,
     RemoveUserAvatarUseCase,

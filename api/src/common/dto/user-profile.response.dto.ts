@@ -2,6 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { AuthProviderType, UserStatus } from '../models/enums';
 import { User } from '@/modules/users/domain/entities/user.entity';
 
+interface UserProfileResponseOptions {
+  avatarUrl?: string | null;
+}
+
 export class UserProfileResponseDto {
   @ApiProperty({
     description: 'ID do usuário',
@@ -35,6 +39,13 @@ export class UserProfileResponseDto {
     example: 'joao.silva@example.com',
   })
   email!: string;
+
+  @ApiProperty({
+    description: 'URL pública do avatar atual do usuário, quando existir',
+    example: 'https://assets.example.com/users/123e4567-e89b-12d3-a456-426614174000/avatars/avatar-id.webp',
+    nullable: true,
+  })
+  avatarUrl!: string | null;
 
   @ApiProperty({
     description: 'Status do usuário',
@@ -76,7 +87,7 @@ export class UserProfileResponseDto {
   })
   providers!: { provider: AuthProviderType; linkedAt: Date }[];
 
-  static fromEntity(user: User): UserProfileResponseDto {
+  static fromEntity(user: User, options: UserProfileResponseOptions = {}): UserProfileResponseDto {
     const dto = new UserProfileResponseDto();
 
     dto.id = user.id;
@@ -84,6 +95,7 @@ export class UserProfileResponseDto {
     dto.firstName = user.firstName;
     dto.userName = user.userName?.value ?? null;
     dto.email = user.email.value;
+    dto.avatarUrl = options.avatarUrl ?? null;
     dto.status = user.status;
     dto.createdAt = user.createdAt;
     dto.updatedAt = user.updatedAt;

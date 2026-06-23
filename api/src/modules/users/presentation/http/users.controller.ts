@@ -5,6 +5,7 @@ import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
 import { CheckUsernameAvailabilityUseCaseOutput } from '@/modules/users/application/use-cases/check-username-availability/check-username.dto';
 import { CheckUsernameAvailabilityUseCase } from '@/modules/users/application/use-cases/check-username-availability/check-username.use-case';
+import { GetUserProfileUseCase } from '@/modules/users/application/use-cases/get-user-profile/get-user-profile.use-case';
 import { RemoveUserAvatarUseCase } from '@/modules/users/application/use-cases/remove-user-avatar/remove-user-avatar.use-case';
 import { UpdateUserProfileUseCase } from '@/modules/users/application/use-cases/update-user-profile/update-user-profile.use-case';
 import { User } from '@/modules/users/domain/entities/user.entity';
@@ -35,6 +36,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class UsersController {
   constructor(
     private readonly checkUsernameAvailabilityUseCase: CheckUsernameAvailabilityUseCase,
+    private readonly getUserProfileUseCase: GetUserProfileUseCase,
     private readonly updateUserProfileUseCase: UpdateUserProfileUseCase,
     private readonly updateUserAvatarUseCase: UpdateUserAvatarUseCase,
     private readonly removeUserAvatarUseCase: RemoveUserAvatarUseCase,
@@ -57,6 +59,11 @@ export class UsersController {
         firstName: { type: 'string', example: 'João', nullable: true },
         userName: { type: 'string', example: 'john_doe', nullable: true },
         email: { type: 'string', example: 'joao.silva@email.com' },
+        avatarUrl: {
+          type: 'string',
+          example: 'https://assets.example.com/users/123e4567-e89b-12d3-a456-426614174000/avatars/avatar-id.webp',
+          nullable: true,
+        },
         status: { type: 'string', example: UserStatus.ACTIVE, enum: Object.values(UserStatus) },
         createdAt: { type: 'string', format: 'date-time' },
         updatedAt: { type: 'string', format: 'date-time' },
@@ -74,8 +81,10 @@ export class UsersController {
     },
   })
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
-  getMe(@CurrentUser() user: User): UserProfileResponseDto {
-    return UserProfileResponseDto.fromEntity(user);
+  async getMe(@CurrentUser() user: User): Promise<UserProfileResponseDto> {
+    const profile = await this.getUserProfileUseCase.execute({ user });
+
+    return UserProfileResponseDto.fromEntity(profile.user, { avatarUrl: profile.avatarUrl });
   }
 
   @Patch('me')
