@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: flow
-status: draft
+status: planned
 endpoint: PATCH /transactions/:id/confirm
 related:
   - ../concepts/transaction-status.md
@@ -13,17 +13,22 @@ related:
 
 Confirma uma transaction pendente como realizada.
 
-## Fluxo Planejado
+## Estado
 
-1. Controller recebe o identificador da transaction.
-2. `userId` vem de `@CurrentUser()`.
-3. Use case busca a transaction por `id` e `userId`.
-4. Use case valida se a transaction está pendente.
-5. Entidade altera o status para efetivada.
-6. Entidade registra a data/momento de confirmação se esse campo existir na modelagem final.
-7. Repositório persiste o novo estado.
-8. Controller retorna a transaction atualizada.
+Este fluxo ainda não deve antecipar detalhes de implementação.
 
-## Observação
+A documentação do fluxo deve ser preenchida quando o caso de uso for implementado.
 
-A confirmação é o ponto em que uma pendência passa a afetar o saldo atual.
+Quem implementar o fluxo deve documentar:
+
+- campos que podem ser ajustados na confirmação;
+- preenchimento de `effectiveAt`;
+- mudança de status;
+- validações executadas;
+- impacto no saldo atual;
+- erros possíveis;
+- resposta esperada.
+
+## Regras Já Definidas
+
+A implementação deve respeitar status, datas, amount positivo e demais decisions já documentadas em transactions.
