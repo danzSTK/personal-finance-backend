@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: index
-status: planned
+status: current
 related:
   - ../accounts/README.md
   - ../categories/README.md
@@ -12,7 +12,9 @@ related:
 
 Este diretório documenta as regras de negócio, decisões arquiteturais e fluxos internos do domínio de transactions.
 
-Na V0, `transactions` ainda nasce como documentação de domínio planejada. O schema legado já existe no banco, mas as regras finais serão consolidadas arquivo por arquivo antes da implementação completa do módulo.
+Na V0, `transactions` registra lançamentos financeiros simples do usuário autenticado.
+
+O módulo atual cobre criação, listagem, busca por id, atualização, confirmação de pendência e delete de lançamentos não-transferência.
 
 ## Mapa
 
@@ -48,19 +50,21 @@ Na V0, `transactions` ainda nasce como documentação de domínio planejada. O s
 
 ## Estado Atual
 
-Implementado/legado:
+Implementado:
 
 - tabela `transactions` no schema atual;
 - vínculo com `users`, `accounts` e `categories`;
-- `amount > 0` protegido por constraint;
-- soft delete legado por `is_active` e `deactivated_at`.
+- `amount_cents > 0` protegido por constraint;
+- types `INCOME`, `EXPENSE`, `TRANSFER` e `ADJUSTMENT`;
+- status `PENDING` e `EFFECTIVE`;
+- soft delete técnico por `deleted_at`;
+- endpoints HTTP protegidos em `TransactionsController`.
 
 Planejado:
 
-- consolidar entidade de domínio própria;
-- separar claramente tipo, status, datas e impacto financeiro;
-- definir como pendências, transferências, ajustes e exclusões entram nos cálculos;
-- criar integração HTTP somente depois da regra de domínio validada.
+- ampliar testes de use case;
+- integrar transactions aos cálculos de saldo e relatórios;
+- evoluir features futuras como recorrência, parcelamento e cartão de crédito.
 
 ## Limite Desta Documentação
 

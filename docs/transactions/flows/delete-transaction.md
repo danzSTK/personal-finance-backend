@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: flow
-status: planned
+status: current
 endpoint: DELETE /transactions/:id
 related:
   - ../concepts/transaction-deletion.md
@@ -13,26 +13,30 @@ related:
 
 Remove uma transaction do histórico ativo do usuário, quando a regra de domínio permitir.
 
-## Estado
+## Entrada
 
-Este fluxo ainda não deve antecipar detalhes de implementação.
+Recebe apenas o `id` da transaction por path param.
 
-A documentação do fluxo deve ser preenchida quando o caso de uso for implementado.
+`userId` vem da sessão autenticada.
 
-Quem implementar o fluxo deve documentar:
+## Fluxo
 
-- entrada esperada;
-- validações executadas;
-- bloqueio de delete para `TRANSFER`;
-- comportamento para `PENDING`;
-- comportamento para `EFFECTIVE`;
-- impacto em saldo atual;
-- impacto em saldo previsto;
-- impacto em relatórios;
-- estratégia interna de persistência;
-- erros possíveis;
-- resposta esperada.
+1. Use case busca transaction não deletada do usuário.
+2. Entidade valida se a transaction pode ser deletada.
+3. Entidade preenche `deletedAt`.
+4. Repository salva a transaction.
+5. Controller responde `204 No Content`.
 
-## Regras Já Definidas
+## Regras
 
-A implementação deve respeitar [Transaction deletion](../concepts/transaction-deletion.md), [Transactions can be deleted](../decisions/transactions-can-be-deleted.md) e os invariants do domínio.
+- `TRANSFER` não pode ser deletada na V0.
+- `PENDING` deletada sai de pendências e projeções.
+- `EFFECTIVE` deletada deixa de afetar saldo atual.
+- Delete é comportamento de produto; internamente usa `deletedAt`.
+
+## Erros
+
+Principais codes:
+
+- `TRANSACTION_NOT_FOUND`;
+- `TRANSACTION_CANNOT_DELETE_TRANSFER`.

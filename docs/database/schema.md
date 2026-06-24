@@ -23,7 +23,7 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 | `users`           | Identidade principal do usuário dentro do sistema.                                  |
 | `auth_providers`  | Formas de autenticação vinculadas a um usuário, como `EMAIL` e `GOOGLE`.            |
 | `accounts`        | Contas financeiras do usuário, como `CASH`, `BANK`, `CREDIT_CARD` e `INVESTMENT`.   |
-| `categories`      | Categorias financeiras de receita/despesa do usuário.                               |
+| `categories`      | Categorias financeiras e técnicas do usuário, incluindo receita, despesa, transferência, ajuste e investimento. |
 | `transactions`    | Movimentações financeiras registradas para usuário, conta e categoria.              |
 | `assets`          | Metadados e ciclo de vida dos objetos armazenados no Object Storage.                 |
 | `outbox_messages` | Mensagens do transactional outbox para publicar eventos de domínio com resiliência. |
@@ -34,8 +34,8 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 - `created_at` registra criação da linha.
 - `updated_at` é atualizado pela função `set_updated_at()` via trigger nas tabelas criadas pelas migrations.
 - Dados multi-tenant são sempre ligados a `user_id`.
-- Soft delete legado usa `is_active` e `deactivated_at`.
-- Arquivamento de account usa `is_archived`, não `is_active`.
+- Soft delete de transactions usa `deleted_at`.
+- Arquivamento de cadastros usa `is_archived`/`archived_at` em `accounts` e `categories`.
 
 ## `users`
 
@@ -177,7 +177,9 @@ Representa uma conta financeira do usuário. O saldo não é persistido aqui; el
 
 ## `categories`
 
-Representa categorias financeiras do usuário. Ainda é uma tabela de produto inicial/legada, mas já define a separação entre receita e despesa.
+Representa categorias financeiras do usuário. Categorias classificam transactions e carregam semântica financeira, como receita, despesa, transferência, ajuste ou investimento.
+
+Mesmo categorias técnicas pertencem a um usuário. Isso mantém isolamento multi-tenant simples e evita registros globais compartilhados.
 
 ### Colunas
 
@@ -185,15 +187,19 @@ Representa categorias financeiras do usuário. Ainda é uma tabela de produto in
 | --- | --- | --- | --- |
 | `id` | `uuid` | `default gen_random_uuid()` | Identificador da categoria. |
 | `user_id` | `uuid` | `not null` | Dono da categoria. |
-| `name` | `varchar(255)` | `not null` | Nome canônico usado para busca e agrupamento. |
-| `label` | `varchar(255)` | `not null` | Rótulo exibido para o usuário. |
+| `name` | `varchar(255)` | `not null` | Nome canônico normalizado usado para busca, agrupamento e unicidade. Exemplo: `alimentacao`. |
+| `display_name` | `varchar(255)` | `not null` | Nome exibido para o usuário, preservando acento, espaços e capitalização. Exemplo: `Alimentação`. |
 | `description` | `text` | `nullable` | Descrição opcional da categoria. |
-| `type` | `varchar(20)` | `not null` | Tipo financeiro: `INCOME` ou `EXPENSE`. |
-| `icon` | `varchar(100)` | `nullable` | Ícone visual da categoria. |
+| `type` | `varchar(20)` | `not null` | Tipo financeiro: `INCOME`, `EXPENSE`, `TRANSFER`, `ADJUSTMENT` ou `INVESTMENT`. |
+| `color_token` | `varchar(30)` | `nullable` | Token visual oficial de cor validado pela aplicação. Não salva hexadecimal livre. |
+| `icon_key` | `varchar(50)` | `nullable` | Token visual oficial de ícone validado pela aplicação. Não salva SVG nem nome de componente do frontend. |
+| `is_system` | `boolean` | `not null default false` | Indica categoria estrutural do sistema, como categorias técnicas `TRANSFER` e `ADJUSTMENT`. |
+| `include_in_reports` | `boolean` | `not null default true` | Define se a categoria gerenciável entra em relatórios agregados. Não altera a semântica técnica de `TRANSFER`/`ADJUSTMENT`. |
+| `is_archived` | `boolean` | `not null default false` | Indica se a categoria foi arquivada e não deve aparecer nem ser usada por padrão. |
+| `archived_at` | `timestamptz` | `nullable` | Momento de arquivamento quando `is_archived = true`. |
+| `sort_order` | `integer` | `not null default 0` | Ordem estável para apresentação e organização no frontend. |
 | `created_at` | `timestamptz` | `not null default now()` | Quando a categoria foi criada. |
 | `updated_at` | `timestamptz` | `not null default now()` | Última atualização da categoria. |
-| `is_active` | `boolean` | `not null default true` | Soft delete legado: define se a categoria está ativa. |
-| `deactivated_at` | `timestamptz` | `nullable` | Momento de desativação quando `is_active = false`. |
 
 ### Constraints
 
@@ -201,16 +207,21 @@ Representa categorias financeiras do usuário. Ainda é uma tabela de produto in
 | --- | --- | --- | --- |
 | `PK_categories` | primary key | `id` | Garante identidade única da categoria. |
 | `FK_categories_user` | foreign key | `user_id -> users.id ON DELETE CASCADE` | Garante que toda categoria pertença a um usuário existente. |
-| `CHK_categories_type` | check | `type IN ('INCOME', 'EXPENSE')` | Impede categorias fora dos tipos financeiros suportados. |
-| `CHK_categories_deactivation` | check | `(is_active = true AND deactivated_at IS NULL) OR (is_active = false AND deactivated_at IS NOT NULL)` | Mantém coerência entre estado ativo e data de desativação. |
+| `CHK_categories_type` | check | `type IN ('INCOME', 'EXPENSE', 'TRANSFER', 'ADJUSTMENT', 'INVESTMENT')` | Impede categorias fora dos tipos financeiros suportados pelo domínio atual. |
+| `CHK_categories_name_normalized` | check | `name ~ '^[a-z]+(-[a-z]+)*$'` | Garante que o nome canônico esteja normalizado para busca e unicidade. |
+| `CHK_categories_display_name_not_empty` | check | `length(btrim(display_name)) > 0` | Impede rótulo vazio ou composto só por espaços. |
+| `CHK_categories_color_token_not_empty` | check | `color_token IS NULL OR length(btrim(color_token)) > 0` | Impede token de cor vazio quando informado. |
+| `CHK_categories_icon_key_not_empty` | check | `icon_key IS NULL OR length(btrim(icon_key)) > 0` | Impede token de ícone vazio quando informado. |
+| `CHK_categories_sort_order` | check | `sort_order >= 0` | Mantém ordem de apresentação como inteiro não negativo. |
+| `CHK_categories_archive_state` | check | `(is_archived = false AND archived_at IS NULL) OR (is_archived = true AND archived_at IS NOT NULL)` | Mantém coerência entre estado arquivado e momento de arquivamento. |
 
 ### Índices
 
 | Nome | Colunas/filtro | Utilidade |
 | --- | --- | --- |
-| `idx_categories_user_name_type_active` | `(user_id, name, type) WHERE is_active = true` | Busca categoria ativa por usuário, nome e tipo. |
-| `idx_categories_user_type` | `(user_id, type) WHERE is_active = true` | Lista categorias ativas por tipo financeiro. |
-| `idx_categories_user_active` | `user_id WHERE is_active = true` | Lista categorias ativas de um usuário. |
+| `UQ_categories_user_type_name_not_archived` | `(user_id, type, name) WHERE is_archived = false`, unique | Garante que não existam duas categorias não arquivadas com mesmo nome canônico e tipo para o mesmo usuário. |
+| `idx_categories_user_type_not_archived` | `(user_id, type) WHERE is_archived = false` | Lista categorias não arquivadas por usuário e tipo. |
+| `idx_categories_user_not_archived` | `user_id WHERE is_archived = false` | Otimiza a listagem padrão de categorias visíveis/não arquivadas. |
 
 ### Triggers
 
@@ -218,9 +229,20 @@ Representa categorias financeiras do usuário. Ainda é uma tabela de produto in
 | --- | --- | --- |
 | `trg_categories_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente em updates. |
 
+Mais detalhes de domínio estão em [Categories](../categories/README.md).
+
 ## `transactions`
 
-Representa movimentações financeiras. Cada transação pertence a um usuário, uma account e uma categoria.
+Representa lançamentos financeiros do usuário. Cada transaction pertence a um usuário, usa uma categoria e impacta uma ou duas accounts dependendo do tipo.
+
+O schema atual sustenta quatro tipos de lançamento:
+
+- `INCOME`: entrada de dinheiro;
+- `EXPENSE`: saída de dinheiro;
+- `TRANSFER`: movimentação interna entre duas accounts do próprio usuário;
+- `ADJUSTMENT`: correção técnica de saldo.
+
+Transactions pendentes não afetam saldo atual. Apenas transactions `EFFECTIVE` e não deletadas entram nos cálculos de saldo corrente.
 
 ### Colunas
 
@@ -228,15 +250,19 @@ Representa movimentações financeiras. Cada transação pertence a um usuário,
 | --- | --- | --- | --- |
 | `id` | `uuid` | `default gen_random_uuid()` | Identificador da transação. |
 | `user_id` | `uuid` | `not null` | Dono da transação. |
-| `account_id` | `uuid` | `not null` | Conta afetada pela transação. |
+| `account_id` | `uuid` | `not null` | Account principal da transaction. Para `TRANSFER`, é a account de origem. |
+| `destination_account_id` | `uuid` | `nullable` | Account de destino quando `type = TRANSFER`. Deve ser nula nos demais tipos. |
 | `category_id` | `uuid` | `not null` | Categoria usada para classificar a transação. |
-| `amount` | `numeric(10,2)` | `not null` | Valor positivo da movimentação. O sinal financeiro vem da categoria/tipo de fluxo, não do número negativo. |
-| `date` | `date` | `not null default NOW()` | Data financeira da transação. |
-| `description` | `text` | `nullable` | Descrição opcional. |
+| `type` | `varchar(20)` | `not null` | Natureza financeira: `INCOME`, `EXPENSE`, `TRANSFER` ou `ADJUSTMENT`. |
+| `status` | `varchar(20)` | `not null` | Estado financeiro: `PENDING` ou `EFFECTIVE`. |
+| `amount_cents` | `bigint` | `not null` | Valor absoluto em centavos. Exemplo: R$ 19,20 é salvo como `1920`. |
+| `date` | `date` | `not null default CURRENT_DATE` | Data financeira principal usada para histórico, filtros e ordenação. |
+| `effective_at` | `timestamptz` | `nullable` | Momento em que a transaction deixou de ser previsão e passou a ser realidade financeira. |
+| `description` | `text` | `nullable` | Descrição opcional. Para `ADJUSTMENT`, funciona como motivo obrigatório do ajuste. |
+| `direction` | `varchar(20)` | `nullable` | Direção do ajuste: `INCREASE` ou `DECREASE`. Só pode existir quando `type = ADJUSTMENT`. |
+| `deleted_at` | `timestamptz` | `nullable` | Soft delete do lançamento. Quando preenchido, a transaction sai de listagens e cálculos comuns. |
 | `created_at` | `timestamptz` | `not null default now()` | Quando a transação foi criada. |
 | `updated_at` | `timestamptz` | `not null default now()` | Última atualização da transação. |
-| `is_active` | `boolean` | `not null default true` | Soft delete legado: define se a transação está ativa. |
-| `deactivated_at` | `timestamptz` | `nullable` | Momento de desativação quando `is_active = false`. |
 
 ### Constraints
 
@@ -244,26 +270,35 @@ Representa movimentações financeiras. Cada transação pertence a um usuário,
 | --- | --- | --- | --- |
 | `PK_transactions` | primary key | `id` | Garante identidade única da transação. |
 | `FK_transactions_user` | foreign key | `user_id -> users.id ON DELETE CASCADE` | Garante que a transação pertence a um usuário existente. |
-| `FK_transactions_account` | foreign key | `account_id -> accounts.id ON DELETE CASCADE` | Garante que a transação pertence a uma account existente. |
+| `FK_transactions_account` | foreign key | `account_id -> accounts.id ON DELETE RESTRICT` | Garante que a account principal exista e impede apagar account com histórico financeiro. |
+| `FK_transactions_destination_account` | foreign key | `destination_account_id -> accounts.id ON DELETE RESTRICT` | Garante que a account destino exista em transferências e impede apagar account com histórico de destino. |
 | `FK_transactions_category` | foreign key | `category_id -> categories.id ON DELETE NO ACTION` | Impede remover categoria referenciada por transações. |
-| `CHK_transactions_amount` | check | `amount > 0` | Impede valores zero ou negativos. |
-| `CHK_transactions_deactivation` | check | `(is_active = true AND deactivated_at IS NULL) OR (is_active = false AND deactivated_at IS NOT NULL)` | Mantém coerência entre estado ativo e data de desativação. |
+| `CHK_transactions_type` | check | `type IN ('INCOME', 'EXPENSE', 'TRANSFER', 'ADJUSTMENT')` | Impede tipos fora do contrato da V0. |
+| `CHK_transactions_status` | check | `status IN ('PENDING', 'EFFECTIVE')` | Impede estados persistidos fora do contrato da V0. |
+| `CHK_transactions_amount_cents` | check | `amount_cents > 0` | Impede valores zero ou negativos e mantém amount como valor absoluto. |
+| `CHK_transactions_effective_at_status` | check | `PENDING` exige `effective_at IS NULL`; `EFFECTIVE` exige `effective_at IS NOT NULL` | Mantém coerência entre planejamento e realidade financeira. |
+| `CHK_transactions_transfer_destination` | check | `TRANSFER` exige `destination_account_id` preenchida e diferente de `account_id`; outros tipos exigem `destination_account_id IS NULL` | Garante transferência composta em uma linha sem destino inválido. |
+| `CHK_transactions_direction` | check | `ADJUSTMENT` exige `direction IN ('INCREASE', 'DECREASE')`; outros tipos exigem `direction IS NULL` | Mantém direção exclusiva para ajuste de saldo. |
+| `CHK_transactions_adjustment_description` | check | `type <> 'ADJUSTMENT' OR length(btrim(description)) > 0` | Garante motivo/observação em ajustes técnicos. |
+| `CHK_transactions_transfer_not_deleted` | check | `type <> 'TRANSFER' OR deleted_at IS NULL` | Impede soft delete de transferências na V0; correções devem ser feitas por transferência inversa. |
 
 ### Índices
 
 | Nome | Colunas/filtro | Utilidade |
 | --- | --- | --- |
-| `idx_transactions_user_date_id` | `(user_id, date DESC, id DESC) WHERE is_active = true` | Página transações ativas por usuário em ordem cronológica estável. |
-| `idx_transactions_user` | `user_id WHERE is_active = true` | Lista transações ativas por usuário. |
-| `idx_transactions_account` | `account_id WHERE is_active = true` | Calcula/lista histórico ativo por account. |
-| `idx_transactions_category` | `category_id WHERE is_active = true` | Calcula/lista histórico ativo por categoria. |
-| `idx_transactions_user_date` | `(user_id, date) WHERE is_active = true` | Filtra transações ativas por usuário e intervalo/data. |
+| `idx_transactions_user_date_id` | `(user_id, date DESC, id DESC) WHERE deleted_at IS NULL` | Página transactions não deletadas por usuário em ordem cronológica estável. |
+| `idx_transactions_user_status_date` | `(user_id, status, date DESC, id DESC) WHERE deleted_at IS NULL` | Lista pendências/efetivadas por usuário sem varrer histórico deletado. |
+| `idx_transactions_account_effective` | `(user_id, account_id, date) WHERE deleted_at IS NULL AND status = 'EFFECTIVE'` | Calcula saldo e histórico real da account principal. |
+| `idx_transactions_destination_account_effective` | `(user_id, destination_account_id, date) WHERE deleted_at IS NULL AND status = 'EFFECTIVE' AND destination_account_id IS NOT NULL` | Calcula saldo e histórico real quando a account aparece como destino de transferência. |
+| `idx_transactions_category_date` | `(user_id, category_id, date DESC) WHERE deleted_at IS NULL` | Alimenta relatórios/listagens por categoria sem incluir transactions deletadas. |
 
 ### Triggers
 
 | Nome | Função | Utilidade |
 | --- | --- | --- |
 | `trg_transactions_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente em updates. |
+
+Mais detalhes de domínio estão em [Transactions](../transactions/README.md).
 
 ## `assets`
 
@@ -416,5 +451,6 @@ Utilidade:
 - `users.user_name` tem nome de unique diferente entre entidade (`UQ_user_name`) e migration histórica (`UQ_074a1f262efaca6aba16f7ed920`). Isso não muda a regra, mas pode aparecer em futuras gerações de migration.
 - `auth_providers.provider` não tem `CHECK` no banco; a aplicação controla os valores.
 - `auth_providers.password_hash` não tem `CHECK` condicional por provider; a aplicação controla se `EMAIL` exige senha e OAuth não permite senha.
-- `categories` e `transactions` ainda usam `is_active/deactivated_at`, enquanto `accounts` já usa `is_archived`.
-- `transactions.amount` está como `numeric(10,2)`. A regra de domínio financeira do projeto pede cuidado para não usar `number` em cálculo monetário na aplicação.
+- `transactions` usa `amount_cents` como `bigint`; a aplicação deve converter entrada/saída monetária sem usar `number` para cálculo financeiro.
+- O banco protege coerência interna da linha de transaction, mas compatibilidade semântica entre `transaction.type` e `categories.type` ainda deve ser validada na aplicação.
+- O banco protege FKs simples para account/category; ownership multi-tenant entre `transactions.user_id`, accounts e categories ainda deve ser validado na aplicação.
