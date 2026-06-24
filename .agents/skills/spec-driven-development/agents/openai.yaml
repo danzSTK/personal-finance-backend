@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spec Driven Development"
+  short_description: "Padroniza specs vivas por feature"
+  default_prompt: "Use $spec-driven-development para criar ou revisar a spec de uma feature antes de implementar."

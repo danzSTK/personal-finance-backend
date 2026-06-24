@@ -55,6 +55,18 @@ Do not generate full implementation code on the first response unless the user e
 
 When implementing or changing error handling, use the repo skill `platform-errors`. Domain and application errors should be framework-independent and translated to the frontend HTTP contract by a global exception filter.
 
+Use Spec-Driven Development as the default workflow for new features and relevant feature changes. Before coding a feature, use the repo skill `spec-driven-development` and create or update:
+
+```text
+docs/specs/<module>/<feature>/specs/
+├── requirements.md
+├── design.md
+├── tasks.md
+└── decisions.md
+```
+
+`requirements.md`, `design.md`, and `tasks.md` must exist and be reviewed or explicitly approved before implementation starts. During implementation, any business-rule change updates `requirements.md`; any technical design change updates `design.md`; any task scope/order change updates `tasks.md`; and any trade-off or decision is recorded in `decisions.md`.
+
 Each domain module under `api/src/modules/<domain>/` follows this structure:
 
 ```text
