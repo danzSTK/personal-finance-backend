@@ -121,6 +121,20 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | `INVALID_CATEGORY`                     |  `400` | Campo de categoria viola regra de domínio                      |
 | `TECHNICAL_CATEGORY_CANNOT_BE_CREATED` |  `400` | Frontend tentou criar categoria técnica manualmente            |
 
+## Transactions
+
+| Code                                   | Status | Quando                                                           |
+| -------------------------------------- | -----: | ---------------------------------------------------------------- |
+| `INVALID_TRANSACTION`                  |  `400` | Campos violam invariantes do domínio de transactions             |
+| `TRANSACTION_ACCOUNT_UNAVAILABLE`      |  `409` | Account não existe, está arquivada ou não pode ser usada         |
+| `TRANSACTION_ALREADY_EFFECTIVE`        |  `409` | Tentativa de confirmar transaction já efetivada                  |
+| `TRANSACTION_CANNOT_DELETE_TRANSFER`   |  `409` | Frontend tentou deletar `TRANSFER`, que deve ser revertida       |
+| `TRANSACTION_CATEGORY_INCOMPATIBLE`    |  `400` | Category não é compatível com o type da transaction              |
+| `TRANSACTION_CATEGORY_UNAVAILABLE`     |  `409` | Category não existe, está arquivada ou não pode ser usada        |
+| `TRANSACTION_INVALID_STATE_TRANSITION` |  `409` | Transição de estado inválida, como confirmar estado incompatível |
+| `TRANSACTION_NOT_FOUND`                |  `404` | Transaction não existe, foi deletada ou não pertence ao usuário  |
+| `TRANSACTION_UPDATE_EMPTY`             |  `409` | PATCH não trouxe nenhum campo editável                           |
+
 ## Regras Para O Frontend
 
 - Use `code` para decidir UI, fallback e mensagens específicas.

@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: flow
-status: planned
+status: current
 endpoint: POST /transactions
 related:
   - ../concepts/transaction.md
@@ -16,21 +16,51 @@ related:
 
 Cria uma transaction para o usuário autenticado.
 
-## Estado
+## Entrada
 
-Este fluxo ainda não deve antecipar detalhes de implementação.
+O controller recebe:
 
-A documentação do fluxo deve ser preenchida quando o caso de uso for implementado.
+- `accountId`;
+- `destinationAccountId` quando `type = TRANSFER`;
+- `categoryId` quando `type = INCOME` ou `EXPENSE`;
+- `type`;
+- `status`, opcional;
+- `amountCents`;
+- `date`;
+- `description`;
+- `direction` quando `type = ADJUSTMENT`.
 
-Quem implementar o fluxo deve documentar:
+`userId` vem da sessão autenticada.
 
-- entrada esperada;
-- validações executadas;
-- regras de domínio aplicadas;
-- erros possíveis;
-- comportamento transacional;
-- resposta esperada.
+## Fluxo
 
-## Regras Já Definidas
+1. DTO valida formato de entrada.
+2. Controller converte `date` para `Date`.
+3. Use case valida account e destination account pelo usuário autenticado.
+4. Use case valida category gerenciável para `INCOME`/`EXPENSE` ou resolve category técnica para `TRANSFER`/`ADJUSTMENT`.
+5. Use case valida compatibilidade entre transaction type e category type.
+6. Factory cria a entidade de domínio.
+7. Repository persiste a transaction.
+8. Controller retorna `TransactionResponseDto`.
 
-A implementação deve respeitar os conceitos e decisões já documentados em transactions.
+## Regras
+
+- `amountCents` deve ser inteiro positivo.
+- `PENDING` nasce sem `effectiveAt`.
+- `EFFECTIVE` nasce com `effectiveAt`.
+- `TRANSFER` exige origem e destino diferentes.
+- `TRANSFER` usa category técnica resolvida pelo backend.
+- `ADJUSTMENT` exige `direction` e `description`.
+- `ADJUSTMENT` usa category técnica resolvida pelo backend.
+- Category arquivada não pode ser usada.
+- Account arquivada não pode ser usada.
+
+## Erros
+
+Principais codes:
+
+- `VALIDATION_ERROR`;
+- `INVALID_TRANSACTION`;
+- `TRANSACTION_ACCOUNT_UNAVAILABLE`;
+- `TRANSACTION_CATEGORY_UNAVAILABLE`;
+- `TRANSACTION_CATEGORY_INCOMPATIBLE`.
