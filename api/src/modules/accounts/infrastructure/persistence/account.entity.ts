@@ -1,5 +1,5 @@
 import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
-import { Transaction } from '@/entities/transaction.entity';
+import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { UserOrmEntity } from '@/modules/users/infrastructure/persistence/user-orm-entity';
 import {
   Check,
@@ -76,6 +76,6 @@ export class AccountOrmEntity {
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'FK_accounts_user' })
   user: UserOrmEntity;
 
-  @OneToMany(() => Transaction, transaction => transaction.account)
-  transactions: Transaction[];
+  @OneToMany(() => TransactionOrmEntity, transaction => transaction.account)
+  transactions: TransactionOrmEntity[];
 }

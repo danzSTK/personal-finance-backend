@@ -1,5 +1,5 @@
 import { UserStatus } from '@/common/models/enums';
-import { Transaction } from '@/entities/transaction.entity';
+import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
 import { AssetOrmEntity } from '@/modules/assets/infrastructure/persistence/asset-orm.entity';
 import { CategoryOrmEntity } from '@/modules/categories/infrastructure/persistence/model/category.entity';
@@ -88,8 +88,8 @@ export class UserOrmEntity {
   @JoinColumn({ name: 'avatar_asset_id', foreignKeyConstraintName: 'FK_users_avatar_asset' })
   avatarAsset!: AssetOrmEntity | null;
 
-  @OneToMany(() => Transaction, transaction => transaction.user)
-  transactions!: Transaction[];
+  @OneToMany(() => TransactionOrmEntity, transaction => transaction.user)
+  transactions!: TransactionOrmEntity[];
 
   @OneToMany(() => AuthProviderOrmEntity, authProvider => authProvider.user, { cascade: ['insert', 'update'] })
   authProviders!: AuthProviderOrmEntity[];

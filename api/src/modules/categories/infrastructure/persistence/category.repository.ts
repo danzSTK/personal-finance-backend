@@ -1,6 +1,5 @@
 import { CategoryType } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
-import { Transaction } from '@/entities/transaction.entity';
 import { Category } from '@/modules/categories/domain/entities/category.entity';
 import {
   ICategoryRepository,
@@ -9,6 +8,7 @@ import {
 } from '@/modules/categories/domain/repositories/category.repository.interface';
 import { CategoryMapper } from '@/modules/categories/infrastructure/mappers/category.mapper';
 import { CategoryOrmEntity } from '@/modules/categories/infrastructure/persistence/model/category.entity';
+import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -156,6 +156,33 @@ export class CategoryRepository implements ICategoryRepository {
     return CategoryMapper.toDomain(category);
   }
 
+  async findActiveSystemByType(
+    userId: string,
+    type: CategoryType,
+    options?: IRepositoryOptions,
+  ): Promise<Category | null> {
+    const repository = options?.manager ? options.manager.getRepository(CategoryOrmEntity) : this.categoryRepository;
+
+    const category = await repository.findOne({
+      where: {
+        user_id: userId,
+        type,
+        is_system: true,
+        is_archived: false,
+      },
+      order: {
+        sort_order: 'ASC',
+        created_at: 'ASC',
+      },
+    });
+
+    if (!category) {
+      return null;
+    }
+
+    return CategoryMapper.toDomain(category);
+  }
+
   async existsActiveByNameAndType(
     userId: string,
     type: CategoryType,
@@ -183,8 +210,8 @@ export class CategoryRepository implements ICategoryRepository {
 
   async hasTransactions(categoryId: string, userId: string, options?: IRepositoryOptions): Promise<boolean> {
     const repository = options?.manager
-      ? options.manager.getRepository(Transaction)
-      : this.categoryRepository.manager.getRepository(Transaction);
+      ? options.manager.getRepository(TransactionOrmEntity)
+      : this.categoryRepository.manager.getRepository(TransactionOrmEntity);
 
     const count = await repository
       .createQueryBuilder('transaction')
@@ -202,12 +229,12 @@ export class CategoryRepository implements ICategoryRepository {
     options?: IRepositoryOptions,
   ): Promise<void> {
     const repository = options?.manager
-      ? options.manager.getRepository(Transaction)
-      : this.categoryRepository.manager.getRepository(Transaction);
+      ? options.manager.getRepository(TransactionOrmEntity)
+      : this.categoryRepository.manager.getRepository(TransactionOrmEntity);
 
     await repository
       .createQueryBuilder()
-      .update(Transaction)
+      .update(TransactionOrmEntity)
       .set({ category_id: targetCategoryId })
       .where('category_id = :sourceCategoryId', { sourceCategoryId })
       .andWhere('user_id = :userId', { userId })

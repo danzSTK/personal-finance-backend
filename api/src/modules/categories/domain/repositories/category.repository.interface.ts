@@ -40,6 +40,11 @@ export abstract class ICategoryRepository {
     name: string,
     options?: IRepositoryOptions,
   ): Promise<Category | null>;
+  abstract findActiveSystemByType(
+    userId: string,
+    type: CategoryType,
+    options?: IRepositoryOptions,
+  ): Promise<Category | null>;
   abstract existsActiveByNameAndType(
     userId: string,
     type: CategoryType,

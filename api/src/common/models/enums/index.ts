@@ -6,3 +6,6 @@ export * from './app-types.enum';
 export * from './outbox-message-status.enum';
 export * from './color-token.enum';
 export * from './icon-key.enum';
+export * from './transaction-type.enum';
+export * from './transaction-status.enum';
+export * from './transaction-direction.enum';
