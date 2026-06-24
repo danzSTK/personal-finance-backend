@@ -142,6 +142,20 @@ export class CachedCategoryRepository implements ICategoryRepository {
     return categories.find(category => category.name === name) ?? null;
   }
 
+  async findActiveSystemByType(
+    userId: string,
+    type: CategoryType,
+    options?: IRepositoryOptions,
+  ): Promise<Category | null> {
+    if (options?.manager) {
+      return this.categoryRepository.findActiveSystemByType(userId, type, { manager: options.manager });
+    }
+
+    const categories = await this.listByUserIdAndType(userId, type, false);
+
+    return categories.find(category => category.isSystem) ?? null;
+  }
+
   async existsActiveByNameAndType(
     userId: string,
     type: CategoryType,

@@ -1,5 +1,5 @@
 import { CategoryType, ColorToken, IconKey } from '@/common/models/enums';
-import { Transaction } from '@/entities/transaction.entity';
+import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { UserOrmEntity } from '@/modules/users/infrastructure/persistence/user-orm-entity';
 import {
   Check,
@@ -85,6 +85,6 @@ export class CategoryOrmEntity {
   })
   user: UserOrmEntity;
 
-  @OneToMany(() => Transaction, transaction => transaction.category)
-  transactions: Transaction[];
+  @OneToMany(() => TransactionOrmEntity, transaction => transaction.category)
+  transactions: TransactionOrmEntity[];
 }

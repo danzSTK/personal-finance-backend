@@ -1,13 +1,13 @@
 import { AccountType } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
-import { Transaction } from '@/entities/transaction.entity';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
 import { AccountMapper } from '@/modules/accounts/infrastructure/mappers/account.mapper';
+import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 
 @Injectable()
 export class AccountRepository implements IAccountRepository {
@@ -136,15 +136,22 @@ export class AccountRepository implements IAccountRepository {
     options?: IRepositoryOptions,
   ): Promise<boolean> {
     const repository = options?.manager
-      ? options.manager.getRepository(Transaction)
-      : this.accountRepository.manager.getRepository(Transaction);
+      ? options.manager.getRepository(TransactionOrmEntity)
+      : this.accountRepository.manager.getRepository(TransactionOrmEntity);
     const referenceDateAsString = referenceDate.toISOString().slice(0, 10);
 
     const count = await repository
       .createQueryBuilder('transaction')
-      .where('transaction.account_id = :accountId', { accountId })
+      .where(
+        new Brackets(queryBuilder => {
+          queryBuilder
+            .where('transaction.account_id = :accountId', { accountId })
+            .orWhere('transaction.destination_account_id = :accountId', { accountId });
+        }),
+      )
       .andWhere('transaction.user_id = :userId', { userId })
-      .andWhere('transaction.is_active = true')
+      .andWhere('transaction.deleted_at IS NULL')
+      .andWhere('transaction.status = :status', { status: 'PENDING' })
       .andWhere('transaction.date > :referenceDateAsString', { referenceDateAsString })
       .getCount();
 
