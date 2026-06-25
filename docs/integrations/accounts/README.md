@@ -46,12 +46,17 @@ Detalhes: [Default CASH provisioning](./default-cash-provisioning.md).
   "id": "5f6b18c6-1fd9-4e8f-99a8-4a7b65ef56e2",
   "name": "Nubank",
   "type": "BANK",
-  "initialBalance": 1000,
+  "initialBalanceCents": 100000,
   "color": "blue",
   "icon": "landmark",
   "includeInTotal": true,
   "isArchived": false,
   "isDefault": true,
+  "balance": {
+    "currentCents": 125000,
+    "projectedCents": 98000,
+    "projectedUntil": "2026-06-30"
+  },
   "createdAt": "2026-05-02T20:00:00.000Z",
   "updatedAt": "2026-05-02T20:00:00.000Z"
 }

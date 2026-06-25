@@ -30,7 +30,7 @@ Se a lista ainda estiver vazia, mostre um estado de carregamento curto e tente n
 {
   "name": "Carteira",
   "type": "CASH",
-  "initialBalance": 0,
+  "initialBalanceCents": 0,
   "color": null,
   "icon": null,
   "includeInTotal": true,

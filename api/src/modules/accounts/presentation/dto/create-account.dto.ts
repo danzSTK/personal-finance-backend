@@ -1,16 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsEnum,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-  MinLength,
-} from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { ACCOUNT_NAME_MAX_LENGTH, ACCOUNT_NAME_MIN_LENGTH } from '@/common/models/constants';
 import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 
@@ -26,12 +16,12 @@ export class CreateAccountDto {
   @IsEnum(AccountType)
   type: AccountType;
 
-  @ApiPropertyOptional({ example: 1000.5, default: 0 })
+  @ApiPropertyOptional({ example: 100050, default: 0, description: 'Saldo inicial em centavos' })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(0)
   @IsOptional()
-  initialBalance?: number;
+  initialBalanceCents?: number;
 
   @ApiPropertyOptional({ enum: ColorToken, example: ColorToken.BLUE })
   @IsOptional()

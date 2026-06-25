@@ -138,7 +138,7 @@ Categoria técnica de ajuste.
 
 Usada quando o usuário precisa corrigir saldo por uma transaction de ajuste, especialmente depois que a account já possui movimentações.
 
-Importante: `initialBalance` de account não precisa de categoria enquanto a conta ainda não teve movimentação. `initialBalance` é ponto de abertura da conta. Ajustes posteriores devem ser transactions técnicas com categoria `ADJUSTMENT`.
+Importante: `initialBalanceCents` de account não precisa de categoria enquanto a conta ainda não teve movimentação. `initialBalanceCents` é ponto de abertura da conta. Ajustes posteriores devem ser transactions técnicas com categoria `ADJUSTMENT`.
 
 Categorias `ADJUSTMENT` seguem a mesma proteção de `TRANSFER`.
 

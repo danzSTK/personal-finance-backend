@@ -17,7 +17,7 @@ Campos principais:
 - `userId`: dono da account.
 - `name`: nome exibido ao usuário.
 - `type`: tipo da account.
-- `initialBalance`: saldo inicial usado no cálculo derivado.
+- `initialBalanceCents`: saldo inicial usado no cálculo derivado.
 - `color` e `icon`: customização visual.
 - `includeInTotal`: define se entra nos totais agregados.
 - `isArchived`: remove a account da listagem padrão.

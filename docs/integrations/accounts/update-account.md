@@ -36,7 +36,7 @@ Envie pelo menos um campo editável.
 | `icon` | `IconKey \| null` | `null` remove o ícone; caso informado, deve ser token oficial |
 | `includeInTotal` | `boolean` | Define se entra em totais agregados; não aceita `null` |
 
-`initialBalance` não é editado por este endpoint.
+`initialBalanceCents` não é editado por este endpoint.
 
 ## Regras
 
@@ -53,7 +53,7 @@ Envie pelo menos um campo editável.
   "id": "5f6b18c6-1fd9-4e8f-99a8-4a7b65ef56e2",
   "name": "Conta principal",
   "type": "BANK",
-  "initialBalance": 1000,
+  "initialBalanceCents": 100000,
   "color": "blue",
   "icon": "landmark",
   "includeInTotal": true,

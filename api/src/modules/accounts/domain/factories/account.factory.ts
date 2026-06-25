@@ -6,7 +6,7 @@ interface CreateManualAccountInput {
   userId: string;
   name: string;
   type: AccountType;
-  initialBalance?: number;
+  initialBalanceCents?: number;
   color?: ColorToken | null;
   icon?: IconKey | null;
   includeInTotal?: boolean;
@@ -21,7 +21,7 @@ export class AccountFactory {
         userId: data.userId,
         name: data.name,
         type: data.type,
-        initialBalance: data.initialBalance ?? 0,
+        initialBalanceCents: data.initialBalanceCents ?? 0,
         color: data.color ?? null,
         icon: data.icon ?? null,
         includeInTotal: data.includeInTotal ?? true,
@@ -42,7 +42,7 @@ export class AccountFactory {
         userId,
         name: 'Carteira',
         type: AccountType.CASH,
-        initialBalance: 0,
+        initialBalanceCents: 0,
         color: null,
         icon: null,
         includeInTotal: true,

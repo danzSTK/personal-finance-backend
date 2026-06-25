@@ -132,7 +132,7 @@ Representa um método de autenticação vinculado a um usuário. Um usuário pod
 
 ## `accounts`
 
-Representa uma conta financeira do usuário. O saldo não é persistido aqui; ele é derivado de `initial_balance + receitas - despesas`.
+Representa uma conta financeira do usuário. O saldo não é persistido aqui; ele é derivado de `initial_balance_cents + impactos de transactions`.
 
 ### Colunas
 
@@ -142,7 +142,7 @@ Representa uma conta financeira do usuário. O saldo não é persistido aqui; el
 | `user_id` | `uuid` | `not null` | Dono da account. |
 | `account_type` | `accounts_account_type_enum` | `not null` | Tipo da account: `CASH`, `BANK`, `CREDIT_CARD` ou `INVESTMENT`. |
 | `name` | `varchar(255)` | `not null` | Nome exibido para o usuário. |
-| `initial_balance` | `numeric(10,2)` | `not null default 0.00` | Saldo inicial usado no cálculo derivado do saldo. |
+| `initial_balance_cents` | `bigint` | `not null default 0` | Saldo inicial em centavos usado no cálculo derivado do saldo. |
 | `color` | `varchar(20)` | `nullable` | Cor visual da account. |
 | `icon` | `varchar(100)` | `nullable` | Ícone visual da account. |
 | `include_in_total` | `boolean` | `not null default true` | Define se a conta entra em totais e relatórios agregados. |
@@ -159,6 +159,7 @@ Representa uma conta financeira do usuário. O saldo não é persistido aqui; el
 | `FK_accounts_user` | foreign key | `user_id -> users.id ON DELETE CASCADE` | Garante que toda account pertença a um usuário existente. |
 | `CHK_accounts_type` | check | `account_type IN ('CASH', 'BANK', 'CREDIT_CARD', 'INVESTMENT')` | Protege o domínio contra tipos fora do contrato. |
 | `CHK_accounts_default_not_archived` | check | `NOT (is_default = true AND is_archived = true)` | Impede que uma account arquivada continue marcada como default. |
+| `CHK_accounts_initial_balance_cents` | check | `initial_balance_cents >= 0` | Impede saldo inicial negativo. |
 
 ### Índices
 

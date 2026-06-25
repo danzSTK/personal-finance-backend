@@ -48,7 +48,7 @@ Transactions com status `PENDING` devem ser ignoradas no cálculo de saldo atual
 Regra esperada:
 
 ```text
-currentBalance = initialBalance + effective transactions
+currentBalance = initialBalanceCents + effective transactions
 ```
 
 O cálculo de saldo previsto pode considerar transactions pendentes conforme a regra do produto.

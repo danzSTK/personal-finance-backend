@@ -11,17 +11,30 @@ related:
 
 Saldo de account é um valor derivado do histórico.
 
-Fórmula:
+Fórmula conceitual:
 
 ```text
-initialBalance + receitas - despesas
+initialBalanceCents + impactos de transactions
 ```
 
 ## Regra
 
 O saldo não deve ser persistido como coluna na account.
 
-O `initialBalance` é a entrada inicial do cálculo. A regra planejada é permitir sua edição apenas enquanto a account não tiver movimentação; depois disso, correções devem acontecer via transações ou ajustes financeiros.
+O `initialBalanceCents` é a entrada inicial do cálculo. A regra planejada é permitir sua edição apenas enquanto a account não tiver movimentação; depois disso, correções devem acontecer via transações ou ajustes financeiros.
+
+## Impacto Das Transactions
+
+Para uma account específica:
+
+- `INCOME` efetiva soma valor quando a account é a account da transaction.
+- `EXPENSE` efetiva subtrai valor quando a account é a account da transaction.
+- `TRANSFER` efetiva subtrai valor da account de origem e soma valor na account de destino.
+- `ADJUSTMENT` efetivo soma ou subtrai conforme `direction`.
+
+Transactions `PENDING` não afetam saldo atual. Elas podem entrar em projeções quando a leitura solicitar uma data limite.
+
+Transactions deletadas não afetam saldo atual nem projeções.
 
 ## Snapshot
 

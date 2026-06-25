@@ -30,7 +30,7 @@ Nesse caso, o usuário precisa aplicar uma correção de R$ 20.
 ## Motivos
 
 - Preserva histórico de correções.
-- Evita alterar `initialBalance` depois que a account já possui movimentação.
+- Evita alterar `initialBalanceCents` depois que a account já possui movimentação.
 - Mantém o saldo derivado do histórico.
 - Permite rastrear por que o saldo foi corrigido.
 - Evita tratar correção como receita ou despesa comum.
@@ -39,7 +39,7 @@ Nesse caso, o usuário precisa aplicar uma correção de R$ 20.
 
 O saldo da account deve continuar sendo derivado.
 
-Depois que uma account possui movimentação, correções não devem ser feitas alterando `initialBalance`.
+Depois que uma account possui movimentação, correções não devem ser feitas alterando `initialBalanceCents`.
 
 A correção deve entrar no histórico como uma transaction técnica.
 

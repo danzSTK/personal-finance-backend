@@ -19,7 +19,7 @@ export interface AccountProps {
   userId: string;
   name: string;
   type: AccountType;
-  initialBalance: number;
+  initialBalanceCents: number;
   color: ColorToken | null;
   icon: IconKey | null;
   includeInTotal: boolean;
@@ -47,8 +47,8 @@ export class Account {
     return this.props.type;
   }
 
-  get initialBalance(): number {
-    return this.props.initialBalance;
+  get initialBalanceCents(): number {
+    return this.props.initialBalanceCents;
   }
 
   get color(): ColorToken | null {
@@ -201,6 +201,10 @@ export class Account {
   }
 
   static create(props: AccountProps, id: string): Account {
+    if (!Number.isSafeInteger(props.initialBalanceCents) || props.initialBalanceCents < 0) {
+      throw new InvalidAccountError('Initial balance cents must be a non-negative safe integer.');
+    }
+
     return new Account(props, id);
   }
 

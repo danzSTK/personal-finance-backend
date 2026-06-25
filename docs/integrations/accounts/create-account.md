@@ -19,7 +19,7 @@ POST /accounts
 {
   "name": "Nubank",
   "type": "BANK",
-  "initialBalance": 1000,
+  "initialBalanceCents": 100000,
   "color": "purple",
   "icon": "credit-card",
   "includeInTotal": true,
@@ -33,7 +33,7 @@ POST /accounts
 |---|---|---:|---|
 | `name` | `string` | sim | Nome exibido ao usuário; mínimo 3 e máximo 255 caracteres |
 | `type` | `BANK \| CREDIT_CARD \| INVESTMENT` | sim | Tipo da account criada pelo usuário |
-| `initialBalance` | `number` | não | Default `0` quando omitido; não aceita valor negativo |
+| `initialBalanceCents` | `number` | não | Saldo inicial em centavos; default `0` quando omitido; não aceita valor negativo |
 | `color` | `ColorToken \| null` | não | Token oficial de cor; use catálogo de metadata |
 | `icon` | `IconKey \| null` | não | Token oficial de ícone; use catálogo de metadata |
 | `includeInTotal` | `boolean` | não | Default `true`; define se entra em totais agregados |
@@ -46,7 +46,7 @@ POST /accounts
   "id": "5f6b18c6-1fd9-4e8f-99a8-4a7b65ef56e2",
   "name": "Nubank",
   "type": "BANK",
-  "initialBalance": 1000,
+  "initialBalanceCents": 100000,
   "color": "purple",
   "icon": "credit-card",
   "includeInTotal": true,
