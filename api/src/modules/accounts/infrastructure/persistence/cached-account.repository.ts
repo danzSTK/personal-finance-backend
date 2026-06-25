@@ -12,7 +12,7 @@ interface CachedAccount {
   userId: string;
   name: string;
   type: AccountType;
-  initialBalance: number;
+  initialBalanceCents: number;
   color: ColorToken | null;
   icon: IconKey | null;
   includeInTotal: boolean;
@@ -166,7 +166,7 @@ export class CachedAccountRepository implements IAccountRepository {
       userId: account.userId,
       name: account.name,
       type: account.type,
-      initialBalance: account.initialBalance,
+      initialBalanceCents: account.initialBalanceCents,
       color: account.color,
       icon: account.icon,
       includeInTotal: account.includeInTotal,
@@ -183,7 +183,7 @@ export class CachedAccountRepository implements IAccountRepository {
         userId: cached.userId,
         name: cached.name,
         type: cached.type,
-        initialBalance: cached.initialBalance,
+        initialBalanceCents: cached.initialBalanceCents,
         color: cached.color,
         icon: cached.icon,
         includeInTotal: cached.includeInTotal,

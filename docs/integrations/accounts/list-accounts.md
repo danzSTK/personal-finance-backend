@@ -20,11 +20,12 @@ Por padrão, accounts arquivadas não aparecem.
 | Campo | Tipo | Default | Observação |
 |---|---|---|---|
 | `includeArchived` | `boolean` | `false` | Quando `true`, inclui accounts arquivadas |
+| `projectedUntil` | `YYYY-MM-DD` | - | Quando enviado, retorna `balance.projectedCents` até esta data |
 
 ## Exemplo
 
 ```http
-GET /accounts?includeArchived=true
+GET /accounts?includeArchived=true&projectedUntil=2026-06-30
 ```
 
 ## Resposta
@@ -35,17 +36,30 @@ GET /accounts?includeArchived=true
     "id": "5f6b18c6-1fd9-4e8f-99a8-4a7b65ef56e2",
     "name": "Carteira",
     "type": "CASH",
-    "initialBalance": 0,
+    "initialBalanceCents": 0,
     "color": null,
     "icon": null,
     "includeInTotal": true,
     "isArchived": false,
     "isDefault": true,
+    "balance": {
+      "currentCents": 125000,
+      "projectedCents": 98000,
+      "projectedUntil": "2026-06-30"
+    },
     "createdAt": "2026-05-02T20:00:00.000Z",
     "updatedAt": "2026-05-02T20:00:00.000Z"
   }
 ]
 ```
+
+## Balance
+
+`balance.currentCents` é o saldo atual da account em centavos.
+
+`balance.projectedCents` só aparece quando `projectedUntil` é enviado. Ele é uma projeção até a data informada, considerando pendências com `date <= projectedUntil`.
+
+O frontend decide se a leitura será exibida como saldo histórico, saldo previsto ou projeção conforme a data enviada.
 
 ## Ordenação
 

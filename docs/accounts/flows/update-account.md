@@ -35,4 +35,4 @@ Atualiza campos editáveis de uma account.
 ## Regras Planejadas
 
 - `CASH` só poderá alterar nome, cor, ícone e `includeInTotal`.
-- `initialBalance` deve ser editável apenas enquanto não existir movimentação.
+- `initialBalanceCents` deve ser editável apenas enquanto não existir movimentação.

@@ -8,7 +8,9 @@ import { ArchiveAccountUseCase } from './application/use-cases/archive-account/a
 import { CreateAccountUseCase } from './application/use-cases/create-account/create-account.use-case';
 import { ListAccountsUseCase } from './application/use-cases/list-accounts/list-accounts.use-case';
 import { SetDefaultAccountUseCase } from './application/use-cases/set-default-account/set-default-account.use-case';
+import { IAccountBalanceRepository } from './domain/repositories/account-balance.repository.interface';
 import { IAccountRepository } from './domain/repositories/account.repository.interface';
+import { AccountBalanceRepository } from './infrastructure/persistence/account-balance.repository';
 import { AccountRepository } from './infrastructure/persistence/account.repository';
 import { AccountsController } from './presentation/http/accounts.controller';
 import { CreateDefaultAccountUseCase } from '@/modules/accounts/application/use-cases/create-default-account/create-default-account.use-case';
@@ -21,6 +23,10 @@ import { ProvisionDefaultAccountOnUserHandler } from '@/modules/accounts/applica
     {
       provide: IAccountRepository,
       useClass: CachedAccountRepository,
+    },
+    {
+      provide: IAccountBalanceRepository,
+      useClass: AccountBalanceRepository,
     },
     AccountRepository,
     CreateAccountUseCase,

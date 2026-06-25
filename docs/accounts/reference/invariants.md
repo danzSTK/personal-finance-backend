@@ -29,4 +29,4 @@ related:
 - Delete só será permitido sem qualquer movimentação ou vínculo financeiro.
 - Saldo será sempre derivado do histórico.
 - Transferências entre accounts serão neutras e atômicas.
-- `initialBalance` será editável apenas antes da primeira movimentação ou vínculo financeiro.
+- `initialBalanceCents` será editável apenas antes da primeira movimentação ou vínculo financeiro.

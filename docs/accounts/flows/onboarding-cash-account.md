@@ -27,6 +27,6 @@ Essa account:
 - existe para garantir uma account estrutural mínima;
 - não pode ser criada manualmente depois.
 - é a primeira e default do usuário;
-- é criada com nome `Carteira`, `initialBalance` `0` e `includeInTotal=true`.
+- é criada com nome `Carteira`, `initialBalanceCents` `0` e `includeInTotal=true`.
 
 No onboarding, essa account já deve existir. Se futuramente coletarmos dados de personalização, eles devem atualizar os defaults; o sistema não deve bloquear o uso se o usuário não responder essa etapa.

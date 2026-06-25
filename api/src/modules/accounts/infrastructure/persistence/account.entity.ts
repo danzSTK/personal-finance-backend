@@ -26,6 +26,7 @@ import {
 })
 @Check('CHK_accounts_type', `"account_type" IN ('CASH', 'BANK', 'CREDIT_CARD', 'INVESTMENT')`)
 @Check('CHK_accounts_default_not_archived', `NOT (is_default = true AND is_archived = true)`)
+@Check('CHK_accounts_initial_balance_cents', `"initial_balance_cents" >= 0`)
 export class AccountOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -40,16 +41,14 @@ export class AccountOrmEntity {
   name: string;
 
   @Column({
-    type: 'numeric',
-    precision: 10,
-    scale: 2,
-    default: '0.00',
+    type: 'bigint',
+    default: 0,
     transformer: {
       to: (value: number) => value.toString(),
-      from: (value: string) => parseFloat(value),
+      from: (value: string) => Number(value),
     },
   })
-  initial_balance: number;
+  initial_balance_cents: number;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   color: ColorToken | null;

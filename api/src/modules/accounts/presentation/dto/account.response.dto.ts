@@ -1,6 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AccountType } from '@/common/models/enums/account-type.enum';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
+import { AccountBalanceSummary } from '@/modules/accounts/domain/repositories/account-balance.repository.interface';
+
+class AccountBalanceResponseDto {
+  @ApiProperty()
+  currentCents: number;
+
+  @ApiProperty({ required: false })
+  projectedCents?: number;
+
+  @ApiProperty({ required: false, format: 'date' })
+  projectedUntil?: string;
+}
 
 export class AccountResponseDto {
   @ApiProperty()
@@ -13,7 +25,7 @@ export class AccountResponseDto {
   type: AccountType;
 
   @ApiProperty()
-  initialBalance: number;
+  initialBalanceCents: number;
 
   @ApiProperty({ nullable: true })
   color: string | null;
@@ -30,18 +42,21 @@ export class AccountResponseDto {
   @ApiProperty()
   isDefault: boolean;
 
+  @ApiProperty({ type: AccountBalanceResponseDto, required: false })
+  balance?: AccountBalanceResponseDto;
+
   @ApiProperty({ format: 'date-time' })
   createdAt: Date;
 
   @ApiProperty({ format: 'date-time' })
   updatedAt: Date;
 
-  static fromDomain(account: Account): AccountResponseDto {
+  static fromDomain(account: Account, balance?: AccountBalanceSummary): AccountResponseDto {
     return {
       id: account.id,
       name: account.name,
       type: account.type,
-      initialBalance: account.initialBalance,
+      initialBalanceCents: account.initialBalanceCents,
       color: account.color,
       icon: account.icon,
       includeInTotal: account.includeInTotal,
@@ -49,6 +64,15 @@ export class AccountResponseDto {
       isDefault: account.isDefault,
       createdAt: account.createdAt,
       updatedAt: account.updatedAt,
+      balance: balance ? AccountResponseDto.toBalanceResponse(balance) : undefined,
+    };
+  }
+
+  private static toBalanceResponse(balance: AccountBalanceSummary): AccountBalanceResponseDto {
+    return {
+      currentCents: balance.currentCents,
+      projectedCents: balance.projectedCents,
+      projectedUntil: balance.projectedUntil?.toISOString().slice(0, 10),
     };
   }
 }
