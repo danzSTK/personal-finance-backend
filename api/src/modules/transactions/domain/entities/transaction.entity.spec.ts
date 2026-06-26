@@ -17,8 +17,14 @@ describe('Transaction', () => {
     const transaction = createTransaction();
 
     expect(transaction.amountCents).toBe(1990);
+    expect(transaction.date).toBe('2026-06-23');
     expect(transaction.status).toBe(TransactionStatus.EFFECTIVE);
     expect(transaction.effectiveAt).toBeInstanceOf(Date);
+  });
+
+  it('rejects invalid date-only strings', () => {
+    expect(() => createTransaction({ date: '2026-02-31' })).toThrow(InvalidTransactionError);
+    expect(() => createTransaction({ date: '2026-6-3' })).toThrow(InvalidTransactionError);
   });
 
   it('rejects zero or negative amount cents', () => {
@@ -106,7 +112,7 @@ describe('Transaction', () => {
         type: TransactionType.EXPENSE,
         status,
         amountCents: 1990,
-        date: new Date('2026-06-23T00:00:00.000Z'),
+        date: '2026-06-23',
         effectiveAt: status === TransactionStatus.EFFECTIVE ? now : null,
         description: 'Mercado',
         direction: null,

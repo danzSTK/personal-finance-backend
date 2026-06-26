@@ -62,6 +62,14 @@ Para `INCOME` e `EXPENSE`, envie `categoryId` de uma category gerenciável retor
 
 Para `TRANSFER` e `ADJUSTMENT`, não envie `categoryId`: o backend resolve a category técnica do usuário automaticamente.
 
+## Datas
+
+`date` é `DateOnly`: envie como string `YYYY-MM-DD`.
+
+Não converta `date` para datetime antes de enviar. `2026-06-28` deve ser enviado exatamente como `"2026-06-28"`.
+
+Campos como `effectiveAt`, `createdAt` e `updatedAt` são instantes UTC retornados pelo backend.
+
 ## Response
 
 `201 Created`

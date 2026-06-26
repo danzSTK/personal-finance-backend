@@ -5,6 +5,7 @@ status: draft
 related:
   - ./transaction.md
   - ./transaction-status.md
+  - ../../platform/dates-and-times.md
 ---
 
 # Transaction Date
@@ -34,6 +35,10 @@ Nesse caso:
 
 Ela indica quando o lançamento aconteceu ou quando está previsto para acontecer.
 
+`date` é um `DateOnly`: uma data civil no formato `YYYY-MM-DD`, sem hora e sem timezone.
+
+Ela não deve ser convertida para `Date` JavaScript dentro da aplicação. `2026-06-28` significa o dia `2026-06-28`, não o instante `2026-06-28T00:00:00.000Z`.
+
 Exemplos:
 
 - data da compra;
@@ -47,6 +52,8 @@ Exemplos:
 `effectiveAt` representa quando a transaction foi efetivada.
 
 Ela indica quando o lançamento deixou de ser previsão e passou a ser realidade financeira.
+
+`effectiveAt` é um `Instant`: um momento exato no tempo, salvo como `timestamptz` e exposto como ISO UTC.
 
 Regra:
 

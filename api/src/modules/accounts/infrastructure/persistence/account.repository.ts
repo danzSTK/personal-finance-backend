@@ -1,5 +1,6 @@
 import { AccountType } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
+import { DateOnlyString } from '@/common/utils/date-only';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
 import { AccountMapper } from '@/modules/accounts/infrastructure/mappers/account.mapper';
@@ -132,14 +133,12 @@ export class AccountRepository implements IAccountRepository {
   async hasFutureScheduledTransactions(
     accountId: string,
     userId: string,
-    referenceDate: Date,
+    referenceDate: DateOnlyString,
     options?: IRepositoryOptions,
   ): Promise<boolean> {
     const repository = options?.manager
       ? options.manager.getRepository(TransactionOrmEntity)
       : this.accountRepository.manager.getRepository(TransactionOrmEntity);
-    const referenceDateAsString = referenceDate.toISOString().slice(0, 10);
-
     const count = await repository
       .createQueryBuilder('transaction')
       .where(
@@ -152,7 +151,7 @@ export class AccountRepository implements IAccountRepository {
       .andWhere('transaction.user_id = :userId', { userId })
       .andWhere('transaction.deleted_at IS NULL')
       .andWhere('transaction.status = :status', { status: 'PENDING' })
-      .andWhere('transaction.date > :referenceDateAsString', { referenceDateAsString })
+      .andWhere('transaction.date > :referenceDate', { referenceDate })
       .getCount();
 
     return count > 0;

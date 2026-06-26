@@ -1,9 +1,6 @@
+import { dateOnlyFromDatabase } from '@/common/utils/date-only';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
-
-function toDate(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(`${value}T00:00:00.000Z`);
-}
 
 export class TransactionMapper {
   static toDomain(entity: TransactionOrmEntity): Transaction {
@@ -16,7 +13,7 @@ export class TransactionMapper {
         type: entity.type,
         status: entity.status,
         amountCents: Number(entity.amount_cents),
-        date: toDate(entity.date),
+        date: dateOnlyFromDatabase(entity.date),
         effectiveAt: entity.effective_at,
         description: entity.description,
         direction: entity.direction,

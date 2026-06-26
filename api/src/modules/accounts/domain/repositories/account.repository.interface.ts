@@ -1,5 +1,6 @@
 import { AccountType } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
+import { DateOnlyString } from '@/common/utils/date-only';
 import { Account } from '../entities/account.entity';
 
 export abstract class IAccountRepository {
@@ -16,7 +17,7 @@ export abstract class IAccountRepository {
   abstract hasFutureScheduledTransactions(
     accountId: string,
     userId: string,
-    referenceDate: Date,
+    referenceDate: DateOnlyString,
     options?: IRepositoryOptions,
   ): Promise<boolean>;
 

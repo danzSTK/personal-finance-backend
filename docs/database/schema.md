@@ -33,6 +33,8 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 - `id` usa `uuid` gerado no banco com `gen_random_uuid()`.
 - `created_at` registra criação da linha.
 - `updated_at` é atualizado pela função `set_updated_at()` via trigger nas tabelas criadas pelas migrations.
+- Colunas `date` representam data civil (`DateOnly`) e não devem depender de timezone.
+- Colunas `timestamptz` representam instantes (`Instant`) e devem ser trafegadas em UTC.
 - Dados multi-tenant são sempre ligados a `user_id`.
 - Soft delete de transactions usa `deleted_at`.
 - Arquivamento de cadastros usa `is_archived`/`archived_at` em `accounts` e `categories`.

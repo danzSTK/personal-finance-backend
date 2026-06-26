@@ -1,4 +1,8 @@
-import { TRANSACTION_LIST_DEFAULT_LIMIT, TRANSACTION_LIST_DEFAULT_PAGE } from '@/common/models/constants';
+import {
+  TRANSACTION_LIST_DEFAULT_LIMIT,
+  TRANSACTION_LIST_DEFAULT_PAGE,
+  TRANSACTION_LIST_DEFAULT_SORT,
+} from '@/common/models/constants';
 import {
   ListTransactionsUseCaseInput,
   ListTransactionsUseCaseOutput,
@@ -13,7 +17,8 @@ export class ListTransactionsUseCase {
   async execute(input: ListTransactionsUseCaseInput): Promise<ListTransactionsUseCaseOutput> {
     const page = input.page ?? TRANSACTION_LIST_DEFAULT_PAGE;
     const limit = input.limit ?? TRANSACTION_LIST_DEFAULT_LIMIT;
-    const { items, total } = await this.transactionRepository.list({
+    const sort = input.sort ?? TRANSACTION_LIST_DEFAULT_SORT;
+    const { items, total, summary } = await this.transactionRepository.list({
       userId: input.userId,
       status: input.status,
       type: input.type,
@@ -23,6 +28,7 @@ export class ListTransactionsUseCase {
       dateTo: input.dateTo,
       page,
       limit,
+      sort,
     });
     const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
 
@@ -34,6 +40,7 @@ export class ListTransactionsUseCase {
       totalPages,
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1 && totalPages > 0,
+      summary,
     };
   }
 }

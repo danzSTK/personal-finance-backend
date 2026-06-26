@@ -1,9 +1,11 @@
 import { IsOptionalButNotNull } from '@/common/decorators/is-optional-but-not-null.decorator';
+import { IsDateOnly } from '@/common/decorators/is-date-only.decorator';
 import { TRANSACTION_AMOUNT_CENTS_MAX, TRANSACTION_DESCRIPTION_MAX_LENGTH } from '@/common/models/constants';
 import { TransactionDirection, TransactionType } from '@/common/models/enums';
+import type { DateOnlyString } from '@/common/utils/date-only';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class UpdateTransactionDto {
   @ApiPropertyOptional({ format: 'uuid' })
@@ -35,9 +37,9 @@ export class UpdateTransactionDto {
   amountCents?: number;
 
   @ApiPropertyOptional({ format: 'date', example: '2026-06-23' })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateOnly()
   @IsOptionalButNotNull()
-  date?: string;
+  date?: DateOnlyString;
 
   @ApiPropertyOptional({ nullable: true, maxLength: TRANSACTION_DESCRIPTION_MAX_LENGTH })
   @IsString()

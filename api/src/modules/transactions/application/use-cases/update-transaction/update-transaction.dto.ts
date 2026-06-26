@@ -1,4 +1,5 @@
 import { TransactionDirection, TransactionType } from '@/common/models/enums';
+import { DateOnlyString } from '@/common/utils/date-only';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 
 export interface UpdateTransactionPatch {
@@ -7,7 +8,7 @@ export interface UpdateTransactionPatch {
   categoryId?: string;
   type?: TransactionType;
   amountCents?: number;
-  date?: Date;
+  date?: DateOnlyString;
   description?: string | null;
   direction?: TransactionDirection | null;
 }
