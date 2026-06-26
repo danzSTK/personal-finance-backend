@@ -1,3 +1,4 @@
+import { todayDateOnly } from '@/common/utils/date-only';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
 import {
   AccountHasScheduledTransactionsError,
@@ -26,7 +27,7 @@ export class ArchiveAccountUseCase {
     const hasFutureTransactions = await this.accountRepository.hasFutureScheduledTransactions(
       data.accountId,
       data.userId,
-      new Date(),
+      todayDateOnly(),
     );
 
     if (hasFutureTransactions) {

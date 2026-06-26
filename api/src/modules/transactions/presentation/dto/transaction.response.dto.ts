@@ -2,10 +2,6 @@ import { TransactionDirection, TransactionStatus, TransactionType } from '@/comm
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
-function toDateOnlyString(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 export class TransactionResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
@@ -55,7 +51,7 @@ export class TransactionResponseDto {
       type: transaction.type,
       status: transaction.status,
       amountCents: transaction.amountCents,
-      date: toDateOnlyString(transaction.date),
+      date: transaction.date,
       effectiveAt: transaction.effectiveAt,
       description: transaction.description,
       direction: transaction.direction,

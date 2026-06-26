@@ -1,12 +1,17 @@
+import { IsDateOnly } from '@/common/decorators/is-date-only.decorator';
 import {
   TRANSACTION_LIST_DEFAULT_LIMIT,
   TRANSACTION_LIST_DEFAULT_PAGE,
+  TRANSACTION_LIST_DEFAULT_SORT,
   TRANSACTION_LIST_MAX_LIMIT,
+  TRANSACTION_LIST_SORT_VALUES,
 } from '@/common/models/constants';
+import type { TransactionListSort } from '@/common/models/constants';
 import { TransactionStatus, TransactionType } from '@/common/models/enums';
+import type { DateOnlyString } from '@/common/utils/date-only';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsUUID, Matches, Max, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 
 export class ListTransactionsQueryDto {
   @ApiPropertyOptional({ enum: TransactionStatus })
@@ -30,14 +35,14 @@ export class ListTransactionsQueryDto {
   categoryId?: string;
 
   @ApiPropertyOptional({ format: 'date', example: '2026-06-01' })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateOnly()
   @IsOptional()
-  dateFrom?: string;
+  dateFrom?: DateOnlyString;
 
   @ApiPropertyOptional({ format: 'date', example: '2026-06-30' })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateOnly()
   @IsOptional()
-  dateTo?: string;
+  dateTo?: DateOnlyString;
 
   @ApiPropertyOptional({ example: TRANSACTION_LIST_DEFAULT_PAGE, default: TRANSACTION_LIST_DEFAULT_PAGE })
   @Type(() => Number)
@@ -53,4 +58,13 @@ export class ListTransactionsQueryDto {
   @Max(TRANSACTION_LIST_MAX_LIMIT)
   @IsOptional()
   limit?: number;
+
+  @ApiPropertyOptional({
+    enum: TRANSACTION_LIST_SORT_VALUES,
+    default: TRANSACTION_LIST_DEFAULT_SORT,
+    example: TRANSACTION_LIST_DEFAULT_SORT,
+  })
+  @IsIn([...TRANSACTION_LIST_SORT_VALUES])
+  @IsOptional()
+  sort?: TransactionListSort;
 }

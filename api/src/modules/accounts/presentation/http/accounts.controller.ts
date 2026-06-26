@@ -8,38 +8,11 @@ import { UnarchiveAccountUseCase } from '@/modules/accounts/application/use-case
 import { UpdateAccountUseCase } from '@/modules/accounts/application/use-cases/update-account/update-account.use-case';
 import { UpdateAccountDto } from '@/modules/accounts/presentation/dto/update-account.dto';
 import { User } from '@/modules/users/domain/entities/user.entity';
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountResponseDto } from '../dto/account.response.dto';
 import { CreateAccountDto } from '../dto/create-account.dto';
 import { ListAccountsQueryDto } from '../dto/list-accounts.query.dto';
-
-function parseDateOnly(value: string): Date {
-  const date = new Date(`${value}T00:00:00.000Z`);
-
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
-    throw new BadRequestException({
-      code: 'VALIDATION_ERROR',
-      message: 'Request validation failed.',
-      details: {
-        fields: [{ field: 'projectedUntil', messages: ['projectedUntil must be a valid YYYY-MM-DD date.'] }],
-      },
-    });
-  }
-
-  return date;
-}
 
 @ApiTags('accounts')
 @Controller('accounts')
@@ -114,7 +87,7 @@ export class AccountsController {
     const accounts = await this.listAccountsUseCase.execute({
       userId: user.id,
       includeArchived: query.includeArchived,
-      projectedUntil: query.projectedUntil ? parseDateOnly(query.projectedUntil) : undefined,
+      projectedUntil: query.projectedUntil,
     });
 
     return accounts.map(item => AccountResponseDto.fromDomain(item.account, item.balance));

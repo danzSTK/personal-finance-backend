@@ -72,7 +72,7 @@ export class AccountResponseDto {
     return {
       currentCents: balance.currentCents,
       projectedCents: balance.projectedCents,
-      projectedUntil: balance.projectedUntil?.toISOString().slice(0, 10),
+      projectedUntil: balance.projectedUntil,
     };
   }
 }

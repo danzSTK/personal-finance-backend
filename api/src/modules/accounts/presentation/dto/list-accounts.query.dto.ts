@@ -1,6 +1,8 @@
+import { IsDateOnly } from '@/common/decorators/is-date-only.decorator';
+import type { DateOnlyString } from '@/common/utils/date-only';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsOptional, Matches } from 'class-validator';
+import { IsBoolean, IsOptional } from 'class-validator';
 
 export class ListAccountsQueryDto {
   @ApiPropertyOptional({
@@ -18,7 +20,7 @@ export class ListAccountsQueryDto {
     example: '2026-06-30',
     format: 'date',
   })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateOnly()
   @IsOptional()
-  projectedUntil?: string;
+  projectedUntil?: DateOnlyString;
 }

@@ -1,4 +1,5 @@
 import { TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
+import { DateOnlyString } from '@/common/utils/date-only';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import { randomUUID } from 'node:crypto';
 
@@ -10,7 +11,7 @@ export interface CreateTransactionInput {
   type: TransactionType;
   status?: TransactionStatus;
   amountCents: number;
-  date: Date;
+  date: DateOnlyString;
   description?: string | null;
   direction?: TransactionDirection | null;
 }

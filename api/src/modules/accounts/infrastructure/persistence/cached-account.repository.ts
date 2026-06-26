@@ -1,6 +1,7 @@
 import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { CacheKeys } from '@/common/utils/cache-keys.factory';
+import { DateOnlyString } from '@/common/utils/date-only';
 import { RedisService } from '@/database/redis/redis.service';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
@@ -154,7 +155,7 @@ export class CachedAccountRepository implements IAccountRepository {
   async hasFutureScheduledTransactions(
     accountId: string,
     userId: string,
-    referenceDate: Date,
+    referenceDate: DateOnlyString,
     options?: IRepositoryOptions,
   ): Promise<boolean> {
     return this.accountRepository.hasFutureScheduledTransactions(accountId, userId, referenceDate, options);

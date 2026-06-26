@@ -12,21 +12,25 @@ Lista transactions não deletadas do usuário autenticado.
 
 ## Query
 
-| Campo | Tipo | Descrição |
-| --- | --- | --- |
-| `status` | `PENDING \| EFFECTIVE` | Filtra por status. |
-| `type` | `INCOME \| EXPENSE \| TRANSFER \| ADJUSTMENT` | Filtra por type. |
-| `accountId` | `uuid` | Filtra transactions em que a account é origem ou destino. |
-| `categoryId` | `uuid` | Filtra por category. |
-| `dateFrom` | `YYYY-MM-DD` | Data inicial inclusiva. |
-| `dateTo` | `YYYY-MM-DD` | Data final inclusiva. |
-| `page` | `number` | Página, default `1`. |
-| `limit` | `number` | Limite por página, default `20`, máximo `100`. |
+| Campo        | Tipo                                          | Descrição                                                 |
+| ------------ | --------------------------------------------- | --------------------------------------------------------- |
+| `status`     | `PENDING \| EFFECTIVE`                        | Filtra por status.                                        |
+| `type`       | `INCOME \| EXPENSE \| TRANSFER \| ADJUSTMENT` | Filtra por type.                                          |
+| `accountId`  | `uuid`                                        | Filtra transactions em que a account é origem ou destino. |
+| `categoryId` | `uuid`                                        | Filtra por category.                                      |
+| `dateFrom`   | `YYYY-MM-DD`                                  | Data inicial inclusiva.                                   |
+| `dateTo`     | `YYYY-MM-DD`                                  | Data final inclusiva.                                     |
+| `page`       | `number`                                      | Página, default `1`.                                      |
+| `limit`      | `number`                                      | Limite por página, default `20`, máximo `100`.            |
+| `sort`       | `date:desc \| date:asc`                       | Ordenação por data. Default `date:desc`.                  |
 
-## Response
+## Response Sem `type`
+
+Quando `type` não é enviado, a listagem retorna somente transactions `INCOME` e `EXPENSE`.
 
 ```json
 {
+  "object": "transaction.list",
   "data": [],
   "meta": {
     "total": 0,
@@ -35,12 +39,90 @@ Lista transactions não deletadas do usuário autenticado.
     "totalPages": 0,
     "hasNextPage": false,
     "hasPreviousPage": false
+  },
+  "summary": {
+    "object": "transaction_summary.overview",
+    "currentBalanceCents": 250000,
+    "income": {
+      "pendingCents": 120000,
+      "effectiveCents": 300000,
+      "totalCents": 420000
+    },
+    "expense": {
+      "pendingCents": 80000,
+      "effectiveCents": 150000,
+      "totalCents": 230000
+    },
+    "balance": {
+      "pendingDeltaCents": 40000,
+      "effectiveDeltaCents": 150000,
+      "expectedBalanceCents": 290000
+    }
   }
 }
 ```
+
+## Response Com `type`
+
+Quando `type` é enviado, o summary retorna o modelo simples para o tipo filtrado.
+
+```json
+{
+  "object": "transaction.list",
+  "data": [],
+  "meta": {
+    "total": 0,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 0,
+    "hasNextPage": false,
+    "hasPreviousPage": false
+  },
+  "summary": {
+    "object": "transaction_summary.type",
+    "pendingCents": 80000,
+    "effectiveCents": 150000,
+    "totalCents": 230000
+  }
+}
+```
+
+## Summary
+
+`summary` resume todas as transactions que atendem aos filtros enviados, sem aplicar `page` e `limit`.
+
+O response raiz sempre usa `object = transaction.list`.
+
+No modelo simples com `type` explícito:
+
+- `summary.object`: `transaction_summary.type`.
+- `pendingCents`: soma positiva das transactions `PENDING` do type filtrado.
+- `effectiveCents`: soma positiva das transactions `EFFECTIVE` do type filtrado.
+- `totalCents`: `pendingCents + effectiveCents`.
+
+No modelo agrupado sem `type`:
+
+- `summary.object`: `transaction_summary.overview`.
+- `income`: soma positiva de receitas.
+- `expense`: soma positiva de despesas.
+- `balance.pendingDeltaCents`: `income.pendingCents - expense.pendingCents`.
+- `balance.effectiveDeltaCents`: `income.effectiveCents - expense.effectiveCents`.
+- `balance.expectedBalanceCents`: `currentBalanceCents + pendingDeltaCents`.
+
+`currentBalanceCents` representa o saldo atual real. Com `accountId`, é o saldo atual da account filtrada. Sem `accountId`, é o saldo atual agregado das accounts do usuário.
+
+Observações de intenção:
+
+- `income.*Cents` e `expense.*Cents` não são negativos.
+- Deltas em `balance` podem ser negativos, positivos ou zero.
+- `currentBalanceCents` não é afetado por `dateFrom`, `dateTo`, `categoryId`, `status`, `page`, `limit` ou `sort`.
 
 ## Observações
 
 - Transactions deletadas não aparecem.
 - `accountId` considera origem e destino de transferência.
+- Sem `type`, a rota lista somente `INCOME` e `EXPENSE`.
 - A ordenação padrão é `date DESC`, depois `id DESC`.
+- `sort=date:asc` ordena por `date ASC`, depois `id ASC`.
+- `sort=date:desc` ordena por `date DESC`, depois `id DESC`.
+- `dateFrom` e `dateTo` são `DateOnly`: strings `YYYY-MM-DD`, sem hora e sem timezone.

@@ -15,7 +15,6 @@ import { TransactionResponseDto } from '@/modules/transactions/presentation/dto/
 import { UpdateTransactionDto } from '@/modules/transactions/presentation/dto/update-transaction.dto';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -42,22 +41,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-function parseDateOnly(value: string): Date {
-  const date = new Date(`${value}T00:00:00.000Z`);
-
-  if (Number.isNaN(date.getTime())) {
-    throw new BadRequestException({
-      code: 'VALIDATION_ERROR',
-      message: 'Request validation failed.',
-      details: {
-        fields: [{ field: 'date', messages: ['date must be a valid YYYY-MM-DD date.'] }],
-      },
-    });
-  }
-
-  return date;
-}
-
 function buildPatch(body: UpdateTransactionDto | undefined): UpdateTransactionPatch {
   return {
     accountId: body?.accountId,
@@ -65,7 +48,7 @@ function buildPatch(body: UpdateTransactionDto | undefined): UpdateTransactionPa
     categoryId: body?.categoryId,
     type: body?.type,
     amountCents: body?.amountCents,
-    date: body?.date ? parseDateOnly(body.date) : undefined,
+    date: body?.date,
     description: body?.description,
     direction: body?.direction,
   };
@@ -108,7 +91,7 @@ export class TransactionsController {
       type: body.type,
       status: body.status,
       amountCents: body.amountCents,
-      date: parseDateOnly(body.date),
+      date: body.date,
       description: body.description,
       direction: body.direction,
     });
@@ -134,10 +117,11 @@ export class TransactionsController {
       type: query.type,
       accountId: query.accountId,
       categoryId: query.categoryId,
-      dateFrom: query.dateFrom ? parseDateOnly(query.dateFrom) : undefined,
-      dateTo: query.dateTo ? parseDateOnly(query.dateTo) : undefined,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
       page: query.page,
       limit: query.limit,
+      sort: query.sort,
     });
 
     return ListTransactionsResponseDto.fromUseCaseOutput(output);

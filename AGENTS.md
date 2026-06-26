@@ -138,6 +138,7 @@ Use `@/` imports for project code. Do not use `src/*` imports.
 - Request DTOs live in `presentation/dto/` and use `class-validator` and `class-transformer`.
 - Use `@Type()` for numeric, date, and nested object fields.
 - Always return response DTOs; never expose domain entities or ORM entities directly.
+- Response DTOs should declare an `object` string property that identifies the response shape for consumers. Use centralized values from `@/common/models/constants`, with keys separated by module/shape such as `transaction.list`, `transaction_summary.type`, and `account.list`. Dynamic responses must use one DTO per shape and each shape must expose its own `object`.
 - Sensitive fields and tokens must never appear in response DTOs.
 
 ## Security
@@ -158,6 +159,16 @@ Use `@/` imports for project code. Do not use `src/*` imports.
 - Transactions must include `userId`, `categoryId`, `accountId`, and `date`.
 - Validate account balance before debits.
 - Reconciled transactions are immutable; edits should return conflict semantics.
+
+## Temporal Data Rules
+
+- Separate `DateOnly` from `Instant`.
+- `DateOnly` is a civil date string in `YYYY-MM-DD`, with no time and no timezone. Examples: `transactions.date`, `dateFrom`, `dateTo`, `projectedUntil`.
+- Do not convert `DateOnly` to JavaScript `Date`; do not serialize it with `toISOString().slice(0, 10)`.
+- Persist `DateOnly` values in PostgreSQL `date` columns by sending the `YYYY-MM-DD` string.
+- `Instant` is an exact point in time. Examples: `createdAt`, `updatedAt`, `effectiveAt`, `deletedAt`, `occurredAt`.
+- Persist `Instant` values in PostgreSQL `timestamptz` columns and expose them as ISO 8601 UTC.
+- Frontend clients may convert `Instant` values to the user's local timezone for display, but must not timezone-shift `DateOnly` values.
 
 ## Testing
 

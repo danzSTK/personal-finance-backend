@@ -38,7 +38,9 @@ Para métodos mutáveis, configure `CSRF_ALLOWED_ORIGINS` com as origens do fron
 
 ## Módulos
 
+- [Date and time contract](./date-and-time.md)
 - [Error contract](./errors.md)
+- [Response objects](./response-objects.md)
 - [Auth integration](./auth/README.md)
 - [Auth architecture](../auth/README.md)
 - [Users integration](./users/README.md)

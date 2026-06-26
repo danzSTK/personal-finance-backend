@@ -1,5 +1,6 @@
 import { TRANSACTION_AMOUNT_CENTS_MAX, TRANSACTION_DESCRIPTION_MAX_LENGTH } from '@/common/models/constants';
 import { TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
+import { DateOnlyString, isValidDateOnly } from '@/common/utils/date-only';
 import { applyIfDefined } from '@/common/utils/utils';
 import {
   InvalidTransactionError,
@@ -15,7 +16,7 @@ export interface TransactionProps {
   type: TransactionType;
   status: TransactionStatus;
   amountCents: number;
-  date: Date;
+  date: DateOnlyString;
   effectiveAt: Date | null;
   description: string | null;
   direction: TransactionDirection | null;
@@ -30,7 +31,7 @@ export interface UpdateTransactionProps {
   categoryId?: string;
   type?: TransactionType;
   amountCents?: number;
-  date?: Date;
+  date?: DateOnlyString;
   description?: string | null;
   direction?: TransactionDirection | null;
 }
@@ -69,8 +70,8 @@ export class Transaction {
     return this.props.amountCents;
   }
 
-  get date(): Date {
-    return new Date(this.props.date);
+  get date(): DateOnlyString {
+    return this.props.date;
   }
 
   get effectiveAt(): Date | null {
@@ -197,9 +198,15 @@ export class Transaction {
     }
   }
 
-  private static validateDate(date: Date, field: string): void {
+  private static validateDate(date: DateOnlyString, field: string): void {
+    if (!isValidDateOnly(date)) {
+      throw new InvalidTransactionError(`Transaction ${field} must be a valid date in YYYY-MM-DD format.`);
+    }
+  }
+
+  private static validateInstant(date: Date, field: string): void {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
-      throw new InvalidTransactionError(`Transaction ${field} must be a valid date.`);
+      throw new InvalidTransactionError(`Transaction ${field} must be a valid instant.`);
     }
   }
 
@@ -213,7 +220,7 @@ export class Transaction {
     }
 
     if (props.effectiveAt !== null) {
-      Transaction.validateDate(props.effectiveAt, 'effectiveAt');
+      Transaction.validateInstant(props.effectiveAt, 'effectiveAt');
     }
   }
 

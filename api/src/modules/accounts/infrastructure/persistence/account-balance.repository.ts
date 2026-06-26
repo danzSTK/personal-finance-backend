@@ -12,10 +12,6 @@ interface AccountBalanceRow {
   projected_cents: string | null;
 }
 
-function toDateOnlyString(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 @Injectable()
 export class AccountBalanceRepository implements IAccountBalanceRepository {
   constructor(private readonly dataSource: DataSource) {}
@@ -25,7 +21,7 @@ export class AccountBalanceRepository implements IAccountBalanceRepository {
       return [];
     }
 
-    const projectedUntil = input.projectedUntil ? toDateOnlyString(input.projectedUntil) : null;
+    const projectedUntil = input.projectedUntil ?? null;
 
     const rows = await this.dataSource.query<AccountBalanceRow[]>(
       `
