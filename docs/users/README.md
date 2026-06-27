@@ -17,6 +17,12 @@ O fluxo atual permite alterar:
 
 Fluxo: [Update user profile](./flows/update-user-profile.md).
 
+## Username
+
+O `username` tem fluxo próprio porque exige normalização, consulta de disponibilidade, unicidade global e tratamento de concorrência.
+
+Fluxo: [Change username](./flows/change-username.md).
+
 ## Avatar
 
 A troca de avatar é um fluxo próprio porque coordena processamento de imagem, assets, Object Storage e outbox.
@@ -34,8 +40,6 @@ Roteiro técnico: [Implement update user avatar](./guides/implement-update-user-
 Pendências: [Avatar pending work](./reference/avatar-pending.md).
 
 ## Fluxos Separados
-
-`username` não faz parte do update genérico porque exige normalização, consulta de disponibilidade, unicidade e tratamento de concorrência.
 
 `email` também fica separado porque interfere em autenticação, confirmação de endereço, providers vinculados e segurança de sessão.
 

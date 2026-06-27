@@ -23,10 +23,15 @@ Não há body de resposta. A operação é idempotente: se o usuário já estive
 
 ## Erros
 
-| Status | Code             | Quando                              |
-| -----: | ---------------- | ----------------------------------- |
-|  `401` | `UNAUTHORIZED`   | Sessão ausente ou inválida          |
-|  `404` | `USER_NOT_FOUND` | Usuário autenticado não existe mais |
+| Status | Code                | Quando                              |
+| -----: | ------------------- | ----------------------------------- |
+|  `401` | `UNAUTHORIZED`      | Sessão ausente ou inválida          |
+|  `404` | `USER_NOT_FOUND`    | Usuário autenticado não existe mais |
+|  `429` | `TOO_MANY_REQUESTS` | Limite de tentativas excedido       |
+
+## Throttling
+
+A rota aceita 3 tentativas por minuto. Após exceder o limite, novas tentativas ficam bloqueadas por 1 hora.
 
 ## Remoção Assíncrona
 

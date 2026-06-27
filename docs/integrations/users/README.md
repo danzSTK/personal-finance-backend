@@ -18,12 +18,13 @@ O `userId` nunca deve ser enviado no body; o backend identifica o usuário pela 
 
 - [GET /users/me](../auth/get-me.md) retorna o perfil autenticado com `avatarUrl` quando houver avatar pronto.
 - [PATCH /users/me](./update-user-profile.md)
+- [PUT /users/me/username](./update-username.md)
 - [PUT /users/me/avatar](./update-user-avatar.md)
 - [DELETE /users/me/avatar](./remove-user-avatar.md)
 
 Username e email não são alterados por `PATCH /users/me`:
 
-- username terá fluxo próprio de disponibilidade, normalização e unicidade;
+- username usa `PUT /users/me/username`, com disponibilidade, normalização e unicidade;
 - email terá fluxo próprio de segurança, confirmação e providers de autenticação.
 
 Contrato geral de erros: [Error contract](../errors.md).

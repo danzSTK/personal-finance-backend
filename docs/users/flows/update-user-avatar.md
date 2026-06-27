@@ -26,6 +26,10 @@ Trocar avatar é uma regra do módulo `users`: o usuário decide qual asset repr
 - uma imagem de no máximo 5 MB;
 - tipo real aceito pela plataforma.
 
+## Throttling
+
+`PUT /users/me/avatar` aceita 3 tentativas por minuto e bloqueia novas tentativas por 1 hora após exceder o limite.
+
 ## Fluxo
 
 1. Users valida autenticação e captura o avatar atual.
