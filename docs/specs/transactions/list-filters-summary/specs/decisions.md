@@ -92,3 +92,16 @@ A tela principal de receitas/despesas não deve misturar transferências e ajust
 
 Impact:
 `TRANSFER` e `ADJUSTMENT` continuam acessíveis por `type` explícito, mas deixam de aparecer na listagem padrão sem type.
+
+## DEC-007 - Expected balance representa resultado esperado do filtro
+
+Status: accepted
+
+Decision:
+`summary.balance.expectedBalanceCents` será calculado como `effectiveDeltaCents + pendingDeltaCents`.
+
+Reason:
+O summary de transactions responde o resultado líquido da listagem/período. Somar `currentBalanceCents` misturava essa leitura com saldo projetado de account, que pertence ao contrato de accounts.
+
+Impact:
+`expectedBalanceCents` pode ser negativo, positivo ou zero e não representa saldo atual/projetado da account. Para saldo real ou projetado por account, o frontend deve consumir o contrato de accounts.

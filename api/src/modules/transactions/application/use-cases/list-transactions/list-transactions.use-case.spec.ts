@@ -54,7 +54,7 @@ describe('ListTransactionsUseCase', () => {
           balance: {
             pendingDeltaCents: 40000,
             effectiveDeltaCents: 150000,
-            expectedBalanceCents: 290000,
+            expectedBalanceCents: 190000,
           },
         },
       });
@@ -96,7 +96,7 @@ describe('ListTransactionsUseCase', () => {
           balance: {
             pendingDeltaCents: 40000,
             effectiveDeltaCents: 150000,
-            expectedBalanceCents: 290000,
+            expectedBalanceCents: 190000,
           },
         },
       });

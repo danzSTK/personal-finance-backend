@@ -124,7 +124,7 @@ Sem `type`:
     "balance": {
       "pendingDeltaCents": 40000,
       "effectiveDeltaCents": 150000,
-      "expectedBalanceCents": 290000
+      "expectedBalanceCents": 190000
     }
   }
 }
@@ -278,8 +278,13 @@ income.totalCents = income.pendingCents + income.effectiveCents
 expense.totalCents = expense.pendingCents + expense.effectiveCents
 pendingDeltaCents = income.pendingCents - expense.pendingCents
 effectiveDeltaCents = income.effectiveCents - expense.effectiveCents
-expectedBalanceCents = currentBalanceCents + pendingDeltaCents
+expectedBalanceCents = effectiveDeltaCents + pendingDeltaCents
 ```
+
+`expectedBalanceCents` e `currentBalanceCents` respondem perguntas diferentes:
+
+- `currentBalanceCents`: saldo atual real das accounts, considerando somente movimentações efetivas;
+- `expectedBalanceCents`: resultado líquido esperado do filtro/listagem, sem somar saldo inicial ou saldo atual.
 
 ### Current Balance
 

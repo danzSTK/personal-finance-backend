@@ -46,7 +46,7 @@ class ListTransactionsBalanceSummaryDto {
   @ApiProperty({ example: 150000 })
   effectiveDeltaCents: number;
 
-  @ApiProperty({ example: 290000 })
+  @ApiProperty({ example: 190000 })
   expectedBalanceCents: number;
 }
 
