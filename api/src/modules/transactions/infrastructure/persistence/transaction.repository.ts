@@ -237,7 +237,7 @@ export class TransactionRepository implements ITransactionRepository {
       balance: {
         pendingDeltaCents,
         effectiveDeltaCents,
-        expectedBalanceCents: this.toSafeCents(String(BigInt(currentBalanceCents) + BigInt(pendingDeltaCents))),
+        expectedBalanceCents: this.toSafeCents(String(BigInt(effectiveDeltaCents) + BigInt(pendingDeltaCents))),
       },
     };
   }

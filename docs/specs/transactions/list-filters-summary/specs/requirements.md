@@ -157,7 +157,7 @@ Quando `type` não for enviado, o response deve incluir o modelo agrupado:
     "balance": {
       "pendingDeltaCents": 40000,
       "effectiveDeltaCents": 150000,
-      "expectedBalanceCents": 290000
+      "expectedBalanceCents": 190000
     }
   }
 }
@@ -173,7 +173,9 @@ Quando `type` não for enviado, o response deve incluir o modelo agrupado:
 
 `balance.effectiveDeltaCents` é `income.effectiveCents - expense.effectiveCents`.
 
-`balance.expectedBalanceCents` é `currentBalanceCents + pendingDeltaCents`.
+`balance.expectedBalanceCents` é `balance.effectiveDeltaCents + balance.pendingDeltaCents`.
+
+`balance.expectedBalanceCents` representa o resultado líquido esperado da listagem/período, não o saldo projetado da account.
 
 `currentBalanceCents` representa o saldo atual real:
 
@@ -248,7 +250,7 @@ THE SYSTEM SHALL calcular `balance.pendingDeltaCents` como `income.pendingCents 
 
 THE SYSTEM SHALL calcular `balance.effectiveDeltaCents` como `income.effectiveCents - expense.effectiveCents`.
 
-THE SYSTEM SHALL calcular `balance.expectedBalanceCents` como `currentBalanceCents + balance.pendingDeltaCents`.
+THE SYSTEM SHALL calcular `balance.expectedBalanceCents` como `balance.effectiveDeltaCents + balance.pendingDeltaCents`.
 
 ## Expectativas De API/Frontend
 
@@ -270,6 +272,6 @@ THE SYSTEM SHALL calcular `balance.expectedBalanceCents` como `currentBalanceCen
 - `GET /transactions?sort=date:desc` mantém a ordem atual.
 - `dateFrom` e `dateTo` continuam sendo validados como `DateOnly`.
 - `summary` considera todos os filtros da consulta e ignora paginação.
-- `summary.balance.expectedBalanceCents` soma o saldo atual real com o delta pendente filtrado.
+- `summary.balance.expectedBalanceCents` representa o resultado líquido esperado da consulta, sem somar `currentBalanceCents`.
 - Swagger e `docs/integrations/transactions/list-transactions.md` são atualizados.
 - Testes cobrem filtros, sort, paginação e summary por type/status.

@@ -56,7 +56,7 @@ Quando `type` não é enviado, a listagem retorna somente transactions `INCOME` 
     "balance": {
       "pendingDeltaCents": 40000,
       "effectiveDeltaCents": 150000,
-      "expectedBalanceCents": 290000
+      "expectedBalanceCents": 190000
     }
   }
 }
@@ -107,9 +107,10 @@ No modelo agrupado sem `type`:
 - `expense`: soma positiva de despesas.
 - `balance.pendingDeltaCents`: `income.pendingCents - expense.pendingCents`.
 - `balance.effectiveDeltaCents`: `income.effectiveCents - expense.effectiveCents`.
-- `balance.expectedBalanceCents`: `currentBalanceCents + pendingDeltaCents`.
+- `balance.expectedBalanceCents`: `effectiveDeltaCents + pendingDeltaCents`.
 
 `currentBalanceCents` representa o saldo atual real. Com `accountId`, é o saldo atual da account filtrada. Sem `accountId`, é o saldo atual agregado das accounts do usuário.
+`expectedBalanceCents` representa o resultado líquido esperado da listagem/período, não o saldo projetado da account. Saldo projetado de account pertence ao contrato de accounts.
 
 Observações de intenção:
 
