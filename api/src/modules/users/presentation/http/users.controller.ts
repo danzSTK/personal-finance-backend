@@ -26,10 +26,21 @@ import {
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiCookieAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { USER_AVATAR_MAX_INPUT_BYTES } from '@/common/models/constants';
+import {
+  CHANGER_USERNAME_THROTTLE_BLOCK_TIME_MS,
+  CHANGER_USERNAME_THROTTLE_LIMIT,
+  CHANGER_USERNAME_THROTTLE_TIME_MS,
+  USER_AVATAR_MAX_INPUT_BYTES,
+  USER_CHANGER_AVATAR_THROTTLE_BLOCK_TIME_MS,
+  USER_CHANGER_AVATAR_THROTTLE_LIMIT,
+  USER_CHANGER_AVATAR_THROTTLE_TIME_MS,
+} from '@/common/models/constants';
 import { UpdateUserAvatarUseCase } from '@/modules/users/application/use-cases/update-user-avatar/update-user-avatar.use-case';
+import { UpdateUsernameUseCase } from '@/modules/users/application/use-cases/update-username/update-username.use-case';
 import { UpdateUserAvatarResponseDto } from '@/modules/users/presentation/dto/update-user-avatar.response.dto';
+import { UpdateUsernameDto } from '@/modules/users/presentation/dto/update-username.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('users')
 @Controller('users')
@@ -40,6 +51,7 @@ export class UsersController {
     private readonly updateUserProfileUseCase: UpdateUserProfileUseCase,
     private readonly updateUserAvatarUseCase: UpdateUserAvatarUseCase,
     private readonly removeUserAvatarUseCase: RemoveUserAvatarUseCase,
+    private readonly updateUsernameUseCase: UpdateUsernameUseCase,
   ) {}
 
   @Get('me')
@@ -82,9 +94,7 @@ export class UsersController {
   })
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
   async getMe(@CurrentUser() user: User): Promise<UserProfileResponseDto> {
-    const profile = await this.getUserProfileUseCase.execute({ user });
-
-    return UserProfileResponseDto.fromEntity(profile.user, { avatarUrl: profile.avatarUrl });
+    return this.toUserProfileResponse(user);
   }
 
   @Patch('me')
@@ -112,9 +122,46 @@ export class UsersController {
       lastName: data.lastName,
     });
 
-    return UserProfileResponseDto.fromEntity(updateProfileResponse);
+    return this.toUserProfileResponse(updateProfileResponse);
   }
 
+  @Throttle({
+    default: {
+      ttl: CHANGER_USERNAME_THROTTLE_TIME_MS,
+      limit: CHANGER_USERNAME_THROTTLE_LIMIT,
+      blockDuration: CHANGER_USERNAME_THROTTLE_BLOCK_TIME_MS,
+    },
+  })
+  @Put('me/username')
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({
+    summary: 'Alterar username do usuário autenticado',
+    description: 'Normaliza o username para lowercase, valida o formato e rejeita valores já usados por outro usuário.',
+  })
+  @ApiBody({ type: UpdateUsernameDto })
+  @ApiResponse({ status: 200, description: 'Username atualizado com sucesso', type: UserProfileResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Payload inválido ou username viola regra de formato (INVALID_USERNAME_FORMAT)',
+    type: PlatformErrorResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 404, description: 'Usuário autenticado não existe mais', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 409, description: 'Username já está registrado', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 429, description: 'Limite de tentativas excedido', type: PlatformErrorResponseDto })
+  async changeUsername(@CurrentUser() user: User, @Body() data: UpdateUsernameDto): Promise<UserProfileResponseDto> {
+    const result = await this.updateUsernameUseCase.execute({ userId: user.id, newUsername: data.username });
+
+    return this.toUserProfileResponse(result);
+  }
+
+  @Throttle({
+    default: {
+      ttl: USER_CHANGER_AVATAR_THROTTLE_TIME_MS,
+      limit: USER_CHANGER_AVATAR_THROTTLE_LIMIT,
+      blockDuration: USER_CHANGER_AVATAR_THROTTLE_BLOCK_TIME_MS,
+    },
+  })
   @Put('me/avatar')
   @ApiCookieAuth('accessToken')
   @ApiConsumes('multipart/form-data')
@@ -163,6 +210,13 @@ export class UsersController {
     return UpdateUserAvatarResponseDto.fromOutput(output);
   }
 
+  @Throttle({
+    default: {
+      ttl: USER_CHANGER_AVATAR_THROTTLE_TIME_MS,
+      limit: USER_CHANGER_AVATAR_THROTTLE_LIMIT,
+      blockDuration: USER_CHANGER_AVATAR_THROTTLE_BLOCK_TIME_MS,
+    },
+  })
   @Delete('me/avatar')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiCookieAuth('accessToken')
@@ -198,5 +252,11 @@ export class UsersController {
   })
   checkUsernameAvailability(@Param('username') username: string): Promise<CheckUsernameAvailabilityUseCaseOutput> {
     return this.checkUsernameAvailabilityUseCase.execute({ username });
+  }
+
+  private async toUserProfileResponse(user: User): Promise<UserProfileResponseDto> {
+    const profile = await this.getUserProfileUseCase.execute({ user });
+
+    return UserProfileResponseDto.fromEntity(profile.user, { avatarUrl: profile.avatarUrl });
   }
 }

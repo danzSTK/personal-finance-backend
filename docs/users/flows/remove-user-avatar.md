@@ -27,4 +27,8 @@ Se `avatarAssetId` já for `null`, a rota também retorna `204`. Nesse caso não
 
 Falhas assíncronas mantêm o asset em `DELETE_PENDING` e provocam retry da outbox.
 
+## Throttling
+
+`DELETE /users/me/avatar` usa o mesmo limite de troca de avatar: 3 tentativas por minuto e bloqueio por 1 hora após exceder o limite.
+
 Integração HTTP: [Remove user avatar](../../integrations/users/remove-user-avatar.md).

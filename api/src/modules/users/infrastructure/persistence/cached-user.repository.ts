@@ -179,16 +179,19 @@ export class CachedUserRepository implements IUserRepository {
   }
 
   async save(user: User, options?: IRepositoryOptions): Promise<User> {
+    const previousUser = user.id ? await this.userRepository.findById(user.id, options) : null;
+    const previousUserName = previousUser?.userName?.value ?? null;
+
     if (options?.manager) {
       const saved = await this.userRepository.save(user, options);
-      await this.cacheInvalidator.invalidate(saved);
+      await this.cacheInvalidator.invalidate(saved, { previousUserName });
 
       return saved;
     }
 
     const saved = await this.userRepository.save(user, options);
 
-    await this.cacheInvalidator.invalidate(saved);
+    await this.cacheInvalidator.invalidate(saved, { previousUserName });
 
     const userRefreshed = await this.userRepository.findById(saved.id, options);
 

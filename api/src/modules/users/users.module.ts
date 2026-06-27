@@ -6,6 +6,7 @@ import { GetUserProfileUseCase } from '@/modules/users/application/use-cases/get
 import { RemoveUserAvatarUseCase } from '@/modules/users/application/use-cases/remove-user-avatar/remove-user-avatar.use-case';
 import { UpdateUserAvatarUseCase } from '@/modules/users/application/use-cases/update-user-avatar/update-user-avatar.use-case';
 import { UpdateUserProfileUseCase } from '@/modules/users/application/use-cases/update-user-profile/update-user-profile.use-case';
+import { UpdateUsernameUseCase } from '@/modules/users/application/use-cases/update-username/update-username.use-case';
 import { RedisUserCacheInvalidator } from '@/modules/users/infrastructure/cache/redis-user-cache-invalidator';
 import { FileTypeImageDetector } from '@/modules/users/infrastructure/image-processing/file-type-image.detector';
 import { SharpAvatarImageProcessor } from '@/modules/users/infrastructure/image-processing/sharp-avatar.image.processor';
@@ -60,6 +61,7 @@ import { UsersController } from './presentation/http/users.controller';
     UpdateUserProfileUseCase,
     UpdateUserAvatarUseCase,
     RemoveUserAvatarUseCase,
+    UpdateUsernameUseCase,
   ],
   exports: [
     IUserRepository,

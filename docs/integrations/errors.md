@@ -62,6 +62,7 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | ----------------------- | -----: | --------------------------------------------------------- |
 | `VALIDATION_ERROR`      |  `400` | Body/query/params falham na validação de DTO              |
 | `UNAUTHORIZED`          |  `401` | Guard/autenticação rejeitou uma request sem sessão válida |
+| `TOO_MANY_REQUESTS`     |  `429` | Throttling rejeitou requests acima do limite da rota      |
 | `INTERNAL_SERVER_ERROR` |  `500` | Erro inesperado; mensagem interna não é exposta           |
 
 ## Auth And Sessions

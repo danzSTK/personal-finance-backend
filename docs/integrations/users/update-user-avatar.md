@@ -49,6 +49,11 @@ Após a troca, `GET /users/me` também retorna esse avatar em `avatarUrl` enquan
 |  `415` | `UNSUPPORTED_AVATAR_FILE`                      | Formato real não é JPEG, PNG ou WebP        |
 |  `422` | `INVALID_AVATAR_IMAGE`                         | Imagem não pode ser decodificada/processada |
 |  `503` | `AVATAR_UPLOAD_FAILED`                         | R2 não concluiu o upload                    |
+|  `429` | `TOO_MANY_REQUESTS`                            | Limite de tentativas excedido               |
+
+## Throttling
+
+A rota aceita 3 tentativas por minuto. Após exceder o limite, novas tentativas ficam bloqueadas por 1 hora.
 
 ## Substituição Assíncrona
 
