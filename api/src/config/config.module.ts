@@ -1,4 +1,5 @@
 import objectStorageConfig from '@/config/object-storage.config';
+import queueConfig from '@/config/queue.config';
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import Joi from 'joi';
@@ -14,7 +15,16 @@ import throttleConfig from './throttle.config';
   imports: [
     NestConfigModule.forRoot({
       cache: true,
-      load: [databaseConfig, jwtConfig, googleOauthConfig, redisConfig, throttleConfig, appConfig, objectStorageConfig],
+      load: [
+        databaseConfig,
+        jwtConfig,
+        googleOauthConfig,
+        redisConfig,
+        throttleConfig,
+        appConfig,
+        objectStorageConfig,
+        queueConfig,
+      ],
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
       validationSchema: Joi.object({
@@ -40,6 +50,20 @@ import throttleConfig from './throttle.config';
         REDIS_PORT: Joi.number().required(),
         REDIS_PASSWORD: Joi.string().required(),
         REDIS_TTL: Joi.number().default(3600),
+
+        // bullmq
+        BULLMQ_REDIS_HOST: Joi.string().optional(),
+        BULLMQ_REDIS_PORT: Joi.number().port().optional(),
+        BULLMQ_REDIS_PASSWORD: Joi.string().allow('').optional(),
+        BULLMQ_REDIS_DB: Joi.number().integer().min(0).default(1),
+        BULLMQ_PREFIX: Joi.string().trim().min(1).default('personal-finance'),
+        BULLMQ_DEFAULT_ATTEMPTS: Joi.number().integer().min(1).default(5),
+        BULLMQ_BACKOFF_TYPE: Joi.string().valid('fixed', 'exponential').default('exponential'),
+        BULLMQ_BACKOFF_DELAY_MS: Joi.number().integer().min(1).default(5000),
+        BULLMQ_REMOVE_ON_COMPLETE: Joi.number().integer().min(0).default(1000),
+        BULLMQ_REMOVE_ON_FAIL: Joi.number().integer().min(0).default(5000),
+        BULLMQ_WORKERS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+        BULLMQ_DEFAULT_CONCURRENCY: Joi.number().integer().min(1).default(5),
 
         // throttle
         THROTTLE_DEFAULT_TTL: Joi.number().default(60000),
