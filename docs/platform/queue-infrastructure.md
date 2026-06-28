@@ -1,0 +1,100 @@
+---
+area: platform
+type: guide
+status: current
+related:
+  - ../specs/platform/queue-infrastructure/specs/requirements.md
+  - ../specs/platform/queue-infrastructure/specs/design.md
+  - ../events/README.md
+---
+
+# Queue Infrastructure
+
+O backend usa BullMQ como infraestrutura base para filas e workers assíncronos.
+
+Esta infraestrutura apenas registra a configuração compartilhada. Ela não cria filas concretas, producers, processors ou módulos de domínio.
+
+## Código
+
+Arquivos principais:
+
+```text
+api/src/config/queue.config.ts
+api/src/shared/jobs/jobs.module.ts
+api/src/shared/jobs/constants/queue.constants.ts
+```
+
+`JobsModule` configura `BullModule.forRootAsync` com:
+
+- conexão Redis;
+- prefixo das chaves BullMQ;
+- attempts padrão;
+- backoff padrão;
+- retenção padrão de jobs concluídos e falhos.
+
+## Variáveis
+
+```text
+BULLMQ_REDIS_HOST
+BULLMQ_REDIS_PORT
+BULLMQ_REDIS_PASSWORD
+BULLMQ_REDIS_DB
+BULLMQ_PREFIX
+BULLMQ_DEFAULT_ATTEMPTS
+BULLMQ_BACKOFF_TYPE
+BULLMQ_BACKOFF_DELAY_MS
+BULLMQ_REMOVE_ON_COMPLETE
+BULLMQ_REMOVE_ON_FAIL
+BULLMQ_WORKERS_ENABLED
+BULLMQ_DEFAULT_CONCURRENCY
+```
+
+Quando `BULLMQ_REDIS_HOST`, `BULLMQ_REDIS_PORT` ou `BULLMQ_REDIS_PASSWORD` não forem definidos, `queue.config.ts` usa `REDIS_HOST`, `REDIS_PORT` e `REDIS_PASSWORD` como fallback.
+
+## Redis
+
+Para ambientes não locais, prefira Redis dedicado para BullMQ.
+
+Configuração recomendada:
+
+```text
+maxmemory-policy noeviction
+appendonly yes
+```
+
+BullMQ depende de chaves internas no Redis. Políticas de eviction voltadas para cache podem remover dados de jobs e reduzir a confiabilidade da fila.
+
+Em desenvolvimento local, é aceitável usar o Redis existente com `BULLMQ_REDIS_DB=1`, desde que isso não seja tratado como desenho final para produção.
+
+## Como Criar Filas Futuras
+
+Cada feature que precisar de fila deve ter sua própria spec.
+
+O módulo consumidor deve definir:
+
+- nome da fila;
+- nomes dos jobs;
+- payload versionado e serializável em JSON;
+- regra de idempotência e `jobId`, quando necessário;
+- attempts/backoff próprios, se o default global não servir;
+- concurrency própria, se o default global não servir.
+
+Domínio, entidades e value objects não importam BullMQ.
+
+Quando enfileirar um job fizer parte de regra de aplicação, crie uma porta na camada de aplicação e implemente essa porta na infraestrutura com BullMQ.
+
+## Workers
+
+Workers futuros devem respeitar `BULLMQ_WORKERS_ENABLED`.
+
+Esse flag permite separar processos no futuro:
+
+- API HTTP que apenas enfileira jobs;
+- processo worker que consome jobs;
+- modo local simples com API e worker no mesmo processo.
+
+## Outbox
+
+BullMQ não substitui o outbox.
+
+Use o outbox para garantir que eventos de domínio sejam persistidos junto da transação. Use BullMQ para executar trabalhos assíncronos retentáveis disparados por casos de uso ou handlers desses eventos.

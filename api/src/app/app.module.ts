@@ -13,6 +13,7 @@ import { CategoriesModule } from '@/modules/categories/categories.module';
 import { TransactionsModule } from '@/modules/transactions/transactions.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { AppEventsModule } from '@/shared/events';
+import { JobsModule } from '@/shared/jobs/jobs.module';
 import { OutboxModule } from '@/shared/outbox';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { Module } from '@nestjs/common';
@@ -64,6 +65,7 @@ import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module
       }),
     }),
     RedisModule,
+    JobsModule,
     AppEventsModule,
     OutboxModule,
     OutboxRehydratorsModule,
