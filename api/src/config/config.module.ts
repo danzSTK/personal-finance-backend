@@ -1,5 +1,6 @@
 import objectStorageConfig from '@/config/object-storage.config';
 import mailConfig from '@/config/mail.config';
+import notificationsConfig from '@/config/notifications.config';
 import queueConfig from '@/config/queue.config';
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
@@ -25,6 +26,7 @@ import throttleConfig from './throttle.config';
         appConfig,
         objectStorageConfig,
         mailConfig,
+        notificationsConfig,
         queueConfig,
       ],
       envFilePath: join(process.cwd(), '..', '.env'),
@@ -74,6 +76,16 @@ import throttleConfig from './throttle.config';
         BREVO_API_BASE_URL: Joi.string().uri().default('https://api.brevo.com/v3'),
         BREVO_API_TIMEOUT_MS: Joi.number().integer().min(1).default(10000),
         BREVO_API_MAX_RETRIES: Joi.number().integer().min(0).default(2),
+
+        // notifications
+        NOTIFICATIONS_DASHBOARD_PATH: Joi.string().trim().pattern(/^\//).default('/dashboard'),
+        NOTIFICATIONS_EMAIL_PREFERENCES_PATH: Joi.string().trim().pattern(/^\//).default('/settings/email-preferences'),
+        SUPPORT_URL: Joi.when('MAIL_ENABLED', {
+          is: true,
+          then: Joi.string().uri().required(),
+          otherwise: Joi.string().uri().default('http://localhost:5173/support'),
+        }),
+        SUPPORT_URL_LABEL: Joi.string().trim().min(1).default('Central de ajuda'),
 
         // bullmq
         BULLMQ_REDIS_HOST: Joi.string().optional(),

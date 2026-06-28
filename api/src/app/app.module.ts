@@ -10,6 +10,7 @@ import { AccountsModule } from '@/modules/accounts/accounts.module';
 import { AssetsModule } from '@/modules/assets/assets.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { CategoriesModule } from '@/modules/categories/categories.module';
+import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { TransactionsModule } from '@/modules/transactions/transactions.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { AppEventsModule } from '@/shared/events';
@@ -80,6 +81,7 @@ import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module
     AssetsModule,
     CategoriesModule,
     TransactionsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
