@@ -11,5 +11,6 @@ Regras transversais da aplicação.
 ## Mapa
 
 - [Datas e instantes](./dates-and-times.md)
+- [Email provider](./email-provider.md)
 - [Queue infrastructure](./queue-infrastructure.md)
 - [Response objects](./response-objects.md)

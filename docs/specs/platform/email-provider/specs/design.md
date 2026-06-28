@@ -2,7 +2,7 @@
 area: platform
 feature: email-provider
 type: spec-design
-status: draft
+status: approved
 related:
   - ./requirements.md
   - ./decisions.md
@@ -47,16 +47,15 @@ O módulo deve expor `MailService` para módulos futuros. Nenhum módulo `notifi
 
 ## Dependências
 
-Preferência inicial: usar HTTP nativo via `fetch` do Node.js 22 para chamar a API transacional da Brevo.
+Adicionar dependência runtime:
 
-Motivos:
+```text
+@getbrevo/brevo
+```
 
-- evita SDK como dependência extra;
-- mantém o adapter fino;
-- facilita trocar provedor;
-- reduz superfície de atualização externa.
+O SDK oficial da Brevo deve ser usado apenas dentro do `BrevoMailProvider`. A interface pública de mail não deve expor tipos do SDK.
 
-Se a implementação decidir usar SDK oficial da Brevo, isso deve ser registrado em `decisions.md` antes de codar.
+Para futuras integrações HTTP externas que não tenham SDK adequado, o padrão pretendido será usar Axios. Axios não será instalado nesta spec porque o adapter atual usa o SDK da Brevo.
 
 ## Configuração
 
@@ -67,7 +66,7 @@ Campos propostos:
 ```ts
 {
   enabled: boolean;
-  provider: 'brevo' | 'smtp' | 'noop';
+  provider: 'brevo' | 'noop';
   defaultSender: {
     email: string;
     name?: string;
@@ -105,7 +104,7 @@ BREVO_API_TIMEOUT_MS=10000
 
 Validações:
 
-- `MAIL_PROVIDER` deve aceitar apenas `brevo`, `smtp` ou `noop`;
+- `MAIL_PROVIDER` deve aceitar apenas `brevo` ou `noop`;
 - `MAIL_DEFAULT_FROM_EMAIL` deve ser e-mail válido quando `MAIL_ENABLED=true`;
 - `BREVO_API_KEY` deve ser obrigatório quando `MAIL_ENABLED=true` e `MAIL_PROVIDER=brevo`;
 - `BREVO_API_TIMEOUT_MS` deve ser inteiro positivo;
@@ -128,7 +127,7 @@ export interface SendMailInput {
   replyTo?: MailAddress;
   html?: string;
   text?: string;
-  templateId?: string | number;
+  templateId?: number;
   params?: Record<string, unknown>;
   tags?: string[];
   metadata?: Record<string, string>;
@@ -167,7 +166,7 @@ MailProvider -> BrevoMailProvider
 MailProvider -> NoopMailProvider
 ```
 
-SMTP será desenhado como adapter futuro. A spec atual deve deixar a porta pronta para SMTP, mas não precisa implementar SMTP se o escopo aprovado for Brevo API + noop.
+Nenhum adapter SMTP será criado ou desenhado agora. A troca futura de provedor deve ser uma mudança de binding/classe de adapter, preservando a porta `MailProvider` e o contrato do `MailService`.
 
 ## MailService
 
@@ -206,24 +205,23 @@ api/src/shared/mail/adapters/brevo-mail.provider.ts
 
 Responsabilidades:
 
-- traduzir `SendMailInput` para payload da Brevo;
-- chamar endpoint transacional de envio;
-- aplicar timeout;
+- traduzir `SendMailInput` para objetos aceitos pelo SDK `@getbrevo/brevo`;
+- chamar o envio transacional pelo SDK da Brevo;
+- deixar timeout como configuração documentada, sem expor detalhe na interface de mail;
 - extrair `messageId` quando disponível;
 - classificar erros HTTP em retentáveis ou permanentes;
 - sanitizar logs/erros.
 
-Endpoint conceitual:
+Endpoint usado pelo SDK de forma conceitual:
 
 ```text
 POST /smtp/email
 ```
 
-Headers conceituais:
+Autenticação conceitual:
 
 ```text
 api-key: <BREVO_API_KEY>
-content-type: application/json
 ```
 
 Mapeamento de campos:
@@ -316,7 +314,7 @@ Testes esperados:
 
 - `mail.config.spec.ts` para defaults e validações condicionais;
 - `mail.service.spec.ts` para validação de payload, remetente padrão e delegação ao provider;
-- `brevo-mail.provider.spec.ts` com `fetch` mockado para sucesso, 4xx, 5xx e timeout;
+- `brevo-mail.provider.spec.ts` com SDK Brevo mockado para sucesso, rejeição do provedor e falha temporária;
 - `mail-error.mapper.spec.ts` para classificação retryable/permanent;
 - `mail.module.spec.ts` para binding de provider sem chamada externa.
 

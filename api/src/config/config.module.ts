@@ -1,4 +1,5 @@
 import objectStorageConfig from '@/config/object-storage.config';
+import mailConfig from '@/config/mail.config';
 import queueConfig from '@/config/queue.config';
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
@@ -23,6 +24,7 @@ import throttleConfig from './throttle.config';
         throttleConfig,
         appConfig,
         objectStorageConfig,
+        mailConfig,
         queueConfig,
       ],
       envFilePath: join(process.cwd(), '..', '.env'),
@@ -50,6 +52,28 @@ import throttleConfig from './throttle.config';
         REDIS_PORT: Joi.number().required(),
         REDIS_PASSWORD: Joi.string().required(),
         REDIS_TTL: Joi.number().default(3600),
+
+        // mail
+        MAIL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+        MAIL_PROVIDER: Joi.string().valid('brevo', 'noop').default('noop'),
+        MAIL_DEFAULT_FROM_EMAIL: Joi.when('MAIL_ENABLED', {
+          is: true,
+          then: Joi.string().email().required(),
+          otherwise: Joi.string().email().optional(),
+        }),
+        MAIL_DEFAULT_FROM_NAME: Joi.string().trim().optional(),
+        BREVO_API_KEY: Joi.when('MAIL_ENABLED', {
+          is: true,
+          then: Joi.when('MAIL_PROVIDER', {
+            is: 'brevo',
+            then: Joi.string().required().invalid(''),
+            otherwise: Joi.string().allow('').optional(),
+          }),
+          otherwise: Joi.string().allow('').optional(),
+        }),
+        BREVO_API_BASE_URL: Joi.string().uri().default('https://api.brevo.com/v3'),
+        BREVO_API_TIMEOUT_MS: Joi.number().integer().min(1).default(10000),
+        BREVO_API_MAX_RETRIES: Joi.number().integer().min(0).default(2),
 
         // bullmq
         BULLMQ_REDIS_HOST: Joi.string().optional(),
