@@ -48,8 +48,7 @@ export class SendEmailMessageUseCase {
         params: emailMessage.templateParams,
         tags: [emailMessage.templateKey, emailMessage.type],
         metadata: {
-          emailMessageId: emailMessage.id,
-          idempotencyKey: emailMessage.idempotencyKey,
+          'X-Danfy-Email-Message-Id': emailMessage.id,
         },
       });
 

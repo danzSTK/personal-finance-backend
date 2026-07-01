@@ -95,13 +95,13 @@ BULLMQ_WORKERS_ENABLED
 BULLMQ_DEFAULT_CONCURRENCY
 ```
 
-Defaults sugeridos:
+Exemplo recomendado para desenvolvimento local com Redis dedicado:
 
 ```text
-BULLMQ_REDIS_HOST=${REDIS_HOST}
-BULLMQ_REDIS_PORT=${REDIS_PORT}
-BULLMQ_REDIS_PASSWORD=${REDIS_PASSWORD}
-BULLMQ_REDIS_DB=1
+BULLMQ_REDIS_HOST=localhost
+BULLMQ_REDIS_PORT=6381
+BULLMQ_REDIS_PASSWORD=
+BULLMQ_REDIS_DB=0
 BULLMQ_PREFIX=personal-finance
 BULLMQ_DEFAULT_ATTEMPTS=5
 BULLMQ_BACKOFF_TYPE=exponential
@@ -112,7 +112,7 @@ BULLMQ_WORKERS_ENABLED=true
 BULLMQ_DEFAULT_CONCURRENCY=5
 ```
 
-Como Joi não expande `${...}` automaticamente, a implementação deve ler `BULLMQ_*` quando existir e fazer fallback para `REDIS_*` dentro de `queue.config.ts`.
+Como Joi não expande `${...}` automaticamente, a implementação deve ler `BULLMQ_*` quando existir e fazer fallback para `REDIS_*` dentro de `queue.config.ts`. Esse fallback existe para compatibilidade e ambientes temporários; o caminho recomendado para filas confiáveis é Redis dedicado.
 
 Validações mínimas:
 
@@ -189,6 +189,35 @@ Filas futuras podem sobrescrever esses valores quando houver requisito próprio.
 Erros em workers futuros devem ser lançados como exceções para que BullMQ consiga marcar falha e acionar retry. Workers não devem engolir erro de execução quando o job precisa ser retentado.
 
 ## Redis
+
+### Docker Compose Local
+
+O Docker Compose local deve ter Redis dedicado para BullMQ:
+
+```text
+service: bullmq-redis
+container: personal-finance-bullmq-redis
+local port: 6381
+internal port: 6379
+volume: bullmqredisdata
+maxmemory-policy: noeviction
+appendonly: yes
+```
+
+Para a API local fora do Docker:
+
+```text
+BULLMQ_REDIS_HOST=localhost
+BULLMQ_REDIS_PORT=6381
+BULLMQ_REDIS_DB=0
+```
+
+Para a API containerizada, `docker-compose.yml` sobrescreve:
+
+```text
+BULLMQ_REDIS_HOST=bullmq-redis
+BULLMQ_REDIS_PORT=6379
+```
 
 ### Opção Recomendada
 

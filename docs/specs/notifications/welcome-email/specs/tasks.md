@@ -86,10 +86,17 @@ related:
 - [x] 44. Rodar build.
 - [x] 45. Rodar lint focado.
 
+## Ajustes De Fechamento
+
+- [x] 46. Atualizar `docs/database/schema.md` com `email_messages`.
+- [x] 47. Adicionar migration incremental para `trg_email_messages_updated_at`.
+- [x] 48. Registrar decisão de não enviar `idempotency_key` como metadata/header do provider.
+- [x] 49. Atualizar regras do projeto para exigir leitura e atualização do schema central em migrations.
+
 ## Fora Do Escopo
 
-- [x] 46. Não criar `email_delivery_attempts`.
-- [x] 47. Não criar coluna `bullmq_job_id`.
-- [x] 48. Não criar coluna `job_id` no v1.
-- [x] 49. Não criar endpoint HTTP.
-- [x] 50. Não implementar webhooks Brevo.
+- [x] 50. Não criar `email_delivery_attempts`.
+- [x] 51. Não criar coluna `bullmq_job_id`.
+- [x] 52. Não criar coluna `job_id` no v1.
+- [x] 53. Não criar endpoint HTTP.
+- [x] 54. Não implementar webhooks Brevo.

@@ -53,7 +53,35 @@ Quando `BULLMQ_REDIS_HOST`, `BULLMQ_REDIS_PORT` ou `BULLMQ_REDIS_PASSWORD` não 
 
 ## Redis
 
-Para ambientes não locais, prefira Redis dedicado para BullMQ.
+BullMQ usa Redis dedicado no Docker Compose local:
+
+```text
+service: bullmq-redis
+container: personal-finance-bullmq-redis
+porta interna: 6379
+porta local: 6381
+volume: bullmqredisdata
+maxmemory-policy: noeviction
+appendonly: yes
+```
+
+Suba a infraestrutura local com:
+
+```bash
+docker compose up -d postgres redis bullmq-redis
+```
+
+Para a API rodando localmente fora do Docker, use:
+
+```text
+BULLMQ_REDIS_HOST=localhost
+BULLMQ_REDIS_PORT=6381
+BULLMQ_REDIS_DB=0
+```
+
+Para a API rodando em container, o `docker-compose.yml` sobrescreve o host para `bullmq-redis` e a porta para `6379`.
+
+Para ambientes não locais, mantenha Redis dedicado para BullMQ.
 
 Configuração recomendada:
 
@@ -64,7 +92,7 @@ appendonly yes
 
 BullMQ depende de chaves internas no Redis. Políticas de eviction voltadas para cache podem remover dados de jobs e reduzir a confiabilidade da fila.
 
-Em desenvolvimento local, é aceitável usar o Redis existente com `BULLMQ_REDIS_DB=1`, desde que isso não seja tratado como desenho final para produção.
+O Redis de cache/sessões continua separado no serviço `redis`, com política adequada para cache. Não aponte BullMQ para esse Redis em produção.
 
 ## Como Criar Filas Futuras
 

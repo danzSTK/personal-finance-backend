@@ -23,6 +23,8 @@ docs/specs/<module>/<feature>/specs/
 
 Implementation may start only after `requirements.md`, `design.md`, and `tasks.md` are reviewed or explicitly approved by the user.
 
+For any schema change, `docs/database/schema.md` is part of the implementation contract. Read it before creating, generating, or running migrations, and update it whenever a migration creates, drops, renames, or changes any table, column, constraint, index, trigger, function, enum, or database-level invariant.
+
 ## Workflow
 
 1. Read existing domain docs first, such as `docs/<module>/**`, `docs/database/schema.md`, and related integration docs.
@@ -39,6 +41,7 @@ Stop implementation and update the spec first when:
 - a business rule changes;
 - an edge case appears that was not covered;
 - a schema/API contract changes;
+- a migration reveals missing or stale `docs/database/schema.md` coverage;
 - a task requires a different design than the approved one;
 - a decision would affect another module or frontend integration.
 

@@ -68,6 +68,8 @@ Include:
 
 Do not hide business-rule changes here. If design reveals a rule change, update `requirements.md`.
 
+For any database schema change, the design must mention the impact on `docs/database/schema.md`. Read that file before creating, generating, or running migrations so existing tables, indexes, triggers, functions, enums, and naming conventions are reused instead of duplicated.
+
 ## tasks.md
 
 Purpose: break implementation into small, ordered, trackable tasks.
@@ -128,3 +130,4 @@ During implementation:
 - if technical design changes, update `design.md`;
 - if task order/scope changes, update `tasks.md`;
 - if a decision/trade-off appears, update `decisions.md`.
+- if a migration changes database structure, update `docs/database/schema.md` in the same task.

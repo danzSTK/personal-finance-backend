@@ -113,3 +113,29 @@ Se a intenção foi salva e a escrita na fila falhou, uma nova publicação do o
 
 Impact:
 Estados terminais não geram novo job. Estados reenfileiráveis dependem da deduplicação determinística do adapter de fila.
+
+## DEC-009 - Usar trigger padrão para updated_at em email_messages
+
+Status: accepted
+
+Decision:
+Adicionar `trg_email_messages_updated_at` usando a função existente `set_updated_at()`.
+
+Reason:
+`email_messages` possui `updated_at` e deve seguir o contrato de schema já documentado para tabelas da aplicação, sem criar nova função duplicada.
+
+Impact:
+A migration já aplicada de criação da tabela não será alterada. O ajuste entra por migration incremental.
+
+## DEC-010 - Não enviar idempotency_key como metadata do provider
+
+Status: accepted
+
+Decision:
+Enviar para a Brevo apenas a metadata curta `X-Danfy-Email-Message-Id`, sem incluir `idempotency_key`.
+
+Reason:
+A Brevo rejeita metadata/header com chave de idempotência longa. A idempotência de negócio já é persistida em `email_messages.idempotency_key`, então o provider não precisa receber esse valor.
+
+Impact:
+Debug externo usa `X-Danfy-Email-Message-Id` e debug interno reconstrói a intenção pelo banco.
