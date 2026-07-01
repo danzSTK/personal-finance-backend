@@ -24,7 +24,9 @@ describe('UpdateUsernameUseCase', () => {
     findByIdForUpdate = jest.fn();
     findByUserName = jest.fn();
     save = jest.fn().mockImplementation((user: User) => Promise.resolve(user));
-    transaction = jest.fn(callback => callback(manager)) as jest.MockedFunction<DataSource['transaction']>;
+    const runInTransaction = async <T>(callback: (manager: EntityManager) => Promise<T>): Promise<T> =>
+      callback(manager);
+    transaction = jest.fn(runInTransaction) as jest.MockedFunction<DataSource['transaction']>;
 
     moduleRef = await Test.createTestingModule({
       providers: [
