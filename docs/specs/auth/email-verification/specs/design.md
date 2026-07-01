@@ -213,7 +213,7 @@ Regras:
 ```text
 id uuid primary key
 user_id uuid not null
-email varchar(320) not null
+email varchar(255) not null
 purpose varchar(50) not null
 token_hash varchar(64) not null
 expires_at timestamptz not null
@@ -259,6 +259,7 @@ Racional:
 - `(email, purpose, created_at DESC)` sustenta cooldown e limite 24h;
 - `(user_id, purpose, created_at DESC)` sustenta consultas operacionais do usuário autenticado;
 - índice parcial de não consumidos ajuda limpeza futura e diagnósticos.
+- `email` é validado e normalizado pelo value object compartilhado `Email`, usando as mesmas regras do e-mail principal do usuário.
 
 ### Token
 

@@ -2,6 +2,18 @@ import { EmailVerificationPurpose } from '@/modules/auth/domain/constants/email-
 import { EmailVerificationChallenge } from '@/modules/auth/domain/entities/email-verification-challenge.entity';
 import { InvalidEmailVerificationChallengeError } from '@/modules/auth/domain/errors/invalid-email-verification-challenge.error';
 
+const createChallenge = (email = 'daniel@example.com'): EmailVerificationChallenge =>
+  EmailVerificationChallenge.create(
+    {
+      userId: 'user-1',
+      email,
+      purpose: EmailVerificationPurpose.EMAIL_VERIFICATION,
+      tokenHash: 'a'.repeat(64),
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    },
+    'challenge-1',
+  );
+
 const makeChallenge = (): EmailVerificationChallenge =>
   EmailVerificationChallenge.reconstitute(
     {
@@ -17,6 +29,24 @@ const makeChallenge = (): EmailVerificationChallenge =>
   );
 
 describe('EmailVerificationChallenge', () => {
+  describe('create', () => {
+    it('normalizes email using the platform email rules', () => {
+      const challenge = createChallenge(' Daniel@Example.COM ');
+
+      expect(challenge.email).toBe('daniel@example.com');
+    });
+
+    it('rejects invalid email using the platform email rules', () => {
+      expect(() => createChallenge('invalid-email')).toThrow(InvalidEmailVerificationChallengeError);
+    });
+
+    it('rejects emails longer than the platform limit', () => {
+      const longEmail = `${'a'.repeat(250)}@x.com`;
+
+      expect(() => createChallenge(longEmail)).toThrow(InvalidEmailVerificationChallengeError);
+    });
+  });
+
   describe('consume', () => {
     it('marks the challenge as consumed', () => {
       const challenge = makeChallenge();

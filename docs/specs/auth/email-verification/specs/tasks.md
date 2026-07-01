@@ -69,6 +69,10 @@ related:
 - [x] 56. Rodar `npm run lint`.
 - [x] 57. Rodar `npm run build`.
 - [x] 58. Revisar SQL gerado/aplicado e conferir `docs/database/schema.md`.
+- [x] 59. Mover `Email` para value object compartilhado.
+- [x] 60. Validar `EmailVerificationChallenge.email` com as regras de e-mail da plataforma.
+- [x] 61. Adicionar variáveis de email verification no `.env` e `.env.exemple`.
+- [x] 62. Criar migration incremental para alinhar `email_verification_challenges.email` com `varchar(255)`.
 
 ## Notas De Execução
 

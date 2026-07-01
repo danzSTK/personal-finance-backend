@@ -5,7 +5,6 @@ export const EmailVerificationPurpose = {
 export type EmailVerificationPurpose = (typeof EmailVerificationPurpose)[keyof typeof EmailVerificationPurpose];
 
 export const EmailVerificationChallengeLimits = {
-  emailMaxLength: 320,
   purposeMaxLength: 50,
   tokenHashLength: 64,
 } as const;

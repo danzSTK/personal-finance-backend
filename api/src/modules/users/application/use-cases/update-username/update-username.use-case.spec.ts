@@ -3,7 +3,7 @@ import { UserNotFoundError, UsernameAlreadyExistsError } from '@/modules/users/a
 import { UpdateUsernameUseCase } from '@/modules/users/application/use-cases/update-username/update-username.use-case';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';

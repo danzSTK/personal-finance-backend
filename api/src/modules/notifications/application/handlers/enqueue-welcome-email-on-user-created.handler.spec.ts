@@ -10,7 +10,7 @@ import {
 } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { UserStatus } from '@/common/models/enums';
 
 const makeEmailMessage = (): EmailMessage =>

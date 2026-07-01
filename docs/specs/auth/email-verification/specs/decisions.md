@@ -166,3 +166,16 @@ Resend precisa enviar novos e-mails para o mesmo usuário. Idempotência por usu
 
 Impact:
 Cada challenge pode gerar no máximo uma intenção de envio, mas usuários podem ter múltiplos challenges controlados por cooldown/limite.
+
+## DEC-013 - Email verification usa o VO compartilhado de e-mail
+
+Status: accepted
+
+Decision:
+`EmailVerificationChallenge.email` deve validar e normalizar pelo value object compartilhado `Email`, usado também pelo módulo de usuários.
+
+Reason:
+O challenge confirma o e-mail principal da plataforma. Regras paralelas poderiam aceitar estado inválido ou divergente do usuário.
+
+Impact:
+O VO foi movido para `common/domain/value-objects`, o caminho antigo em users ficou como re-export temporário, e a coluna `email_verification_challenges.email` foi alinhada para `varchar(255)`.
