@@ -19,7 +19,8 @@ A stack é composta por:
 |---|---|---|
 | API | NestJS (Node.js 22) | Backend principal |
 | Banco de dados | PostgreSQL 16 | Persistência de dados |
-| Cache | Redis 7 | Cache, sessões e filas |
+| Cache e sessões | Redis 7 | Cache, sessões e rate limit |
+| Filas | Redis 7 | Backend dedicado do BullMQ com política `noeviction` |
 | Proxy reverso | NGINX (host) | SSL/TLS + roteamento de tráfego |
 
 ---
@@ -35,14 +36,15 @@ NGINX (host) — porta 80 → redireciona para HTTPS
                   │
                   ▼
            Docker Compose
-           ┌─────────────────────────────────┐
-           │  API (NestJS)  — porta 3000     │
-           │  Redis 7        — porta 6379    │
-           │  PostgreSQL 16  — porta 5432    │
-           └─────────────────────────────────┘
+           ┌──────────────────────────────────────┐
+           │  API (NestJS)       — porta 3000     │
+           │  Redis cache/sessão — porta 6379     │
+           │  Redis BullMQ       — porta 6379 int. │
+           │  PostgreSQL 16      — porta 5432     │
+           └──────────────────────────────────────┘
 ```
 
-> **Nota:** O NGINX roda diretamente no host (não em container). Os três serviços da aplicação rodam em containers Docker na mesma rede interna (`app-network`). A API só é acessível externamente via NGINX.
+> **Nota:** O NGINX roda diretamente no host (não em container). Os serviços da aplicação rodam em containers Docker na mesma rede interna (`app-network`). A API só é acessível externamente via NGINX. O Redis de BullMQ deve ficar separado do Redis de cache/sessões para evitar eviction de chaves de jobs.
 
 ---
 
@@ -119,7 +121,7 @@ cd app
 Na raiz do projeto, crie o arquivo `.env` a partir do exemplo disponível:
 
 ```bash
-cp .env.example .env
+cp .env.exemple .env
 nano .env
 ```
 
@@ -133,6 +135,12 @@ POSTGRES_DB=nome_do_banco
 
 # Redis
 REDIS_PASSWORD=senha_forte_redis
+
+# Redis dedicado para BullMQ
+BULLMQ_REDIS_PASSWORD=senha_forte_bullmq
+BULLMQ_REDIS_DB=0
+BULLMQ_PREFIX=personal-finance
+BULLMQ_WORKERS_ENABLED=true
 
 # JWT (gere strings longas e aleatórias)
 JWT_ACCESS_SECRET=...
@@ -165,13 +173,14 @@ Verifique se todos os containers estão rodando:
 docker compose ps
 ```
 
-Você deve ver os três serviços com status `running`:
+Você deve ver os serviços principais com status `running`/`healthy`:
 
 ```
 NAME                     STATUS
 personal-finance-api     Up
 personal-finance-db      Up
 personal-finance-redis   Up
+personal-finance-bullmq-redis Up
 ```
 
 Acompanhe os logs da API em tempo real:
@@ -298,3 +307,4 @@ Se qualquer dependência falhar, o endpoint retorna `503 Service Unavailable` co
 | Atualizar a aplicação | `git pull && docker compose up -d --build` |
 | Acessar o banco | `docker exec -it personal-finance-db psql -U <POSTGRES_USER> -d <POSTGRES_DB>` |
 | Acessar o Redis CLI | `docker exec -it personal-finance-redis redis-cli -a <REDIS_PASSWORD>` |
+| Acessar o Redis BullMQ CLI | `docker exec -it personal-finance-bullmq-redis redis-cli -a <BULLMQ_REDIS_PASSWORD>` |

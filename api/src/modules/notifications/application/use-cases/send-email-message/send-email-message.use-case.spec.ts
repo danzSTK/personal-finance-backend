@@ -93,8 +93,7 @@ describe('SendEmailMessageUseCase', () => {
         params: emailMessage.templateParams,
         tags: ['welcome-email', 'WELCOME'],
         metadata: {
-          emailMessageId: 'email-message-1',
-          idempotencyKey: 'email:welcome:user:user-1',
+          'X-Danfy-Email-Message-Id': 'email-message-1',
         },
       });
       expect(result).toEqual({ status: EmailMessageStatus.SENT, sent: true });

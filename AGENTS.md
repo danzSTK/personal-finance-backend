@@ -186,10 +186,13 @@ Use `@/` imports for project code. Do not use `src/*` imports.
 
 Always create a TypeORM migration for schema changes:
 
+Before creating, generating, or running any migration, read `docs/database/schema.md` and the relevant existing migrations to understand current tables, indexes, triggers, functions, enums, and naming conventions. Reuse existing database objects when appropriate; do not create duplicate functions/triggers or introduce overlapping infrastructure objects.
+
 1. Modify the ORM entity.
 2. Generate or create the migration.
 3. Review generated SQL in `src/database/migrations/`.
-4. Run the migration.
+4. Update `docs/database/schema.md` whenever the migration creates, drops, renames, or changes any table, column, constraint, index, trigger, function, enum, or database-level invariant.
+5. Run the migration.
 
 Never ship entity schema changes without a migration. Never modify applied migrations; create a new migration to revert or adjust.
 

@@ -65,3 +65,11 @@ Observação: o lint global foi executado e ainda falha em `api/src/modules/user
 - [x] 27. Não criar processor concreto.
 - [x] 28. Não criar módulo `notifications`.
 - [x] 29. Não criar producer concreto.
+
+## Ajuste Local Pós-Implementação
+
+- [x] 30. Adicionar Redis dedicado `bullmq-redis` ao Docker Compose.
+- [x] 31. Expor Redis de BullMQ localmente em `6381`.
+- [x] 32. Configurar Redis de BullMQ com `noeviction`.
+- [x] 33. Atualizar `.env.exemple` para apontar BullMQ para o Redis dedicado.
+- [x] 34. Atualizar documentação de plataforma sobre Redis dedicado local.

@@ -8,6 +8,7 @@ related:
   - ../../../../platform/email-provider.md
   - ../../../../platform/queue-infrastructure.md
   - ../../../../notifications/email-templates/welcome-email.md
+  - ../../../../database/schema.md
 ---
 
 # Requirements - Welcome Email
@@ -168,6 +169,7 @@ O template Brevo `2` exige:
 - Existe documentação de catálogo de templates.
 - Existe documentação do template `welcome-email`.
 - Existe tabela `email_messages` com migration.
+- `docs/database/schema.md` documenta `email_messages`.
 - Não existe coluna `bullmq_job_id`.
 - Não existe coluna `job_id` no v1.
 - Existe unique index em `idempotency_key`.

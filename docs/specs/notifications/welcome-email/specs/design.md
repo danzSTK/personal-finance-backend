@@ -7,6 +7,7 @@ related:
   - ./requirements.md
   - ./decisions.md
   - ../../../../notifications/email-templates/welcome-email.md
+  - ../../../../database/schema.md
 ---
 
 # Design - Welcome Email
@@ -119,6 +120,12 @@ UQ_email_messages_idempotency_key unique(idempotency_key)
 idx_email_messages_status_created_at(status, created_at)
 idx_email_messages_recipient_email_created_at(recipient_email, created_at)
 idx_email_messages_type_created_at(type, created_at)
+```
+
+Trigger:
+
+```text
+trg_email_messages_updated_at -> set_updated_at()
 ```
 
 Não criar:
@@ -296,6 +303,22 @@ Mensagens de erro devem ser sanitizadas.
 Criar TypeORM migration para `email_messages`.
 
 Nunca depender de `synchronize`.
+
+Como `email_messages` possui `updated_at`, a tabela deve usar o trigger padrão `set_updated_at()` documentado em `docs/database/schema.md`. Se a migration de criação já estiver aplicada, adicionar esse trigger por nova migration incremental.
+
+Atualizar `docs/database/schema.md` sempre que a tabela, índices, constraints ou triggers de notifications forem criados ou alterados.
+
+## Metadata Do Provider
+
+O envio via `MailService` deve enviar apenas metadata curta e não sensível para o provider.
+
+Para o fluxo de welcome email:
+
+```text
+X-Danfy-Email-Message-Id=<emailMessage.id>
+```
+
+Não enviar `idempotency_key` para a Brevo como metadata/header, porque a chave de negócio pode exceder limites do provider e já fica persistida no banco.
 
 ## Testes
 

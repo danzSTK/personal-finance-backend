@@ -11,11 +11,16 @@ services:
       # Sobrescreve o .env: dentro do Docker, os hosts são os nomes dos serviços
       POSTGRES_HOST: ${POSTGRES_HOST}
       REDIS_HOST: redis
+      BULLMQ_REDIS_HOST: bullmq-redis
+      BULLMQ_REDIS_PORT: 6379
+      BULLMQ_REDIS_PASSWORD: ${BULLMQ_REDIS_PASSWORD:-}
     ports:
       - "3000:3000"
     mem_limit: 512m
     depends_on:
       redis:
+        condition: service_healthy
+      bullmq-redis:
         condition: service_healthy
     networks:
       - app-network
@@ -35,10 +40,39 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  bullmq-redis:
+    image: redis:7-alpine
+    container_name: personal-finance-bullmq-redis
+    restart: always
+    command: >
+      sh -c 'if [ -n "$$BULLMQ_REDIS_PASSWORD" ]; then
+        redis-server --appendonly yes --requirepass "$$BULLMQ_REDIS_PASSWORD" --maxmemory 128mb --maxmemory-policy noeviction;
+      else
+        redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy noeviction;
+      fi'
+    environment:
+      BULLMQ_REDIS_PASSWORD: ${BULLMQ_REDIS_PASSWORD:-}
+    mem_limit: 160m
+    ports:
+      - "6381:6379"
+    volumes:
+      - bullmqredisdata:/data
+    networks:
+      - app-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'if [ -n "$$BULLMQ_REDIS_PASSWORD" ]; then redis-cli -a "$$BULLMQ_REDIS_PASSWORD" ping; else redis-cli ping; fi',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
   redisdata:
+  bullmqredisdata:
 
 networks:
   app-network:

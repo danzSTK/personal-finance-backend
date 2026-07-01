@@ -26,6 +26,7 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 | `categories`      | Categorias financeiras e técnicas do usuário, incluindo receita, despesa, transferência, ajuste e investimento. |
 | `transactions`    | Movimentações financeiras registradas para usuário, conta e categoria.              |
 | `assets`          | Metadados e ciclo de vida dos objetos armazenados no Object Storage.                 |
+| `email_messages`  | Intenções idempotentes de envio de e-mails transacionais.                           |
 | `outbox_messages` | Mensagens do transactional outbox para publicar eventos de domínio com resiliência. |
 
 ## Convenções
@@ -35,7 +36,7 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 - `updated_at` é atualizado pela função `set_updated_at()` via trigger nas tabelas criadas pelas migrations.
 - Colunas `date` representam data civil (`DateOnly`) e não devem depender de timezone.
 - Colunas `timestamptz` representam instantes (`Instant`) e devem ser trafegadas em UTC.
-- Dados multi-tenant são sempre ligados a `user_id`.
+- Dados de domínio multi-tenant são ligados a `user_id`. Tabelas operacionais de integração podem usar identificadores de evento, aggregate ou chaves de idempotência, desde que não sejam expostas como recursos de usuário sem ownership explícito.
 - Soft delete de transactions usa `deleted_at`.
 - Arquivamento de cadastros usa `is_archived`/`archived_at` em `accounts` e `categories`.
 
@@ -360,6 +361,75 @@ Representa o registro relacional dos objetos armazenados no Object Storage. Os b
 
 Mais detalhes de domínio estão em [Assets](../assets/README.md).
 
+## `email_messages`
+
+Representa uma intenção idempotente de envio de e-mail transacional. A tabela guarda o estado atual da mensagem, os parâmetros de template usados no provider e o diagnóstico da última falha, mas não funciona como log detalhado de tentativas.
+
+O v1 usa essa tabela para o e-mail de boas-vindas disparado por `user.created`. A execução assíncrona fica na fila BullMQ `notifications.email`, e o `jobId` é derivado de `email_messages.id`, mas não é persistido.
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identificador interno da intenção de e-mail. Também é usado para derivar o job id da fila. |
+| `type` | `varchar(50)` | `not null` | Tipo lógico do e-mail, inicialmente `WELCOME`. |
+| `recipient_email` | `varchar(320)` | `not null` | Endereço de destino usado pelo provider de e-mail. |
+| `recipient_name` | `varchar(120)` | `nullable` | Nome exibível do destinatário quando disponível. |
+| `provider` | `varchar(50)` | `not null` | Provider de envio usado na intenção, como `brevo`. |
+| `template_key` | `varchar(100)` | `not null` | Chave interna documentada do template, como `welcome-email`. |
+| `provider_template_id` | `varchar(100)` | `not null` | Identificador do template no provider externo, como `2` na Brevo. |
+| `template_params` | `jsonb` | `not null default '{}'::jsonb` | Parâmetros enviados ao template. Deve ser objeto JSON. |
+| `idempotency_key` | `varchar(255)` | `not null` | Chave de negócio que impede duplicidade lógica. Para welcome: `email:welcome:user:<userId>`. |
+| `status` | `varchar(30)` | `not null default 'PENDING'` | Estado operacional: `PENDING`, `PROCESSING`, `SENT`, `FAILED_RETRYABLE`, `FAILED_PERMANENT` ou `CANCELED`. |
+| `provider_message_id` | `varchar(255)` | `nullable` | Identificador retornado pelo provider quando o envio é aceito. |
+| `attempts_count` | `integer` | `not null default 0` | Quantidade de tentativas registradas pela aplicação. |
+| `last_error_code` | `varchar(100)` | `nullable` | Código estável do último erro de envio. |
+| `last_error_message` | `text` | `nullable` | Mensagem sanitizada do último erro de envio. |
+| `processing_at` | `timestamptz` | `nullable` | Momento em que o worker iniciou o processamento atual ou mais recente. |
+| `sent_at` | `timestamptz` | `nullable` | Momento em que o provider aceitou o envio. |
+| `failed_at` | `timestamptz` | `nullable` | Momento da última falha registrada. |
+| `created_at` | `timestamptz` | `not null default now()` | Quando a intenção foi criada. |
+| `updated_at` | `timestamptz` | `not null default now()` | Última atualização da intenção. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_email_messages_id` | primary key | `id` | Garante identidade única da intenção de e-mail. |
+| `CHK_email_messages_status` | check | `status IN ('PENDING', 'PROCESSING', 'SENT', 'FAILED_RETRYABLE', 'FAILED_PERMANENT', 'CANCELED')` | Impede estados fora do ciclo operacional de notifications. |
+| `CHK_email_messages_attempts_count` | check | `attempts_count >= 0` | Impede contador de tentativas negativo. |
+| `CHK_email_messages_template_params_object` | check | `jsonb_typeof(template_params) = 'object'` | Garante que os parâmetros de template sejam sempre objeto JSON. |
+
+### Índices
+
+| Nome | Colunas/filtro | Utilidade |
+| --- | --- | --- |
+| `UQ_email_messages_idempotency_key` | `idempotency_key`, unique | Impede duplicidade lógica de uma intenção de e-mail. |
+| `idx_email_messages_status_created_at` | `(status, created_at)` | Lista intenções por estado operacional e idade. |
+| `idx_email_messages_recipient_email_created_at` | `(recipient_email, created_at)` | Ajuda diagnóstico por destinatário. |
+| `idx_email_messages_type_created_at` | `(type, created_at)` | Ajuda diagnóstico e relatórios operacionais por tipo de e-mail. |
+
+### Relacionamentos
+
+| Relacionamento | Regra | Utilidade |
+| --- | --- | --- |
+| Nenhum FK no v1 | A intenção usa `idempotency_key` e dados necessários ao envio. | Evita acoplar o histórico operacional de envio ao ciclo de vida físico do usuário. |
+
+### Triggers
+
+| Nome | Função | Utilidade |
+| --- | --- | --- |
+| `trg_email_messages_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente em updates. |
+
+### Observações
+
+- `idempotency_key` pode usar `:` porque é uma chave de aplicação/banco, não um `jobId` BullMQ.
+- A tabela não possui `job_id` nem `bullmq_job_id`; o job id é reconstruído como `email-message-<emailMessage.id>`.
+- A tabela não substitui `email_delivery_attempts`. Um log detalhado de tentativas deve ser criado em spec futura, se necessário.
+- Esta tabela contém e-mail de destinatário e parâmetros de template. Não exponha esses dados em endpoint de usuário sem uma spec que modele ownership, autorização e retenção.
+
+Mais detalhes de domínio estão em [Notifications](../notifications/README.md) e no catálogo de [templates de e-mail](../notifications/email-templates/README.md).
+
 ## `outbox_messages`
 
 Representa a fila transacional do padrão outbox. Cada linha é um evento de domínio salvo junto com a transação de negócio.
@@ -431,6 +501,7 @@ Usada por:
 - `trg_categories_updated_at`
 - `trg_transactions_updated_at`
 - `trg_assets_updated_at`
+- `trg_email_messages_updated_at`
 - `trg_outbox_messages_updated_at`
 
 ### `accounts_account_type_enum`
@@ -457,3 +528,4 @@ Utilidade:
 - `transactions` usa `amount_cents` como `bigint`; a aplicação deve converter entrada/saída monetária sem usar `number` para cálculo financeiro.
 - O banco protege coerência interna da linha de transaction, mas compatibilidade semântica entre `transaction.type` e `categories.type` ainda deve ser validada na aplicação.
 - O banco protege FKs simples para account/category; ownership multi-tenant entre `transactions.user_id`, accounts e categories ainda deve ser validado na aplicação.
+- `email_messages` é tabela operacional de envio. Ela não deve ser tratada como recurso multi-tenant de usuário sem uma spec futura que adicione ownership explícito ou defina uma política de exposição segura.

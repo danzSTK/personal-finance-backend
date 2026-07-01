@@ -87,3 +87,16 @@ BullMQ é infraestrutura. Manter esse limite preserva Clean Architecture e facil
 
 Impact:
 Features futuras devem criar ports/interfaces na aplicação e implementações BullMQ na infraestrutura quando o enfileiramento fizer parte de um fluxo de negócio.
+
+## DEC-007 - Usar Redis dedicado para BullMQ no Docker Compose local
+
+Status: accepted
+
+Decision:
+Adicionar o serviço `bullmq-redis` ao Docker Compose local, exposto na porta `6381`, com volume próprio e `maxmemory-policy noeviction`.
+
+Reason:
+O Redis existente usa política voltada para cache/sessão. BullMQ precisa preservar chaves de jobs e não deve disputar eviction com dados de cache.
+
+Impact:
+A API local deve apontar `BULLMQ_REDIS_HOST=localhost` e `BULLMQ_REDIS_PORT=6381`. A API containerizada usa o host interno `bullmq-redis` e porta `6379`.
