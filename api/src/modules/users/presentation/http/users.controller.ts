@@ -1,4 +1,5 @@
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { AllowPendingEmailVerification } from '@/common/decorators/allow-pending-email-verification.decorator';
 import { IsPublic } from '@/common/decorators/is-public.decorator';
 import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
@@ -55,6 +56,7 @@ export class UsersController {
   ) {}
 
   @Get('me')
+  @AllowPendingEmailVerification()
   @ApiCookieAuth('accessToken')
   @ApiOperation({
     summary: 'Obter dados do usuário autenticado',

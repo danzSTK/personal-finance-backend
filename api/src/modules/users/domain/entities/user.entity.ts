@@ -7,6 +7,7 @@ import {
 import { AuthProviderType, UserStatus } from '@/common/models/enums';
 import { InvalidUserError } from '@/modules/users/domain/errors/invalid-user.error';
 import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
+import { UserEmailVerifiedEvent } from '@/modules/users/domain/events/user-email-verified.event';
 import { UserAvatarUpdatedEvent } from '@/modules/users/domain/events/user-avatar-updated.event';
 import { UserAvatarRemovedEvent } from '@/modules/users/domain/events/user-avatar-removed.event';
 import { AggregateRoot } from '@/shared/domain/aggregate-root';
@@ -147,6 +148,20 @@ export class User extends AggregateRoot {
 
   static reconstitute(props: UserProps, id: string) {
     return new User(props, id);
+  }
+
+  markEmailVerified(): void {
+    if (this.props.status === UserStatus.ACTIVE) {
+      return;
+    }
+
+    if (this.props.status !== UserStatus.PENDING_EMAIL_VERIFICATION) {
+      throw new InvalidUserError(`Cannot verify email for user with status ${this.props.status}.`);
+    }
+
+    this.props.status = UserStatus.ACTIVE;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(UserEmailVerifiedEvent.create(this.id, this.email));
   }
 
   changeUserName(newUserName: UserName): void {

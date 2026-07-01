@@ -18,6 +18,10 @@ related:
 | Refresh token sem sessão Redis | `401` |
 | E-mail ou username duplicado | `409` |
 | Provider já vinculado ou em conflito | `409` |
+| E-mail pendente tentando acessar recurso bloqueado | `403` |
+| Token de verificação inválido | `400` |
+| Token de verificação expirado | `410` |
+| Cooldown/limite de reenvio de verificação | `429` |
 
 ## Link Google
 

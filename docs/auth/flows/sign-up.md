@@ -20,17 +20,22 @@ Cadastro por credenciais.
 3. Verificar se já existe provider `EMAIL` para o e-mail.
 4. Verificar se já existe usuário com o mesmo e-mail.
 5. Verificar se `userName` já está em uso.
-6. Criar `User` com status `ACTIVE` e provider `EMAIL`.
+6. Criar `User` com status `PENDING_EMAIL_VERIFICATION` e provider `EMAIL`.
 7. Gerar `accessToken` e `refreshToken`.
 8. Criar sessão no Redis.
 9. Setar cookies HttpOnly.
 10. Retornar perfil do usuário.
+11. Enviar e-mail de verificação de forma assíncrona via `user.created`.
 
 ## Erros
 
 - E-mail já existente: `409 Conflict`.
 - Username já existente: `409 Conflict`.
 - DTO inválido: `400 Bad Request`.
+
+## Email Verification
+
+Usuários criados por credenciais podem logar imediatamente, mas recursos protegidos do produto ficam bloqueados por padrão até a confirmação do e-mail. O frontend deve ler `status` em `GET /users/me` e conduzir a UX de verificação quando receber `PENDING_EMAIL_VERIFICATION`.
 
 ## Decisão Importante
 

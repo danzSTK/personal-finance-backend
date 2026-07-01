@@ -80,6 +80,11 @@ import throttleConfig from './throttle.config';
         // notifications
         NOTIFICATIONS_DASHBOARD_PATH: Joi.string().trim().pattern(/^\//).default('/dashboard'),
         NOTIFICATIONS_EMAIL_PREFERENCES_PATH: Joi.string().trim().pattern(/^\//).default('/settings/email-preferences'),
+        NOTIFICATIONS_EMAIL_VERIFICATION_PATH: Joi.string().trim().pattern(/^\//).default('/verification-email'),
+        NOTIFICATIONS_EMAIL_VERIFICATION_PROVIDER_TEMPLATE_ID: Joi.string().trim().min(1).default('3'),
+        EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: Joi.number().integer().min(1).default(15),
+        EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES: Joi.number().integer().min(1).default(60),
+        EMAIL_VERIFICATION_DAILY_LIMIT: Joi.number().integer().min(1).default(5),
         SUPPORT_URL: Joi.when('MAIL_ENABLED', {
           is: true,
           then: Joi.string().uri().required(),

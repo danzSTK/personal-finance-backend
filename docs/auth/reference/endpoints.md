@@ -17,6 +17,8 @@ related:
 | `GET` | `/auth/google/callback` | `GoogleAuthGuard` | Callback OAuth Google |
 | `POST` | `/auth/refresh` | `JwtRefreshGuard` | Rotaciona tokens |
 | `POST` | `/auth/logout` | `JwtAuthGuard` | Logout da sessão atual |
+| `POST` | `/auth/email-verification/confirm` | público | Confirma e-mail por token |
+| `POST` | `/auth/email-verification/resend` | `JwtAuthGuard` | Reenvia e-mail de verificação para usuário autenticado |
 | `GET` | `/auth/sessions` | `JwtAuthGuard` | Lista sessões ativas |
 | `DELETE` | `/auth/sessions/:jti` | `JwtAuthGuard` | Revoga sessão específica |
 | `POST` | `/auth/providers/link/email` | `JwtAuthGuard` | Vincula provider EMAIL |

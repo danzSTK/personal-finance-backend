@@ -7,6 +7,7 @@ related:
   - ./events-map.canvas
   - ./add-event.md
   - ./user-created.md
+  - ./user-email-verified.md
   - ./user-avatar-updated.md
   - ./user-avatar-removed.md
 ---
@@ -33,6 +34,7 @@ Guia para criar novos eventos: [Add event](./add-event.md).
 | Evento                                          | Status  | Produtor | Consumidores                                                      |
 | ----------------------------------------------- | ------- | -------- | ----------------------------------------------------------------- |
 | [user.created](./user-created.md)               | current | `users`  | `accounts` atual; `categories` e `notifications/email` planejados |
+| [user.email.verified](./user-email-verified.md) | current | `users`  | `notifications/email` welcome email                               |
 | [user.avatar.updated](./user-avatar-updated.md) | current | `users`  | remoção idempotente do asset anterior em `assets`                 |
 | [user.avatar.removed](./user-avatar-removed.md) | current | `users`  | remoção idempotente do asset removido em `assets`                 |
 

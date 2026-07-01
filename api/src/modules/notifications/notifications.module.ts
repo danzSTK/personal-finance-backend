@@ -1,7 +1,9 @@
 import { ConfigModule } from '@/config/config.module';
+import { CreateEmailVerificationMessageUseCase } from '@/modules/notifications/application/use-cases/create-email-verification-message/create-email-verification-message.use-case';
 import { CreateWelcomeEmailMessageUseCase } from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.use-case';
 import { SendEmailMessageUseCase } from '@/modules/notifications/application/use-cases/send-email-message/send-email-message.use-case';
 import { EnqueueWelcomeEmailOnUserCreatedHandler } from '@/modules/notifications/application/handlers/enqueue-welcome-email-on-user-created.handler';
+import { EnqueueWelcomeEmailOnUserEmailVerifiedHandler } from '@/modules/notifications/application/handlers/enqueue-welcome-email-on-user-email-verified.handler';
 import { EmailJobQueueProducer } from '@/modules/notifications/application/queues/email-job-queue-producer.port';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
 import { EmailMessageOrmEntity } from '@/modules/notifications/infrastructure/persistence/email-message-orm.entity';
@@ -34,10 +36,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       provide: EmailJobQueueProducer,
       useClass: BullmqEmailJobQueueProducer,
     },
+    CreateEmailVerificationMessageUseCase,
     CreateWelcomeEmailMessageUseCase,
     SendEmailMessageUseCase,
     EnqueueWelcomeEmailOnUserCreatedHandler,
+    EnqueueWelcomeEmailOnUserEmailVerifiedHandler,
     EmailMessageProcessor,
   ],
+  exports: [CreateEmailVerificationMessageUseCase, EmailJobQueueProducer],
 })
 export class NotificationsModule {}
