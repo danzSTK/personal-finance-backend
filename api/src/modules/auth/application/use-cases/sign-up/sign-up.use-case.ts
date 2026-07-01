@@ -54,7 +54,7 @@ export class SignUpUseCase {
           firstName: data.firstName,
           lastName: data.lastName,
           userName: data.userName,
-          status: UserStatus.ACTIVE,
+          status: UserStatus.PENDING_EMAIL_VERIFICATION,
           authProviders: [
             {
               provider: AuthProviderType.EMAIL,

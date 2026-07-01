@@ -22,6 +22,7 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 | ----------------- | ----------------------------------------------------------------------------------- |
 | `users`           | Identidade principal do usuário dentro do sistema.                                  |
 | `auth_providers`  | Formas de autenticação vinculadas a um usuário, como `EMAIL` e `GOOGLE`.            |
+| `email_verification_challenges` | Desafios de confirmação de e-mail por token com expiração e consumo. |
 | `accounts`        | Contas financeiras do usuário, como `CASH`, `BANK`, `CREDIT_CARD` e `INVESTMENT`.   |
 | `categories`      | Categorias financeiras e técnicas do usuário, incluindo receita, despesa, transferência, ajuste e investimento. |
 | `transactions`    | Movimentações financeiras registradas para usuário, conta e categoria.              |
@@ -53,7 +54,7 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | `user_name` | `varchar(255)` | `nullable` | Nome de usuário opcional para perfil/identificação pública. |
 | `first_name` | `varchar(255)` | `nullable` | Primeiro nome do usuário. |
 | `last_name` | `varchar(255)` | `nullable` | Sobrenome do usuário. |
-| `status` | `varchar(50)` | `not null default 'PENDING_PROFILE'` | Estado operacional do usuário: `PENDING_PROFILE`, `ACTIVE` ou `BLOCKED`. |
+| `status` | `varchar(50)` | `not null default 'PENDING_PROFILE'` | Estado operacional do usuário: `PENDING_PROFILE`, `PENDING_EMAIL_VERIFICATION`, `ACTIVE` ou `BLOCKED`. |
 | `avatar_asset_id` | `uuid` | `nullable` | Referência ao asset que representa o avatar atual do usuário. |
 | `created_at` | `timestamptz` | `not null default now()` | Quando o usuário foi criado. |
 | `updated_at` | `timestamptz` | `not null default now()` | Última atualização do usuário. |
@@ -63,7 +64,7 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | Nome | Tipo | Regra | Utilidade |
 | --- | --- | --- | --- |
 | `PK_users` | primary key | `id` | Garante identidade única da linha. |
-| `CHK_users_status` | check | `status IN ('PENDING_PROFILE', 'ACTIVE', 'BLOCKED')` | Impede estados de usuário fora do contrato do domínio. |
+| `CHK_users_status` | check | `status IN ('PENDING_PROFILE', 'PENDING_EMAIL_VERIFICATION', 'ACTIVE', 'BLOCKED')` | Impede estados de usuário fora do contrato do domínio. |
 | `UQ_074a1f262efaca6aba16f7ed920` | unique | `user_name` | Evita dois usuários com o mesmo `user_name`. A entidade declara o nome lógico `UQ_user_name`, mas a migration histórica criou esse nome automático. |
 | `UQ_users_avatar_asset_id` | unique | `avatar_asset_id` | Impede que o mesmo asset seja usado como avatar atual por usuários diferentes. |
 | `FK_users_avatar_asset` | foreign key | `avatar_asset_id -> assets.id ON DELETE SET NULL` | Mantém o usuário válido caso uma linha de asset seja removida fisicamente. |
@@ -80,6 +81,7 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | Relacionamento | Regra | Utilidade |
 | --- | --- | --- |
 | `auth_providers.user_id -> users.id` | `ON DELETE CASCADE` | Remove providers quando o usuário é removido. |
+| `email_verification_challenges.user_id -> users.id` | `ON DELETE CASCADE` | Remove challenges quando o usuário é removido. |
 | `accounts.user_id -> users.id` | `ON DELETE CASCADE` | Remove contas quando o usuário é removido. |
 | `categories.user_id -> users.id` | `ON DELETE CASCADE` | Remove categorias quando o usuário é removido. |
 | `transactions.user_id -> users.id` | `ON DELETE CASCADE` | Remove transações quando o usuário é removido. |
@@ -132,6 +134,43 @@ Representa um método de autenticação vinculado a um usuário. Um usuário pod
 | Nome | Função | Utilidade |
 | --- | --- | --- |
 | `trg_auth_providers_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente em updates. |
+
+## `email_verification_challenges`
+
+Representa desafios de confirmação de e-mail. O token em claro nunca é persistido; o banco guarda apenas o hash usado para lookup durante a confirmação.
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identificador interno do challenge. |
+| `user_id` | `uuid` | `not null` | Usuário dono do challenge. |
+| `email` | `varchar(320)` | `not null` | E-mail que receberá o link de verificação. |
+| `purpose` | `varchar(50)` | `not null` | Finalidade do challenge. Inicialmente `EMAIL_VERIFICATION`. |
+| `token_hash` | `varchar(64)` | `not null` | SHA-256 hexadecimal do token. |
+| `expires_at` | `timestamptz` | `not null` | Instante em que o token deixa de ser válido. |
+| `consumed_at` | `timestamptz` | `nullable` | Instante de consumo do challenge. |
+| `created_at` | `timestamptz` | `not null default now()` | Quando o challenge foi criado. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_email_verification_challenges` | primary key | `id` | Garante identidade única do challenge. |
+| `FK_email_verification_challenges_user` | foreign key | `user_id -> users.id ON DELETE CASCADE` | Remove challenges quando o usuário é removido. |
+| `CHK_email_verification_challenges_purpose` | check | `purpose IN ('EMAIL_VERIFICATION')` | Impede finalidades fora do contrato atual. |
+| `CHK_email_verification_challenges_token_hash_length` | check | `length(token_hash) = 64` | Garante formato SHA-256 hexadecimal. |
+| `CHK_email_verification_challenges_expiration` | check | `expires_at > created_at` | Garante challenge com validade futura. |
+| `CHK_email_verification_challenges_consumed_after_created` | check | `consumed_at IS NULL OR consumed_at >= created_at` | Mantém coerência temporal do consumo. |
+
+### Índices
+
+| Nome | Colunas/filtro | Utilidade |
+| --- | --- | --- |
+| `idx_email_verification_challenges_token` | `(purpose, token_hash)` | Lookup de confirmação por token. |
+| `idx_email_verification_challenges_email_purpose_created_at` | `(email, purpose, created_at DESC)` | Cooldown e limite de envios por e-mail. |
+| `idx_email_verification_challenges_user_purpose_created_at` | `(user_id, purpose, created_at DESC)` | Diagnóstico e consultas por usuário. |
+| `idx_email_verification_challenges_unconsumed_expiration` | `(purpose, expires_at) WHERE consumed_at IS NULL` | Suporte a limpeza/reconciliação futura de challenges abertos. |
 
 ## `accounts`
 

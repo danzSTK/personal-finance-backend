@@ -1,6 +1,7 @@
 import { CreateWelcomeEmailMessageUseCase } from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.use-case';
 import { EmailJobQueueProducer } from '@/modules/notifications/application/queues/email-job-queue-producer.port';
 import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
+import { UserStatus } from '@/common/models/enums';
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
@@ -13,6 +14,10 @@ export class EnqueueWelcomeEmailOnUserCreatedHandler {
 
   @OnEvent(UserCreatedEvent.eventName, { suppressErrors: false })
   async handle(event: UserCreatedEvent): Promise<void> {
+    if (event.status === UserStatus.PENDING_EMAIL_VERIFICATION) {
+      return;
+    }
+
     const result = await this.createWelcomeEmailMessageUseCase.execute({
       userId: event.userId,
       email: event.email.value,

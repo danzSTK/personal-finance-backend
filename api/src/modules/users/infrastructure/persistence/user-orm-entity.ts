@@ -21,7 +21,7 @@ import { AuthProviderOrmEntity } from './auth-provider-orm.entity';
 @Entity('users')
 @Index('idx_users_status', ['status'])
 @Index('idx_users_email', ['email'], { unique: true })
-@Check('CHK_users_status', `"status" IN ('PENDING_PROFILE', 'ACTIVE', 'BLOCKED')`)
+@Check('CHK_users_status', `"status" IN ('PENDING_PROFILE', 'PENDING_EMAIL_VERIFICATION', 'ACTIVE', 'BLOCKED')`)
 @Unique('UQ_user_name', ['userName'])
 @Unique('UQ_users_avatar_asset_id', ['avatarAssetId'])
 export class UserOrmEntity {

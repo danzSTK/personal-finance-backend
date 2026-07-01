@@ -26,4 +26,5 @@ Cada template deve documentar:
 
 | Key                                   | Provider | Provider template id | Tipo         | Status      |
 | ------------------------------------- | -------- | -------------------- | ------------ | ----------- |
+| [`email-verification`](./email-verification.md) | Brevo | `3` | Transacional | implemented |
 | [`welcome-email`](./welcome-email.md) | Brevo    | `2`                  | Transacional | implemented |

@@ -29,6 +29,7 @@ import databaseConfig from '../config/database.config';
 import { RedisService } from '../database/redis/redis.service';
 import { HealthModule } from '../modules/health/health.module';
 import { JwtAuthGuard } from '../shared/guards/jwt-auth.guard';
+import { EmailVerificationStatusGuard } from '../shared/guards/email-verification-status.guard';
 import { OriginGuard } from '../shared/guards/origin.guard';
 import { SessionModule } from '../shared/session-tracking/session-metadata.module';
 import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module';
@@ -93,6 +94,10 @@ import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: EmailVerificationStatusGuard,
     },
     {
       provide: APP_GUARD,

@@ -75,6 +75,12 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | `INVALID_REFRESH_TOKEN`                |  `401` | Refresh token ausente, inválido, expirado ou inconsistente              |
 | `POTENTIAL_SESSION_HIJACKING`          |  `401` | Refresh token aponta para sessão inexistente e o backend revoga sessões |
 | `SESSION_NOT_FOUND`                    |  `404` | Sessão solicitada não existe para o usuário                             |
+| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE`   |  `429` | Reenvio de verificação solicitado antes de 60 minutos                   |
+| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` | `429` | Limite de 5 e-mails de verificação em 24 horas foi excedido             |
+| `EMAIL_VERIFICATION_REQUIRED`          |  `403` | Usuário autenticado ainda precisa confirmar e-mail                      |
+| `EMAIL_VERIFICATION_TOKEN_EXPIRED`     |  `410` | Token de confirmação de e-mail expirou                                  |
+| `EMAIL_VERIFICATION_TOKEN_INVALID`     |  `400` | Token de confirmação de e-mail inválido                                 |
+| `EMAIL_VERIFICATION_USER_BLOCKED`      |  `409` | Usuário bloqueado tentou confirmar e-mail                               |
 
 ## Users
 

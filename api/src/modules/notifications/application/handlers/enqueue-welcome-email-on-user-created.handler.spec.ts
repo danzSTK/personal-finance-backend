@@ -88,5 +88,14 @@ describe('EnqueueWelcomeEmailOnUserCreatedHandler', () => {
 
       expect(enqueueEmailMessage).not.toHaveBeenCalled();
     });
+
+    it('ignores users pending email verification', async () => {
+      await handler.handle(
+        UserCreatedEvent.create('user-1', UserStatus.PENDING_EMAIL_VERIFICATION, Email.create('daniel@example.com')),
+      );
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(enqueueEmailMessage).not.toHaveBeenCalled();
+    });
   });
 });

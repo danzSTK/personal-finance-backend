@@ -1,5 +1,6 @@
 import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { AllowPendingEmailVerification } from '@/common/decorators/allow-pending-email-verification.decorator';
 import { IsPublic } from '@/common/decorators/is-public.decorator';
 import { RefreshToken } from '@/common/decorators/refresh-token.decorator';
 import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
@@ -11,9 +12,11 @@ import appConfig from '@/config/app.config';
 import jwtConfig from '@/config/jwt.config';
 import { RefreshTokenValidationService } from '@/modules/auth/application/services/refresh-token-validation.service';
 import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
+import { ConfirmEmailVerificationUseCase } from '@/modules/auth/application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
 import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
 import { LogoutUseCase } from '@/modules/auth/application/use-cases/logout/logout.use-case';
 import { RefreshTokensUseCase } from '@/modules/auth/application/use-cases/refresh-tokens/refresh-tokens.use-case';
+import { ResendEmailVerificationUseCase } from '@/modules/auth/application/use-cases/resend-email-verification/resend-email-verification.use-case';
 import { RevokeSessionUseCase } from '@/modules/auth/application/use-cases/revoke-session/revoke-session.use-case';
 import { SignInUseCase } from '@/modules/auth/application/use-cases/sign-in/sign-in.use-case';
 import { SignUpUseCase } from '@/modules/auth/application/use-cases/sign-up/sign-up.use-case';
@@ -56,6 +59,9 @@ import ms, { StringValue } from 'ms';
 import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
 import { RegisterDto } from '../dto/register.dto';
+import { ConfirmEmailVerificationDto } from '../dto/confirm-email-verification.dto';
+import { EmailVerificationConfirmationResponseDto } from '../dto/email-verification-confirmation.response.dto';
+import { EmailVerificationResendResponseDto } from '../dto/email-verification-resend.response.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -64,6 +70,8 @@ export class AuthController {
     private readonly signUpUseCase: SignUpUseCase,
     private readonly signInUseCase: SignInUseCase,
     private readonly logoutUseCase: LogoutUseCase,
+    private readonly confirmEmailVerificationUseCase: ConfirmEmailVerificationUseCase,
+    private readonly resendEmailVerificationUseCase: ResendEmailVerificationUseCase,
     private readonly refreshTokensUseCase: RefreshTokensUseCase,
     private readonly getActiveSessionsUseCase: GetActiveSessionsUseCase,
     private readonly revokeSessionUseCase: RevokeSessionUseCase,
@@ -363,6 +371,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @AllowPendingEmailVerification()
   @HttpCode(HttpStatus.OK)
   @ApiCookieAuth('accessToken')
   @ApiOperation({
@@ -406,6 +415,59 @@ export class AuthController {
     this.clearAccessTokenCookie(res);
 
     return { message: 'Logged out successfully' };
+  }
+
+  @Post('email-verification/confirm')
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: 10,
+    },
+  })
+  @HttpCode(HttpStatus.OK)
+  @IsPublic()
+  @ApiOperation({
+    summary: 'Confirmar e-mail',
+    description: 'Confirma o e-mail a partir do token recebido pelo frontend no link de verificação.',
+  })
+  @ApiBody({ type: ConfirmEmailVerificationDto })
+  @ApiResponse({ status: 200, type: EmailVerificationConfirmationResponseDto })
+  @ApiResponse({ status: 400, description: 'Token inválido', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 410, description: 'Token expirado', type: PlatformErrorResponseDto })
+  async confirmEmailVerification(
+    @Body() dto: ConfirmEmailVerificationDto,
+  ): Promise<EmailVerificationConfirmationResponseDto> {
+    await this.confirmEmailVerificationUseCase.execute({ token: dto.token });
+
+    return EmailVerificationConfirmationResponseDto.verified();
+  }
+
+  @Post('email-verification/resend')
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: 5,
+    },
+  })
+  @AllowPendingEmailVerification()
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({
+    summary: 'Reenviar e-mail de verificação',
+    description: 'Cria novo challenge de verificação para o usuário autenticado respeitando cooldown e limite diário.',
+  })
+  @ApiResponse({ status: 202, type: EmailVerificationResendResponseDto })
+  @ApiResponse({ status: 200, description: 'E-mail já verificado', type: EmailVerificationResendResponseDto })
+  @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 429, description: 'Cooldown ativo ou limite diário excedido', type: PlatformErrorResponseDto })
+  async resendEmailVerification(
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<EmailVerificationResendResponseDto> {
+    const result = await this.resendEmailVerificationUseCase.execute({ userId: user.id });
+
+    res.status(result.status === 'ALREADY_VERIFIED' ? HttpStatus.OK : HttpStatus.ACCEPTED);
+
+    return EmailVerificationResendResponseDto.fromStatus(result.status);
   }
 
   @Post('providers/link/email')
