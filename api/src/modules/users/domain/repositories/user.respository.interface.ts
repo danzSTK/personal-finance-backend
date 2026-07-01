@@ -1,7 +1,7 @@
 import { AuthProviderType } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { User } from '../entities/user.entity';
-import { Email } from '../value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { UserName } from '../value-objects/user-name.value-object';
 
 export abstract class IUserRepository {

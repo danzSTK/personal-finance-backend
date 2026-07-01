@@ -2,6 +2,7 @@ import {
   EmailVerificationChallengeLimits,
   EmailVerificationPurpose,
 } from '@/modules/auth/domain/constants/email-verification.constants';
+import { USER_EMAIL_MAX_LENGTH } from '@/common/models/constants';
 import { UserOrmEntity } from '@/modules/users/infrastructure/persistence/user-orm-entity';
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 
@@ -26,7 +27,7 @@ export class EmailVerificationChallengeOrmEntity {
   @Column({ name: 'user_id', type: 'uuid' })
   userId!: string;
 
-  @Column({ type: 'varchar', length: EmailVerificationChallengeLimits.emailMaxLength })
+  @Column({ type: 'varchar', length: USER_EMAIL_MAX_LENGTH })
   email!: string;
 
   @Column({ type: 'varchar', length: EmailVerificationChallengeLimits.purposeMaxLength })

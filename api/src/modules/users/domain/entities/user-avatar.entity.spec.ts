@@ -3,7 +3,7 @@ import { User } from '@/modules/users/domain/entities/user.entity';
 import { InvalidUserError } from '@/modules/users/domain/errors/invalid-user.error';
 import { UserAvatarUpdatedEvent } from '@/modules/users/domain/events/user-avatar-updated.event';
 import { UserAvatarRemovedEvent } from '@/modules/users/domain/events/user-avatar-removed.event';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 
 describe('User avatar', () => {
   const userId = '85423f76-b2e0-4499-8b94-da58b1df6f74';

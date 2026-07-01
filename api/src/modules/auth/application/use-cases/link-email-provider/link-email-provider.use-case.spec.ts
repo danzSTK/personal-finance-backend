@@ -6,7 +6,7 @@ import { IUserRepository } from '@/modules/users/domain/repositories/user.respos
 import { IHashService, SessionMetadata } from '@/common/models/interfaces';
 import { AuthProviderType } from '@/common/models/enums';
 import { User } from '@/modules/users/domain/entities/user.entity';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { UserStatus } from '@/common/models/enums';
 import { AuthProviderAlreadyLinkedError } from '@/modules/auth/application/errors';
 import { UserEmailAlreadyExistsError, UserNotFoundError } from '@/modules/users/application/errors';

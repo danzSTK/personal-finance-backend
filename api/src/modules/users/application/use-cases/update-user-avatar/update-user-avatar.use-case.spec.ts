@@ -10,7 +10,7 @@ import { IUserCacheInvalidator } from '@/modules/users/application/ports/user-ca
 import { UpdateUserAvatarUseCase } from '@/modules/users/application/use-cases/update-user-avatar/update-user-avatar.use-case';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { IObjectStorage, ObjectStorageError, ObjectStorageErrorCode } from '@/shared/object-storage';
 import { OutboxWriteService } from '@/shared/outbox/services/outbox-write.service';
 import { DataSource, EntityManager } from 'typeorm';

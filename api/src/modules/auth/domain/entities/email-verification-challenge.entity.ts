@@ -1,7 +1,5 @@
-import {
-  EmailVerificationChallengeLimits,
-  EmailVerificationPurpose,
-} from '@/modules/auth/domain/constants/email-verification.constants';
+import { Email } from '@/common/domain/value-objects/email.value-object';
+import { EmailVerificationPurpose } from '@/modules/auth/domain/constants/email-verification.constants';
 import { InvalidEmailVerificationChallengeError } from '@/modules/auth/domain/errors/invalid-email-verification-challenge.error';
 
 export interface EmailVerificationChallengeProps {
@@ -95,13 +93,7 @@ export class EmailVerificationChallenge {
     this.ensureText(this.props.userId, 'Email verification user id is required.');
     this.ensureText(this.props.email, 'Email verification email is required.');
 
-    if (!this.props.email.includes('@')) {
-      throw new InvalidEmailVerificationChallengeError('Email verification email must be valid.');
-    }
-
-    if (this.props.email.length > EmailVerificationChallengeLimits.emailMaxLength) {
-      throw new InvalidEmailVerificationChallengeError('Email verification email is too long.');
-    }
+    this.props.email = this.createEmail(this.props.email).value;
 
     if (this.props.purpose !== EmailVerificationPurpose.EMAIL_VERIFICATION) {
       throw new InvalidEmailVerificationChallengeError('Email verification purpose is invalid.');
@@ -123,6 +115,14 @@ export class EmailVerificationChallenge {
   private ensureText(value: string, message: string): void {
     if (!value.trim()) {
       throw new InvalidEmailVerificationChallengeError(message);
+    }
+  }
+
+  private createEmail(email: string): Email {
+    try {
+      return Email.create(email);
+    } catch {
+      throw new InvalidEmailVerificationChallengeError('Email verification email must follow platform email rules.');
     }
   }
 }

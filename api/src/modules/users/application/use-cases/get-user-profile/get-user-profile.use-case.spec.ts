@@ -3,7 +3,7 @@ import { IAssetRepository } from '@/modules/assets/domain/repositories';
 import { StorageKey } from '@/modules/assets/domain/value-objects';
 import { Asset } from '@/modules/assets/domain/entities/asset.entity';
 import { User } from '@/modules/users/domain/entities/user.entity';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { GetUserProfileUseCase } from '@/modules/users/application/use-cases/get-user-profile/get-user-profile.use-case';
 import { IObjectStorage } from '@/shared/object-storage';
 import { UserStatus } from '@/common/models/enums';

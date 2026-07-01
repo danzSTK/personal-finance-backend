@@ -13,7 +13,7 @@ import { UserAvatarRemovedEvent } from '@/modules/users/domain/events/user-avata
 import { AggregateRoot } from '@/shared/domain/aggregate-root';
 import { ConflictException } from '@nestjs/common';
 import { AuthProviderFactory } from '../factories/auth-provider.factory';
-import { Email } from '../value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { HashedPassword } from '../value-objects/hashed-password.value-object';
 import { UserName } from '../value-objects/user-name.value-object';
 import { AuthProvider } from './auth-provider.entity';

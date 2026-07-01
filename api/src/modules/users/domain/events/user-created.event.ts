@@ -1,5 +1,5 @@
 import { UserStatus } from '@/common/models/enums';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { DomainEvent } from '@/shared/domain/domain-event.interface';
 import { AppEventNames } from '@/shared/events';
 

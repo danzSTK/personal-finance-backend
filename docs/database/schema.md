@@ -145,7 +145,7 @@ Representa desafios de confirmação de e-mail. O token em claro nunca é persis
 | --- | --- | --- | --- |
 | `id` | `uuid` | `default gen_random_uuid()` | Identificador interno do challenge. |
 | `user_id` | `uuid` | `not null` | Usuário dono do challenge. |
-| `email` | `varchar(320)` | `not null` | E-mail que receberá o link de verificação. |
+| `email` | `varchar(255)` | `not null` | E-mail que receberá o link de verificação, validado pelas mesmas regras do e-mail principal do usuário. |
 | `purpose` | `varchar(50)` | `not null` | Finalidade do challenge. Inicialmente `EMAIL_VERIFICATION`. |
 | `token_hash` | `varchar(64)` | `not null` | SHA-256 hexadecimal do token. |
 | `expires_at` | `timestamptz` | `not null` | Instante em que o token deixa de ser válido. |

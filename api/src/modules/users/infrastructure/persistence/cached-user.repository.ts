@@ -5,7 +5,7 @@ import { RedisService } from '@/database/redis/redis.service';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import { AuthProviderFactory } from '@/modules/users/domain/factories/auth-provider.factory';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { Email } from '@/modules/users/domain/value-objects/email.value-object';
+import { Email } from '@/common/domain/value-objects/email.value-object';
 import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
 import { IUserCacheInvalidator } from '@/modules/users/application/ports/user-cache-invalidator.interface';
