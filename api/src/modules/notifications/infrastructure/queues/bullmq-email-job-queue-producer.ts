@@ -1,4 +1,4 @@
-import { EmailJobQueue } from '@/modules/notifications/application/queues/email-job-queue.port';
+import { EmailJobQueueProducer } from '@/modules/notifications/application/queues/email-job-queue-producer.port';
 import {
   EmailJobIds,
   EmailJobNames,
@@ -10,7 +10,7 @@ import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
 @Injectable()
-export class BullmqEmailJobQueue implements EmailJobQueue {
+export class BullmqEmailJobQueueProducer implements EmailJobQueueProducer {
   constructor(
     @InjectQueue(NotificationsQueues.EMAIL)
     private readonly queue: Queue<SendEmailMessageJobPayload>,

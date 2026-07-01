@@ -93,10 +93,20 @@ related:
 - [x] 48. Registrar decisão de não enviar `idempotency_key` como metadata/header do provider.
 - [x] 49. Atualizar regras do projeto para exigir leitura e atualização do schema central em migrations.
 
+## Ajustes Pós-Review
+
+- [x] 50. Renomear a porta `EmailJobQueue` para `EmailJobQueueProducer`.
+- [x] 51. Renomear o adapter BullMQ para `BullmqEmailJobQueueProducer`.
+- [x] 52. Fazer `CreateWelcomeEmailMessageUseCase` falhar quando o usuário do evento não existir.
+- [x] 53. Criar erro de aplicação para usuário ausente no fluxo de welcome email.
+- [x] 54. Adicionar log no processor quando o job concluir sem envio efetivo.
+- [x] 55. Atualizar testes de use case, handler, producer e processor.
+- [x] 56. Rodar validação focada.
+
 ## Fora Do Escopo
 
-- [x] 50. Não criar `email_delivery_attempts`.
-- [x] 51. Não criar coluna `bullmq_job_id`.
-- [x] 52. Não criar coluna `job_id` no v1.
-- [x] 53. Não criar endpoint HTTP.
-- [x] 54. Não implementar webhooks Brevo.
+- [x] 57. Não criar `email_delivery_attempts`.
+- [x] 58. Não criar coluna `bullmq_job_id`.
+- [x] 59. Não criar coluna `job_id` no v1.
+- [x] 60. Não criar endpoint HTTP.
+- [x] 61. Não implementar webhooks Brevo.

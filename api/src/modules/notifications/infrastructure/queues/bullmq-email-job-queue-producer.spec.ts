@@ -1,11 +1,11 @@
-import { BullmqEmailJobQueue } from '@/modules/notifications/infrastructure/queues/bullmq-email-job-queue';
+import { BullmqEmailJobQueueProducer } from '@/modules/notifications/infrastructure/queues/bullmq-email-job-queue-producer';
 import { EmailJobNames } from '@/modules/notifications/infrastructure/queues/email-job.constants';
 import { Queue } from 'bullmq';
 
-describe('BullmqEmailJobQueue', () => {
+describe('BullmqEmailJobQueueProducer', () => {
   let queue: jest.Mocked<Queue>;
   let addJob: jest.MockedFunction<Queue['add']>;
-  let emailJobQueue: BullmqEmailJobQueue;
+  let emailJobQueueProducer: BullmqEmailJobQueueProducer;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -14,12 +14,12 @@ describe('BullmqEmailJobQueue', () => {
     queue = {
       add: addJob,
     } as unknown as jest.Mocked<Queue>;
-    emailJobQueue = new BullmqEmailJobQueue(queue);
+    emailJobQueueProducer = new BullmqEmailJobQueueProducer(queue);
   });
 
   describe('enqueueEmailMessage', () => {
     it('adds a sanitized deterministic BullMQ job id', async () => {
-      await emailJobQueue.enqueueEmailMessage('email-message-uuid:with-colon');
+      await emailJobQueueProducer.enqueueEmailMessage('email-message-uuid:with-colon');
 
       expect(addJob).toHaveBeenCalledWith(
         EmailJobNames.SEND_EMAIL_MESSAGE,

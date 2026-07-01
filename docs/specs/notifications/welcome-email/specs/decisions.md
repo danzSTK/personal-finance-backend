@@ -139,3 +139,42 @@ A Brevo rejeita metadata/header com chave de idempotência longa. A idempotênci
 
 Impact:
 Debug externo usa `X-Danfy-Email-Message-Id` e debug interno reconstrói a intenção pelo banco.
+
+## DEC-011 - Tratar usuário ausente como falha operacional
+
+Status: accepted
+
+Decision:
+`CreateWelcomeEmailMessageUseCase` deve lançar erro de aplicação quando o `userId` do evento não existir no repositório de usuários.
+
+Reason:
+O evento `user.created` referencia uma entidade que deveria existir. Usar o e-mail do payload como fallback mascara inconsistência operacional e pode enviar welcome email para uma conta inexistente ou removida.
+
+Impact:
+O fluxo ainda é idempotente quando a intenção já existe. Para intenção nova, usuário ausente passa a falhar explicitamente e pode ser investigado por logs/monitoramento.
+
+## DEC-012 - Nomear a porta de enfileiramento como producer
+
+Status: accepted
+
+Decision:
+Renomear `EmailJobQueue` para `EmailJobQueueProducer` e o adapter BullMQ correspondente para `BullmqEmailJobQueueProducer`.
+
+Reason:
+A porta de aplicação não representa a fila completa; ela apenas produz jobs de envio. O nome explícito reduz ambiguidade entre producer e processor.
+
+Impact:
+Imports e testes do módulo notifications devem ser atualizados, sem mudança de comportamento na fila BullMQ.
+
+## DEC-013 - Logar jobs concluídos sem envio
+
+Status: accepted
+
+Decision:
+`EmailMessageProcessor` deve logar quando `SendEmailMessageUseCase` retornar `sent = false`.
+
+Reason:
+Falhas permanentes e estados terminais podem concluir o job sem retry no BullMQ. Sem log, a única trilha fica no banco, dificultando diagnóstico operacional.
+
+Impact:
+Jobs não retentáveis continuam concluindo com sucesso no BullMQ para evitar retries indevidos, mas deixam log com `emailMessageId`, `jobId` e status final.

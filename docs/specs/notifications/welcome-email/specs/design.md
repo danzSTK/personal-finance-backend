@@ -29,7 +29,7 @@ api/src/modules/notifications/
 │   ├── handlers/
 │   │   └── enqueue-welcome-email-on-user-created.handler.ts
 │   ├── queues/
-│   │   └── email-job-queue.port.ts
+│   │   └── email-job-queue-producer.port.ts
 │   └── use-cases/
 │       ├── create-welcome-email-message/
 │       │   ├── create-welcome-email-message.dto.ts
@@ -44,7 +44,7 @@ api/src/modules/notifications/
 │   │   ├── email-message-orm.entity.ts
 │   │   └── email-message.repository.ts
 │   └── queues/
-│       ├── bullmq-email-job-queue.ts
+│       ├── bullmq-email-job-queue-producer.ts
 │       └── email-message.processor.ts
 └── notifications.module.ts
 ```
@@ -188,9 +188,11 @@ jobId = email-message-<emailMessage.id>
 UserCreatedEvent
 -> EnqueueWelcomeEmailOnUserCreatedHandler
 -> CreateWelcomeEmailMessageUseCase
+   -> busca usuário por userId
+   -> falha se o usuário não existir
    -> cria EmailMessage com idempotency_key única
    -> trata unique violation como sucesso idempotente
--> EmailJobQueue.enqueueEmailMessage(emailMessage.id)
+-> EmailJobQueueProducer.enqueueEmailMessage(emailMessage.id)
 -> BullMQ job { emailMessageId }
 -> EmailMessageProcessor
 -> SendEmailMessageUseCase
@@ -222,12 +224,11 @@ Origem:
 - `support_url_label`: `SUPPORT_URL_LABEL`;
 - `preferences_url`: `FRONTEND_URL` + rota configurada.
 
-Como `UserCreatedEvent` atual carrega `userId`, `status` e `email`, há duas opções:
+Como `UserCreatedEvent` atual carrega `userId`, `status` e `email`, a intenção deve buscar o usuário pelo `userId` para obter `firstName` e e-mail atual.
 
-- v1 simples: `first_name` usa fallback seguro até o evento passar a carregar nome;
-- v1 enriquecida: use case busca o usuário pelo `userId` para obter `firstName`.
+Se o usuário não existir, o use case deve lançar erro de aplicação. Isso indica inconsistência operacional entre evento e estado persistido, e não deve ser mascarado com fallback para `input.email`.
 
-Preferência: buscar usuário pelo `userId`, se o módulo `users` expuser use case/porta adequada sem violar dependências.
+Se `firstName` estiver vazio, `first_name` usa fallback derivado do e-mail do usuário ou nome genérico.
 
 ## Configuração
 
@@ -278,6 +279,17 @@ email-message-<emailMessageId>
 
 Não usar `:` no `jobId`.
 
+## Producer
+
+A porta de enfileiramento deve deixar claro que ela produz jobs para a fila:
+
+```text
+EmailJobQueueProducer
+BullmqEmailJobQueueProducer
+```
+
+Motivo: o módulo consumidor não gerencia uma fila completa; ele apenas publica jobs de envio.
+
 ## Dependências Entre Módulos
 
 `NotificationsModule` pode importar:
@@ -297,6 +309,20 @@ Usar `MailError.retryable` para decidir status:
 - não retryable: `FAILED_PERMANENT`; relançar ou finalizar conforme decisão de worker, mas estado deve ficar permanente.
 
 Mensagens de erro devem ser sanitizadas.
+
+Se `CreateWelcomeEmailMessageUseCase` não encontrar o usuário referenciado pelo evento, lançar `WelcomeEmailUserNotFoundError` como erro de aplicação. Esse erro não é contrato HTTP de endpoint; é falha operacional do fluxo assíncrono.
+
+## Observabilidade Do Worker
+
+`EmailMessageProcessor` deve registrar log quando o use case concluir sem envio efetivo:
+
+```text
+emailMessageId=<id>
+status=<status>
+jobId=<bullmq job id, quando existir>
+```
+
+Isso cobre mensagens em estado terminal ou falhas permanentes tratadas pelo use case sem relançar erro para o BullMQ.
 
 ## Migração
 
@@ -327,9 +353,11 @@ Adicionar testes para:
 - entidade `EmailMessage`;
 - criação idempotente por `idempotency_key`;
 - unique violation tratada como sucesso idempotente;
+- usuário ausente no evento falhando com erro de aplicação;
 - handler `UserCreatedEvent`;
-- queue adapter gerando `jobId` sanitizado;
+- producer BullMQ gerando `jobId` sanitizado;
 - processor carregando apenas `emailMessageId`;
+- processor registrando log quando o envio não acontece;
 - `SendEmailMessageUseCase` marcando sucesso;
 - falha retentável;
 - falha permanente;

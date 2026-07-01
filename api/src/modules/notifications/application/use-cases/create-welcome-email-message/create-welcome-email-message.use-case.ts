@@ -1,6 +1,11 @@
+import { getPostgresConstraintName, isPostgresUniqueViolation } from '@/common/utils/database-errors';
 import appConfig from '@/config/app.config';
 import notificationsConfig from '@/config/notifications.config';
-import { getPostgresConstraintName, isPostgresUniqueViolation } from '@/common/utils/database-errors';
+import { WelcomeEmailUserNotFoundError } from '@/modules/notifications/application/errors';
+import {
+  CreateWelcomeEmailMessageUseCaseInput,
+  CreateWelcomeEmailMessageUseCaseOutput,
+} from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.dto';
 import {
   BrevoTemplateId,
   EmailMessageType,
@@ -11,10 +16,6 @@ import {
 } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
-import {
-  CreateWelcomeEmailMessageUseCaseInput,
-  CreateWelcomeEmailMessageUseCaseOutput,
-} from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.dto';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { Inject, Injectable } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
@@ -46,8 +47,13 @@ export class CreateWelcomeEmailMessageUseCase {
     }
 
     const user = await this.userRepository.findById(input.userId);
-    const recipientEmail = user?.email.value ?? input.email;
-    const recipientName = user?.firstName ?? null;
+
+    if (!user) {
+      throw new WelcomeEmailUserNotFoundError();
+    }
+
+    const recipientEmail = user.email.value;
+    const recipientName = user.firstName ?? null;
     const params = this.buildTemplateParams(recipientName, recipientEmail);
 
     const emailMessage = EmailMessage.create(
