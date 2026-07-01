@@ -78,6 +78,9 @@ Esta spec não cobre:
 - O worker deve atualizar `attempts_count`, status, timestamps e último erro.
 - O envio real deve usar `MailService`, não o SDK da Brevo diretamente.
 - O template `welcome-email` deve ser documentado antes da implementação ser considerada concluída.
+- Se a criação da intenção buscar o usuário por `userId` e ele não existir, o fluxo deve falhar com erro de aplicação, sem usar o e-mail do evento como fallback silencioso.
+- A porta de enfileiramento de e-mails deve deixar claro que seu papel é producer.
+- Quando o processor concluir um job sem envio efetivo, ele deve registrar log operacional com `emailMessageId` e status final.
 
 ## Requisitos Funcionais
 
@@ -131,6 +134,21 @@ THE SYSTEM SHALL incrementar `attempts_count`, gravar último erro, marcar statu
 WHEN `MailService` falhar com erro não retentável
 THE SYSTEM SHALL incrementar `attempts_count`, gravar último erro, marcar status permanente e não deixar o worker mascarar o erro nos registros.
 
+### REQ-011 - Falhar se o usuário do evento não existir
+
+WHEN `UserCreatedEvent` for processado e o usuário referenciado não existir mais
+THE SYSTEM SHALL falhar a criação da intenção de welcome email com erro de aplicação.
+
+### REQ-012 - Nomear producer explicitamente
+
+WHEN o handler precisar enfileirar o envio
+THE SYSTEM SHALL depender de uma porta com semântica de producer, não de um nome genérico de queue.
+
+### REQ-013 - Registrar jobs concluídos sem envio
+
+WHEN o worker processar um job e o use case retornar `sent = false`
+THE SYSTEM SHALL registrar log operacional com o `emailMessageId` e o status final da mensagem.
+
 ## Template Params
 
 O template Brevo `2` exige:
@@ -147,6 +165,9 @@ O template Brevo `2` exige:
 
 - IF `firstName` não existir
   THEN usar fallback derivado do e-mail ou nome genérico documentado.
+
+- IF o usuário referenciado por `user.created` não for encontrado
+  THEN não criar intenção de e-mail usando apenas o payload do evento; falhar explicitamente para investigação operacional.
 
 - IF links obrigatórios não estiverem configurados
   THEN o boot ou o use case deve falhar de forma explícita antes de enviar e-mail incompleto.
@@ -176,5 +197,7 @@ O template Brevo `2` exige:
 - O handler de `UserCreatedEvent` é idempotente.
 - O job carrega apenas `emailMessageId`.
 - O worker usa `MailService`.
+- O processor registra jobs concluídos sem envio efetivo.
+- A porta de enfileiramento usa nome de producer.
 - Os parâmetros do template Brevo `2` são enviados.
 - Testes cobrem idempotência, enfileiramento, worker e atualização de status.

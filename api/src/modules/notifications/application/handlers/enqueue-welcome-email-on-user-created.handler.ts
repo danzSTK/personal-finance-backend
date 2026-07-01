@@ -1,5 +1,5 @@
 import { CreateWelcomeEmailMessageUseCase } from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.use-case';
-import { EmailJobQueue } from '@/modules/notifications/application/queues/email-job-queue.port';
+import { EmailJobQueueProducer } from '@/modules/notifications/application/queues/email-job-queue-producer.port';
 import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -8,7 +8,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 export class EnqueueWelcomeEmailOnUserCreatedHandler {
   constructor(
     private readonly createWelcomeEmailMessageUseCase: CreateWelcomeEmailMessageUseCase,
-    private readonly emailJobQueue: EmailJobQueue,
+    private readonly emailJobQueueProducer: EmailJobQueueProducer,
   ) {}
 
   @OnEvent(UserCreatedEvent.eventName, { suppressErrors: false })
@@ -22,6 +22,6 @@ export class EnqueueWelcomeEmailOnUserCreatedHandler {
       return;
     }
 
-    await this.emailJobQueue.enqueueEmailMessage(result.emailMessage.id);
+    await this.emailJobQueueProducer.enqueueEmailMessage(result.emailMessage.id);
   }
 }

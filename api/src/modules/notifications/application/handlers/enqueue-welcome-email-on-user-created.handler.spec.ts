@@ -1,4 +1,4 @@
-import { EmailJobQueue } from '@/modules/notifications/application/queues/email-job-queue.port';
+import { EmailJobQueueProducer } from '@/modules/notifications/application/queues/email-job-queue-producer.port';
 import { EnqueueWelcomeEmailOnUserCreatedHandler } from '@/modules/notifications/application/handlers/enqueue-welcome-email-on-user-created.handler';
 import { CreateWelcomeEmailMessageUseCase } from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.use-case';
 import {
@@ -40,9 +40,9 @@ const makeEmailMessage = (): EmailMessage =>
 
 describe('EnqueueWelcomeEmailOnUserCreatedHandler', () => {
   let createWelcomeEmailMessageUseCase: jest.Mocked<CreateWelcomeEmailMessageUseCase>;
-  let emailJobQueue: jest.Mocked<EmailJobQueue>;
+  let emailJobQueueProducer: jest.Mocked<EmailJobQueueProducer>;
   let execute: jest.MockedFunction<CreateWelcomeEmailMessageUseCase['execute']>;
-  let enqueueEmailMessage: jest.MockedFunction<EmailJobQueue['enqueueEmailMessage']>;
+  let enqueueEmailMessage: jest.MockedFunction<EmailJobQueueProducer['enqueueEmailMessage']>;
   let handler: EnqueueWelcomeEmailOnUserCreatedHandler;
 
   beforeEach(() => {
@@ -53,10 +53,10 @@ describe('EnqueueWelcomeEmailOnUserCreatedHandler', () => {
     createWelcomeEmailMessageUseCase = {
       execute,
     } as unknown as jest.Mocked<CreateWelcomeEmailMessageUseCase>;
-    emailJobQueue = {
+    emailJobQueueProducer = {
       enqueueEmailMessage,
     };
-    handler = new EnqueueWelcomeEmailOnUserCreatedHandler(createWelcomeEmailMessageUseCase, emailJobQueue);
+    handler = new EnqueueWelcomeEmailOnUserCreatedHandler(createWelcomeEmailMessageUseCase, emailJobQueueProducer);
   });
 
   describe('handle', () => {

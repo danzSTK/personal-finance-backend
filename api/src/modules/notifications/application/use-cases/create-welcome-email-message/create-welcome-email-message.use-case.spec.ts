@@ -10,6 +10,7 @@ import {
 } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
+import { WelcomeEmailUserNotFoundError } from '@/modules/notifications/application/errors';
 import { CreateWelcomeEmailMessageUseCase } from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.use-case';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { ConfigType } from '@nestjs/config';
@@ -47,6 +48,12 @@ const makeUniqueViolation = (): QueryFailedError =>
     code: '23505',
     constraint: 'UQ_email_messages_idempotency_key',
   } as Error & { code: string; constraint: string });
+
+const makeUser = (): Awaited<ReturnType<IUserRepository['findById']>> =>
+  ({
+    firstName: 'Daniel',
+    email: { value: 'daniel@example.com' },
+  }) as Awaited<ReturnType<IUserRepository['findById']>>;
 
 describe('CreateWelcomeEmailMessageUseCase', () => {
   let emailMessageRepository: jest.Mocked<IEmailMessageRepository>;
@@ -100,10 +107,7 @@ describe('CreateWelcomeEmailMessageUseCase', () => {
   describe('execute', () => {
     it('creates a welcome email intent with documented template params', async () => {
       findByIdempotencyKey.mockResolvedValue(null);
-      findUserById.mockResolvedValue({
-        firstName: 'Daniel',
-        email: { value: 'daniel@example.com' },
-      } as Awaited<ReturnType<IUserRepository['findById']>>);
+      findUserById.mockResolvedValue(makeUser());
       saveEmailMessage.mockImplementation(emailMessage => Promise.resolve(emailMessage));
 
       const result = await useCase.execute({ userId: 'user-1', email: 'fallback@example.com' });
@@ -137,7 +141,7 @@ describe('CreateWelcomeEmailMessageUseCase', () => {
     it('treats concurrent idempotency unique violation as success', async () => {
       const concurrentMessage = makeEmailMessage();
       findByIdempotencyKey.mockResolvedValueOnce(null).mockResolvedValueOnce(concurrentMessage);
-      findUserById.mockResolvedValue(null);
+      findUserById.mockResolvedValue(makeUser());
       saveEmailMessage.mockRejectedValue(makeUniqueViolation());
 
       const result = await useCase.execute({ userId: 'user-1', email: 'daniel@example.com' });
@@ -145,6 +149,16 @@ describe('CreateWelcomeEmailMessageUseCase', () => {
       expect(result.created).toBe(false);
       expect(result.shouldEnqueue).toBe(true);
       expect(result.emailMessage).toBe(concurrentMessage);
+    });
+
+    it('fails when the user referenced by the event is not found', async () => {
+      findByIdempotencyKey.mockResolvedValue(null);
+      findUserById.mockResolvedValue(null);
+
+      await expect(useCase.execute({ userId: 'user-1', email: 'daniel@example.com' })).rejects.toBeInstanceOf(
+        WelcomeEmailUserNotFoundError,
+      );
+      expect(saveEmailMessage).not.toHaveBeenCalled();
     });
 
     it('does not enqueue terminal existing messages', async () => {
