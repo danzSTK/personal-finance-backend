@@ -321,8 +321,8 @@ Transactions pendentes não afetam saldo atual. Apenas transactions `EFFECTIVE` 
 | `CHK_transactions_amount_cents` | check | `amount_cents > 0` | Impede valores zero ou negativos e mantém amount como valor absoluto. |
 | `CHK_transactions_effective_at_status` | check | `PENDING` exige `effective_at IS NULL`; `EFFECTIVE` exige `effective_at IS NOT NULL` | Mantém coerência entre planejamento e realidade financeira. |
 | `CHK_transactions_transfer_destination` | check | `TRANSFER` exige `destination_account_id` preenchida e diferente de `account_id`; outros tipos exigem `destination_account_id IS NULL` | Garante transferência composta em uma linha sem destino inválido. |
-| `CHK_transactions_direction` | check | `ADJUSTMENT` exige `direction IN ('INCREASE', 'DECREASE')`; outros tipos exigem `direction IS NULL` | Mantém direção exclusiva para ajuste de saldo. |
-| `CHK_transactions_adjustment_description` | check | `type <> 'ADJUSTMENT' OR length(btrim(description)) > 0` | Garante motivo/observação em ajustes técnicos. |
+| `CHK_transactions_direction` | check | `ADJUSTMENT` exige `direction IS NOT NULL AND direction IN ('INCREASE', 'DECREASE')`; outros tipos exigem `direction IS NULL` | Mantém direção exclusiva para ajuste de saldo e impede `NULL` aceito por lógica ternária do PostgreSQL. |
+| `CHK_transactions_adjustment_description` | check | `type <> 'ADJUSTMENT' OR (description IS NOT NULL AND length(btrim(description)) > 0)` | Garante motivo/observação em ajustes técnicos e impede `NULL` aceito por lógica ternária do PostgreSQL. |
 | `CHK_transactions_transfer_not_deleted` | check | `type <> 'TRANSFER' OR deleted_at IS NULL` | Impede soft delete de transferências na V0; correções devem ser feitas por transferência inversa. |
 
 ### Índices

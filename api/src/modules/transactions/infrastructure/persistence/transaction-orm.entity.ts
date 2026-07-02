@@ -43,9 +43,12 @@ import {
 )
 @Check(
   'CHK_transactions_direction',
-  `(("type" = 'ADJUSTMENT' AND "direction" IN ('INCREASE', 'DECREASE')) OR ("type" <> 'ADJUSTMENT' AND "direction" IS NULL))`,
+  `(("type" = 'ADJUSTMENT' AND "direction" IS NOT NULL AND "direction" IN ('INCREASE', 'DECREASE')) OR ("type" <> 'ADJUSTMENT' AND "direction" IS NULL))`,
 )
-@Check('CHK_transactions_adjustment_description', `"type" <> 'ADJUSTMENT' OR length(btrim("description")) > 0`)
+@Check(
+  'CHK_transactions_adjustment_description',
+  `"type" <> 'ADJUSTMENT' OR ("description" IS NOT NULL AND length(btrim("description")) > 0)`,
+)
 @Check('CHK_transactions_transfer_not_deleted', `"type" <> 'TRANSFER' OR "deleted_at" IS NULL`)
 export class TransactionOrmEntity {
   @PrimaryGeneratedColumn('uuid')
