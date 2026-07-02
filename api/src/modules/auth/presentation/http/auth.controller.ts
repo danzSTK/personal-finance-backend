@@ -64,6 +64,7 @@ import { EmailVerificationConfirmationResponseDto } from '../dto/email-verificat
 import { EmailVerificationResendResponseDto } from '../dto/email-verification-resend.response.dto';
 
 @ApiTags('auth')
+@AllowPendingEmailVerification()
 @Controller('auth')
 export class AuthController {
   constructor(

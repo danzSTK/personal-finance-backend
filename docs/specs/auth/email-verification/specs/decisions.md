@@ -179,3 +179,16 @@ O challenge confirma o e-mail principal da plataforma. Regras paralelas poderiam
 
 Impact:
 O VO foi movido para `common/domain/value-objects`, o caminho antigo em users ficou como re-export temporário, e a coluna `email_verification_challenges.email` foi alinhada para `varchar(255)`.
+
+## DEC-014 - AuthController é liberado para usuário pendente
+
+Status: accepted
+
+Decision:
+Aplicar `@AllowPendingEmailVerification()` no `AuthController`, não apenas em métodos específicos.
+
+Reason:
+As rotas de auth e sessão são essenciais para usuários `PENDING_EMAIL_VERIFICATION`. O usuário pendente precisa conseguir reenviar verificação, renovar sessão, encerrar sessão e acessar operações de autenticação sem receber `EMAIL_VERIFICATION_REQUIRED`.
+
+Impact:
+O bloqueio por e-mail pendente continua valendo para recursos de produto. No módulo `auth`, a regra de negócio específica de cada endpoint ainda decide o que faz sentido para usuário pendente.
