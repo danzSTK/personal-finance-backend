@@ -64,3 +64,4 @@ related:
 - [x] 35. Criar `docs/integrations/transactions/**` para o frontend.
 - [x] 36. Atualizar Swagger dos endpoints.
 - [x] 37. Registrar decisões novas em `decisions.md` se surgirem durante a implementação.
+- [x] 38. Recriar constraints de `ADJUSTMENT` para rejeitar `NULL` em `direction` e `description`.

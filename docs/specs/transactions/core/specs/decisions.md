@@ -142,3 +142,16 @@ Categories técnicas não aparecem nas rotas de gestão do frontend e não devem
 
 Impact:
 `categoryId` continua obrigatório para `INCOME` e `EXPENSE`. Para `TRANSFER` e `ADJUSTMENT`, qualquer `categoryId` enviado pode ser ignorado em favor da category técnica correta.
+
+## DEC-011 - Constraints de ADJUSTMENT devem ser null-safe
+
+Status: accepted
+
+Decision:
+As constraints de banco para `ADJUSTMENT` devem exigir `direction IS NOT NULL` e `description IS NOT NULL` antes de validar enum/tamanho.
+
+Reason:
+No PostgreSQL, `CHECK` aceita expressões que avaliam para `UNKNOWN`. Sem checar `IS NOT NULL`, inserts diretos poderiam persistir ajustes sem direção ou motivo.
+
+Impact:
+`CHK_transactions_direction` e `CHK_transactions_adjustment_description` foram recriadas em migration incremental e alinhadas ao contrato de domínio.

@@ -52,9 +52,9 @@ Ela também diferencia:
 - `EFFECTIVE` exige `effective_at IS NOT NULL`;
 - `TRANSFER` exige `destination_account_id`;
 - não-`TRANSFER` exige `destination_account_id IS NULL`;
-- `ADJUSTMENT` exige `direction`;
+- `ADJUSTMENT` exige `direction IS NOT NULL`;
 - não-`ADJUSTMENT` exige `direction IS NULL`;
-- `ADJUSTMENT` exige `description` não vazia;
+- `ADJUSTMENT` exige `description IS NOT NULL` e não vazia;
 - `TRANSFER` não pode ser soft-deletada na V0.
 
 ## Índices Relevantes
