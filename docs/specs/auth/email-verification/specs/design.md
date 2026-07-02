@@ -138,10 +138,8 @@ ALLOW_PENDING_EMAIL_VERIFICATION_KEY
 
 Rotas a marcar:
 
+- `AuthController`, porque endpoints de autenticação e sessão são essenciais para usuários pendentes;
 - `GET /users/me`;
-- `POST /auth/logout`;
-- `POST /auth/email-verification/resend`;
-- outras rotas autenticadas essenciais se o fluxo real exigir.
 
 `POST /auth/email-verification/confirm` permanece `@IsPublic()`.
 

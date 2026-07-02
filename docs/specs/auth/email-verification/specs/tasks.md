@@ -73,6 +73,7 @@ related:
 - [x] 60. Validar `EmailVerificationChallenge.email` com as regras de e-mail da plataforma.
 - [x] 61. Adicionar variáveis de email verification no `.env` e `.env.exemple`.
 - [x] 62. Criar migration incremental para alinhar `email_verification_challenges.email` com `varchar(255)`.
+- [x] 63. Liberar `AuthController` para usuários `PENDING_EMAIL_VERIFICATION`.
 
 ## Notas De Execução
 
