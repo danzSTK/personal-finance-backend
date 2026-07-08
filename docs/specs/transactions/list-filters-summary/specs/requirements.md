@@ -143,7 +143,6 @@ Quando `type` não for enviado, o response deve incluir o modelo agrupado:
 ```json
 {
   "summary": {
-    "currentBalanceCents": 250000,
     "income": {
       "pendingCents": 120000,
       "effectiveCents": 300000,
@@ -177,12 +176,7 @@ Quando `type` não for enviado, o response deve incluir o modelo agrupado:
 
 `balance.expectedBalanceCents` representa o resultado líquido esperado da listagem/período, não o saldo projetado da account.
 
-`currentBalanceCents` representa o saldo atual real:
-
-- quando `accountId` for enviado, da account filtrada;
-- quando `accountId` não for enviado, agregado das accounts do usuário.
-
-O cálculo de `currentBalanceCents` não deve ser afetado por `dateFrom`, `dateTo`, `categoryId`, `status`, `page`, `limit` ou `sort`.
+Saldo atual e saldo projetado pertencem ao contrato de accounts.
 
 ## Compatibilidade De Contrato
 
@@ -240,7 +234,7 @@ THE SYSTEM SHALL ignorar `page`, `limit` e `sort` no cálculo do `summary`.
 ### REQ-006 - Retornar summary agrupado sem type
 
 WHEN a listagem for executada sem `type`
-THE SYSTEM SHALL retornar `summary.currentBalanceCents`, `summary.income`, `summary.expense` e `summary.balance`.
+THE SYSTEM SHALL retornar `summary.income`, `summary.expense` e `summary.balance`.
 
 THE SYSTEM SHALL calcular `income` e `expense` com os mesmos filtros de `status`, `accountId`, `categoryId`, `dateFrom` e `dateTo`.
 
@@ -258,20 +252,20 @@ THE SYSTEM SHALL calcular `balance.expectedBalanceCents` como `balance.effective
 - O frontend deve tratar `income.*Cents`, `expense.*Cents` e summary simples como valores positivos ou zero.
 - O frontend deve tratar `balance.pendingDeltaCents` e `balance.effectiveDeltaCents` como deltas que podem ser positivos, negativos ou zero.
 - O frontend deve entender que `summary` representa a consulta filtrada inteira, não apenas a página atual.
-- O frontend deve entender que `summary.currentBalanceCents` é saldo atual real, não soma da página.
+- O frontend deve usar `GET /accounts/summary` para saldo atual ou saldo projetado agregado.
 - O frontend pode usar `status=PENDING` ou `status=EFFECTIVE` para obter um lado específico dos summaries, sabendo que o outro lado será `0`.
 - O frontend deve usar `sort=date:desc` para histórico mais recente primeiro e `sort=date:asc` para leitura cronológica.
 
 ## Critérios De Aceite
 
 - `GET /transactions` sem `type` lista apenas `INCOME` e `EXPENSE`.
-- `GET /transactions` sem `type` retorna summary agrupado com `currentBalanceCents`, `income`, `expense` e `balance`.
+- `GET /transactions` sem `type` retorna summary agrupado com `income`, `expense` e `balance`.
 - `GET /transactions?type=INCOME` retorna summary simples com valores positivos.
 - `GET /transactions?type=EXPENSE` retorna summary simples com valores positivos.
 - `GET /transactions?sort=date:asc` retorna a lista em ordem crescente por `date` e `id`.
 - `GET /transactions?sort=date:desc` mantém a ordem atual.
 - `dateFrom` e `dateTo` continuam sendo validados como `DateOnly`.
 - `summary` considera todos os filtros da consulta e ignora paginação.
-- `summary.balance.expectedBalanceCents` representa o resultado líquido esperado da consulta, sem somar `currentBalanceCents`.
+- `summary.balance.expectedBalanceCents` representa o resultado líquido esperado da consulta, sem somar saldo atual.
 - Swagger e `docs/integrations/transactions/list-transactions.md` são atualizados.
 - Testes cobrem filtros, sort, paginação e summary por type/status.

@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ArchiveAccountUseCase } from './application/use-cases/archive-account/archive-account.use-case';
 import { CreateAccountUseCase } from './application/use-cases/create-account/create-account.use-case';
 import { ListAccountsUseCase } from './application/use-cases/list-accounts/list-accounts.use-case';
+import { GetAccountSummaryUseCase } from './application/use-cases/get-account-summary/get-account-summary.use-case';
 import { SetDefaultAccountUseCase } from './application/use-cases/set-default-account/set-default-account.use-case';
 import { IAccountBalanceRepository } from './domain/repositories/account-balance.repository.interface';
 import { IAccountRepository } from './domain/repositories/account.repository.interface';
@@ -31,6 +32,7 @@ import { ProvisionDefaultAccountOnUserHandler } from '@/modules/accounts/applica
     AccountRepository,
     CreateAccountUseCase,
     ListAccountsUseCase,
+    GetAccountSummaryUseCase,
     ArchiveAccountUseCase,
     SetDefaultAccountUseCase,
     UnarchiveAccountUseCase,
@@ -42,6 +44,7 @@ import { ProvisionDefaultAccountOnUserHandler } from '@/modules/accounts/applica
     IAccountRepository,
     CreateAccountUseCase,
     ListAccountsUseCase,
+    GetAccountSummaryUseCase,
     ArchiveAccountUseCase,
     SetDefaultAccountUseCase,
   ],

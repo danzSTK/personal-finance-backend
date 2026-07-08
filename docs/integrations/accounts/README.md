@@ -34,6 +34,7 @@ Detalhes: [Default CASH provisioning](./default-cash-provisioning.md).
 - [Default CASH provisioning](./default-cash-provisioning.md)
 - [Create account](./create-account.md)
 - [List accounts](./list-accounts.md)
+- [Get account summary](./get-account-summary.md)
 - [Update account](./update-account.md)
 - [Archive account](./archive-account.md)
 - [Unarchive account](./unarchive-account.md)

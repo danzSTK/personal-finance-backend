@@ -54,9 +54,6 @@ class ListTransactionsGroupedSummaryDto {
   @ApiProperty({ example: RESPONSE_OBJECT_TYPES.TRANSACTION_SUMMARY_OVERVIEW })
   object: typeof RESPONSE_OBJECT_TYPES.TRANSACTION_SUMMARY_OVERVIEW;
 
-  @ApiProperty({ example: 250000 })
-  currentBalanceCents: number;
-
   @ApiProperty({ type: ListTransactionsSummaryAmountDto })
   income: ListTransactionsSummaryAmountDto;
 

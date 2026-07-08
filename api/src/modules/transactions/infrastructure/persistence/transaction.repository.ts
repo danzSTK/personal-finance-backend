@@ -28,10 +28,6 @@ interface TransactionGroupedSummaryRaw {
   expenseEffectiveCents: string | null;
 }
 
-interface CurrentBalanceRaw {
-  currentBalanceCents: string | null;
-}
-
 @Injectable()
 export class TransactionRepository implements ITransactionRepository {
   constructor(
@@ -228,10 +224,8 @@ export class TransactionRepository implements ITransactionRepository {
     const effectiveDeltaCents = this.toSafeCents(
       String(BigInt(income.effectiveCents) - BigInt(expense.effectiveCents)),
     );
-    const currentBalanceCents = await this.getCurrentBalanceCents(repository, input);
 
     return {
-      currentBalanceCents,
       income,
       expense,
       balance: {
@@ -240,81 +234,6 @@ export class TransactionRepository implements ITransactionRepository {
         expectedBalanceCents: this.toSafeCents(String(BigInt(effectiveDeltaCents) + BigInt(pendingDeltaCents))),
       },
     };
-  }
-
-  private async getCurrentBalanceCents(
-    repository: Repository<TransactionOrmEntity>,
-    input: Pick<ListTransactionsInput, 'userId' | 'accountId'>,
-  ): Promise<number> {
-    const rows = await repository.query<CurrentBalanceRaw[]>(
-      `
-        WITH target_accounts AS (
-          SELECT
-            account."id",
-            account."initial_balance_cents"
-          FROM "accounts" account
-          WHERE account."user_id" = $1
-            AND ($2::uuid IS NULL OR account."id" = $2::uuid)
-        ),
-        movement_deltas AS (
-          SELECT
-            tx."account_id" AS "account_id",
-            SUM(
-              CASE
-                WHEN tx."status" = 'EFFECTIVE' AND tx."type" = 'INCOME'
-                  THEN tx."amount_cents"
-                WHEN tx."status" = 'EFFECTIVE' AND tx."type" = 'EXPENSE'
-                  THEN -tx."amount_cents"
-                WHEN tx."status" = 'EFFECTIVE' AND tx."type" = 'TRANSFER'
-                  THEN -tx."amount_cents"
-                WHEN tx."status" = 'EFFECTIVE' AND tx."type" = 'ADJUSTMENT' AND tx."direction" = 'INCREASE'
-                  THEN tx."amount_cents"
-                WHEN tx."status" = 'EFFECTIVE' AND tx."type" = 'ADJUSTMENT' AND tx."direction" = 'DECREASE'
-                  THEN -tx."amount_cents"
-                ELSE 0
-              END
-            )::bigint AS "delta_cents"
-          FROM "transactions" tx
-          INNER JOIN target_accounts account ON account."id" = tx."account_id"
-          WHERE tx."user_id" = $1
-            AND tx."deleted_at" IS NULL
-          GROUP BY tx."account_id"
-
-          UNION ALL
-
-          SELECT
-            tx."destination_account_id" AS "account_id",
-            SUM(
-              CASE
-                WHEN tx."status" = 'EFFECTIVE'
-                  THEN tx."amount_cents"
-                ELSE 0
-              END
-            )::bigint AS "delta_cents"
-          FROM "transactions" tx
-          INNER JOIN target_accounts account ON account."id" = tx."destination_account_id"
-          WHERE tx."user_id" = $1
-            AND tx."deleted_at" IS NULL
-            AND tx."type" = 'TRANSFER'
-            AND tx."destination_account_id" IS NOT NULL
-          GROUP BY tx."destination_account_id"
-        ),
-        aggregated_deltas AS (
-          SELECT
-            "account_id",
-            SUM("delta_cents")::bigint AS "delta_cents"
-          FROM movement_deltas
-          GROUP BY "account_id"
-        )
-        SELECT
-          COALESCE(SUM(account."initial_balance_cents" + COALESCE(delta."delta_cents", 0)), 0)::bigint AS "currentBalanceCents"
-        FROM target_accounts account
-        LEFT JOIN aggregated_deltas delta ON delta."account_id" = account."id"
-      `,
-      [input.userId, input.accountId ?? null],
-    );
-
-    return this.toSafeCents(rows[0]?.currentBalanceCents ?? '0');
   }
 
   private toTypeSummary(pendingValue: string, effectiveValue: string): TransactionTypeSummary {

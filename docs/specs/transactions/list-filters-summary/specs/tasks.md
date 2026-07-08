@@ -32,7 +32,7 @@ related:
 - [x] 35. Alterar listagem sem `type` para restringir `INCOME` e `EXPENSE`.
 - [x] 36. Alterar summary explícito por `type` para usar valores positivos.
 - [x] 37. Implementar summary agrupado sem `type` com `income`, `expense` e `balance`.
-- [x] 38. Calcular `currentBalanceCents` com e sem `accountId`.
+- [x] 38. Remover `currentBalanceCents` do summary agrupado.
 - [x] 39. Atualizar response DTO para representar os dois shapes de summary.
 
 ## Validação
@@ -45,7 +45,7 @@ related:
 - [ ] 19. Testar `summary` vazio retornando zeros.
 - [ ] 20. Testar summary agrupado com `INCOME` e `EXPENSE`.
 - [ ] 21. Testar summary simples positivo para `type=INCOME` e `type=EXPENSE`.
-- [ ] 22. Testar `currentBalanceCents` e `expectedBalanceCents`.
+- [ ] 22. Testar `expectedBalanceCents`.
 - [ ] 23. Testar listagem sem `type` excluindo `TRANSFER` e `ADJUSTMENT`.
 - [x] 24. Testar `summary.pendingCents`, `summary.effectiveCents` e `summary.totalCents`.
 - [ ] 25. Testar que `summary` ignora `page` e `limit`.

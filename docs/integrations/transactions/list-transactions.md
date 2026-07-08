@@ -42,7 +42,6 @@ Quando `type` não é enviado, a listagem retorna somente transactions `INCOME` 
   },
   "summary": {
     "object": "transaction_summary.overview",
-    "currentBalanceCents": 250000,
     "income": {
       "pendingCents": 120000,
       "effectiveCents": 300000,
@@ -109,18 +108,17 @@ No modelo agrupado sem `type`:
 - `balance.effectiveDeltaCents`: `income.effectiveCents - expense.effectiveCents`.
 - `balance.expectedBalanceCents`: `effectiveDeltaCents + pendingDeltaCents`.
 
-`currentBalanceCents` representa o saldo atual real. Com `accountId`, é o saldo atual da account filtrada. Sem `accountId`, é o saldo atual agregado das accounts do usuário.
-`expectedBalanceCents` representa o resultado líquido esperado da listagem/período, não o saldo projetado da account. Saldo projetado de account pertence ao contrato de accounts.
+`expectedBalanceCents` representa o resultado líquido esperado da listagem/período, não o saldo projetado da account. Saldo atual e saldo projetado pertencem ao contrato de accounts.
 
 Observações de intenção:
 
 - `income.*Cents` e `expense.*Cents` não são negativos.
 - Deltas em `balance` podem ser negativos, positivos ou zero.
-- `currentBalanceCents` não é afetado por `dateFrom`, `dateTo`, `categoryId`, `status`, `page`, `limit` ou `sort`.
 
 ## Observações
 
 - Transactions deletadas não aparecem.
+- Para saldo atual ou projetado agregado, use `GET /accounts/summary`.
 - `accountId` considera origem e destino de transferência.
 - Sem `type`, a rota lista somente `INCOME` e `EXPENSE`.
 - A ordenação padrão é `date DESC`, depois `id DESC`.

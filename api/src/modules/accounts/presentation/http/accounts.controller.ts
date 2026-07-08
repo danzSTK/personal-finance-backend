@@ -2,6 +2,7 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { ArchiveAccountUseCase } from '@/modules/accounts/application/use-cases/archive-account/archive-account.use-case';
 import { CreateAccountUseCase } from '@/modules/accounts/application/use-cases/create-account/create-account.use-case';
+import { GetAccountSummaryUseCase } from '@/modules/accounts/application/use-cases/get-account-summary/get-account-summary.use-case';
 import { ListAccountsUseCase } from '@/modules/accounts/application/use-cases/list-accounts/list-accounts.use-case';
 import { SetDefaultAccountUseCase } from '@/modules/accounts/application/use-cases/set-default-account/set-default-account.use-case';
 import { UnarchiveAccountUseCase } from '@/modules/accounts/application/use-cases/unarchive-account/unarchive-account.use-case';
@@ -11,7 +12,9 @@ import { User } from '@/modules/users/domain/entities/user.entity';
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountResponseDto } from '../dto/account.response.dto';
+import { AccountSummaryResponseDto } from '../dto/account-summary.response.dto';
 import { CreateAccountDto } from '../dto/create-account.dto';
+import { GetAccountSummaryQueryDto } from '../dto/get-account-summary.query.dto';
 import { ListAccountsQueryDto } from '../dto/list-accounts.query.dto';
 
 @ApiTags('accounts')
@@ -20,6 +23,7 @@ export class AccountsController {
   constructor(
     private readonly createAccountUseCase: CreateAccountUseCase,
     private readonly listAccountsUseCase: ListAccountsUseCase,
+    private readonly getAccountSummaryUseCase: GetAccountSummaryUseCase,
     private readonly archiveAccountUseCase: ArchiveAccountUseCase,
     private readonly setDefaultAccountUseCase: SetDefaultAccountUseCase,
     private readonly unarchiveAccountUseCase: UnarchiveAccountUseCase,
@@ -91,6 +95,26 @@ export class AccountsController {
     });
 
     return accounts.map(item => AccountResponseDto.fromDomain(item.account, item.balance));
+  }
+
+  @Get('summary')
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({ summary: 'Buscar resumo de saldo das contas do usuário autenticado' })
+  @ApiResponse({ status: 200, description: 'Resumo de saldo das contas', type: AccountSummaryResponseDto })
+  @ApiResponse({ status: 400, description: 'Query inválida', type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 401, description: 'Sessão ausente ou inválida', type: PlatformErrorResponseDto })
+  async summary(
+    @CurrentUser() user: User,
+    @Query() query: GetAccountSummaryQueryDto,
+  ): Promise<AccountSummaryResponseDto> {
+    const summary = await this.getAccountSummaryUseCase.execute({
+      userId: user.id,
+      includeArchived: query.includeArchived,
+      includeExcludedFromTotal: query.includeExcludedFromTotal,
+      projectedUntil: query.projectedUntil,
+    });
+
+    return AccountSummaryResponseDto.fromUseCaseOutput(summary);
   }
 
   @Patch(':id/archive')
