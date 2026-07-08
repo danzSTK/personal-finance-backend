@@ -3,6 +3,8 @@ import { Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { ACCOUNT_NAME_MAX_LENGTH, ACCOUNT_NAME_MIN_LENGTH } from '@/common/models/constants';
 import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
+import { Transform } from 'class-transformer';
+import { parseBooleanTransformValue } from '@/common/utils/parse-boolean-query-param';
 
 export class CreateAccountDto {
   @ApiProperty({ example: 'Conta principal' })
@@ -34,13 +36,13 @@ export class CreateAccountDto {
   icon?: IconKey | null;
 
   @ApiPropertyOptional({ example: true, default: true })
-  @Type(() => Boolean)
+  @Transform(parseBooleanTransformValue)
   @IsBoolean()
   @IsOptional()
   includeInTotal?: boolean;
 
   @ApiPropertyOptional({ example: false, default: false })
-  @Type(() => Boolean)
+  @Transform(parseBooleanTransformValue)
   @IsBoolean()
   @IsOptional()
   isDefault?: boolean;

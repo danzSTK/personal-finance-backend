@@ -8,8 +8,9 @@ import {
 } from '@/common/models/constants';
 import { ColorToken, IconKey } from '@/common/models/enums';
 import { IsOptionalButNotNull } from '@/common/decorators/is-optional-but-not-null.decorator';
+import { parseBooleanTransformValue } from '@/common/utils/parse-boolean-query-param';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Length, MaxLength, Min } from 'class-validator';
 
 export class UpdateCategoryDto {
@@ -54,7 +55,7 @@ export class UpdateCategoryDto {
 
   @ApiPropertyOptional({ example: true, description: 'Controla inclusão em relatórios agregados' })
   @IsOptionalButNotNull()
-  @Type(() => Boolean)
+  @Transform(parseBooleanTransformValue)
   @IsBoolean()
   includeInReports?: boolean;
 

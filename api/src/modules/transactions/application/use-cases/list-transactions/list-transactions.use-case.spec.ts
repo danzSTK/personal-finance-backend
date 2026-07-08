@@ -40,7 +40,6 @@ describe('ListTransactionsUseCase', () => {
         items: [transaction],
         total: 21,
         summary: {
-          currentBalanceCents: 250000,
           income: {
             pendingCents: 120000,
             effectiveCents: 300000,
@@ -82,7 +81,6 @@ describe('ListTransactionsUseCase', () => {
         hasNextPage: true,
         hasPreviousPage: false,
         summary: {
-          currentBalanceCents: 250000,
           income: {
             pendingCents: 120000,
             effectiveCents: 300000,

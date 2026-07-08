@@ -30,7 +30,6 @@ export interface TransactionBalanceSummary {
 }
 
 export interface TransactionGroupedSummary {
-  currentBalanceCents: number;
   income: TransactionTypeSummary;
   expense: TransactionTypeSummary;
   balance: TransactionBalanceSummary;

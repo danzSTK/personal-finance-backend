@@ -19,7 +19,6 @@ describe('ListTransactionsResponseDto', () => {
       hasNextPage: false,
       hasPreviousPage: false,
       summary: {
-        currentBalanceCents: 250000,
         income: {
           pendingCents: 120000,
           effectiveCents: 300000,

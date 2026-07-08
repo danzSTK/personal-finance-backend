@@ -29,7 +29,6 @@ export interface ListTransactionsBalanceSummary {
 }
 
 export interface ListTransactionsGroupedSummary {
-  currentBalanceCents: number;
   income: ListTransactionsTypeSummary;
   expense: ListTransactionsTypeSummary;
   balance: ListTransactionsBalanceSummary;

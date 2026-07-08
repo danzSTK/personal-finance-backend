@@ -110,7 +110,6 @@ Sem `type`:
     "hasPreviousPage": false
   },
   "summary": {
-    "currentBalanceCents": 250000,
     "income": {
       "pendingCents": 120000,
       "effectiveCents": 300000,
@@ -158,7 +157,6 @@ Adicionar ao output agrupado:
 
 ```text
 summary: {
-  currentBalanceCents: number;
   income: {
     pendingCents: number;
     effectiveCents: number;
@@ -281,30 +279,9 @@ effectiveDeltaCents = income.effectiveCents - expense.effectiveCents
 expectedBalanceCents = effectiveDeltaCents + pendingDeltaCents
 ```
 
-`expectedBalanceCents` e `currentBalanceCents` respondem perguntas diferentes:
+`expectedBalanceCents` representa o resultado líquido esperado do filtro/listagem, sem somar saldo inicial ou saldo atual.
 
-- `currentBalanceCents`: saldo atual real das accounts, considerando somente movimentações efetivas;
-- `expectedBalanceCents`: resultado líquido esperado do filtro/listagem, sem somar saldo inicial ou saldo atual.
-
-### Current Balance
-
-`currentBalanceCents` deve ser calculado a partir de accounts e transactions efetivas não deletadas:
-
-```text
-initial_balance_cents
-+ EFFECTIVE INCOME
-- EFFECTIVE EXPENSE
-- EFFECTIVE TRANSFER como origem
-+ EFFECTIVE TRANSFER como destino
-+ EFFECTIVE ADJUSTMENT INCREASE
-- EFFECTIVE ADJUSTMENT DECREASE
-```
-
-Com `accountId`, calcular somente para a account filtrada.
-
-Sem `accountId`, calcular agregado das accounts do usuário.
-
-Usar `COALESCE(..., 0)` para retornar zero quando não houver match.
+Saldo atual e saldo projetado pertencem ao contrato de accounts.
 
 ### Bigint E Precisão
 
@@ -374,7 +351,6 @@ Criar ou atualizar testes cobrindo:
 - `summary` simples com `EXPENSE`;
 - `summary` agrupado sem `type`;
 - `summary.balance` com deltas positivos e negativos;
-- `currentBalanceCents` com e sem `accountId`;
 - `summary` separado entre pending/effective;
 - `summary` ignorando paginação;
 - transactions deletadas fora da listagem e do summary;

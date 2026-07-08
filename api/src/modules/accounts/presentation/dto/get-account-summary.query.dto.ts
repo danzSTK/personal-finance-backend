@@ -5,9 +5,18 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional } from 'class-validator';
 
-export class ListAccountsQueryDto {
+export class GetAccountSummaryQueryDto {
   @ApiPropertyOptional({
-    description: 'Quando true, inclui contas arquivadas na listagem',
+    description: 'Quando informado, retorna projectedCents calculado até esta data',
+    example: '2026-06-30',
+    format: 'date',
+  })
+  @IsDateOnly()
+  @IsOptional()
+  projectedUntil?: DateOnlyString;
+
+  @ApiPropertyOptional({
+    description: 'Quando true, inclui contas arquivadas no saldo agregado',
     example: false,
     default: false,
   })
@@ -17,11 +26,12 @@ export class ListAccountsQueryDto {
   includeArchived?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Quando informado, retorna balance.projectedCents calculado até esta data',
-    example: '2026-06-30',
-    format: 'date',
+    description: 'Quando true, inclui contas com includeInTotal=false no saldo agregado',
+    example: false,
+    default: false,
   })
-  @IsDateOnly()
+  @Transform(parseBooleanTransformValue)
+  @IsBoolean()
   @IsOptional()
-  projectedUntil?: DateOnlyString;
+  includeExcludedFromTotal?: boolean;
 }

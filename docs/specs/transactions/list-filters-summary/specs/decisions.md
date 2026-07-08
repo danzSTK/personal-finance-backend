@@ -101,7 +101,20 @@ Decision:
 `summary.balance.expectedBalanceCents` será calculado como `effectiveDeltaCents + pendingDeltaCents`.
 
 Reason:
-O summary de transactions responde o resultado líquido da listagem/período. Somar `currentBalanceCents` misturava essa leitura com saldo projetado de account, que pertence ao contrato de accounts.
+O summary de transactions responde o resultado líquido da listagem/período. Somar saldo atual misturaria essa leitura com saldo projetado de account, que pertence ao contrato de accounts.
 
 Impact:
 `expectedBalanceCents` pode ser negativo, positivo ou zero e não representa saldo atual/projetado da account. Para saldo real ou projetado por account, o frontend deve consumir o contrato de accounts.
+
+## DEC-008 - Remover saldo atual do summary de transactions
+
+Status: accepted
+
+Decision:
+`GET /transactions` não retorna mais `summary.currentBalanceCents`.
+
+Reason:
+Saldo atual e saldo projetado são responsabilidade do módulo accounts. Transactions deve responder movimentos filtrados, não estado atual de accounts.
+
+Impact:
+O frontend deve consumir `GET /accounts/summary` para saldo atual ou projetado agregado.

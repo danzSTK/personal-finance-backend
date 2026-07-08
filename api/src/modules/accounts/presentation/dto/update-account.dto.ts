@@ -4,8 +4,9 @@ import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { AccountResponseDto } from '@/modules/accounts/presentation/dto/account.response.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { parseBooleanTransformValue } from '@/common/utils/parse-boolean-query-param';
 
 export class UpdateAccountDto {
   @ApiProperty({ example: 'Conta principal' })
@@ -33,7 +34,7 @@ export class UpdateAccountDto {
 
   @ApiPropertyOptional({ example: false, default: false })
   @IsOptionalButNotNull()
-  @Type(() => Boolean)
+  @Transform(parseBooleanTransformValue)
   @IsBoolean()
   includeInTotal?: boolean;
 

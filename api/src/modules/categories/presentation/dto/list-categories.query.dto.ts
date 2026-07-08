@@ -5,8 +5,9 @@ import {
   CATEGORY_SEARCH_MAX_LENGTH,
 } from '@/common/models/constants';
 import { CategoryType } from '@/common/models/enums';
+import { parseBooleanTransformValue } from '@/common/utils/parse-boolean-query-param';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 const MANAGEMENT_CATEGORY_TYPES = [CategoryType.INCOME, CategoryType.EXPENSE, CategoryType.INVESTMENT] as const;
@@ -17,7 +18,7 @@ export class ListCategoriesQueryDto {
     example: false,
     default: false,
   })
-  @Type(() => Boolean)
+  @Transform(parseBooleanTransformValue)
   @IsBoolean()
   @IsOptional()
   includeArchived?: boolean;
