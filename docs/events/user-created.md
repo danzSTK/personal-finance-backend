@@ -28,7 +28,7 @@ Ele é o evento de entrada para preparar recursos iniciais do usuário sem acopl
 | Aggregate | `User` |
 | Versão | `1` |
 | Persistência | `outbox_messages` |
-| Publicação | `OutboxProcessorService` via `AppEventPublisher` |
+| Publicação | worker: `OutboxProcessorService` via `AppEventPublisher` |
 
 ## Produtor
 
@@ -111,8 +111,9 @@ Fluxo:
 | Status | Módulo | Handler | Efeito |
 |---|---|---|---|
 | current | `accounts` | `ProvisionDefaultAccountOnUserHandler` | Cria a account `CASH` default do usuário |
-| planned | `categories` | a definir | Criar categorias default visíveis e categorias técnicas do usuário |
-| planned | `notifications/email` | a definir | Enfileirar email de boas-vindas |
+| current | `categories` | `ProvisionDefaultCategoriesOnUserHandler` | Cria categorias iniciais e técnicas |
+| current | `auth` | `EnqueueEmailVerificationOnUserCreatedHandler` | Cria challenge e intenção de verificação quando aplicável |
+| current | `notifications` | `EnqueueWelcomeEmailOnUserCreatedHandler` | Persiste e enfileira boas-vindas quando aplicável |
 
 Handler atual:
 
@@ -141,15 +142,15 @@ Fluxo de produto relacionado:
 
 - [Onboarding CASH Account](../accounts/flows/onboarding-cash-account.md)
 
-## Próximos Consumidores Planejados
+## Consumidores De Onboarding
 
 ### Default Categories
 
-Quando categories existir, `user.created` deve disparar a criação das categorias iniciais do usuário.
+`user.created` dispara a criação das categorias iniciais do usuário.
 
 O handler precisa ser idempotente por usuário e por categoria seedada.
 
-O desenho esperado:
+O desenho implementado:
 
 - criar categorias default visíveis para o usuário;
 - criar categorias técnicas `TRANSFER` e `ADJUSTMENT`;

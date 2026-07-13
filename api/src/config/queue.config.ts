@@ -17,7 +17,6 @@ export interface QueueConfig {
     removeOnFail: number;
   };
   workers: {
-    enabled: boolean;
     defaultConcurrency: number;
   };
 }
@@ -38,16 +37,6 @@ const readNumber = (key: string, fallbackKey: string | null, defaultValue: numbe
   const rawValue = process.env[key] ?? (fallbackKey ? process.env[fallbackKey] : undefined);
 
   return rawValue === undefined ? defaultValue : Number(rawValue);
-};
-
-const readBoolean = (key: string, defaultValue: boolean): boolean => {
-  const rawValue = process.env[key];
-
-  if (rawValue === undefined) {
-    return defaultValue;
-  }
-
-  return rawValue.toLowerCase() === 'true';
 };
 
 const readBackoffType = (): QueueBackoffType => {
@@ -74,7 +63,6 @@ export default registerAs(
       removeOnFail: readNumber('BULLMQ_REMOVE_ON_FAIL', null, QueueDefaults.removeOnFail),
     },
     workers: {
-      enabled: readBoolean('BULLMQ_WORKERS_ENABLED', QueueDefaults.workersEnabled),
       defaultConcurrency: readNumber('BULLMQ_DEFAULT_CONCURRENCY', null, QueueDefaults.defaultConcurrency),
     },
   }),

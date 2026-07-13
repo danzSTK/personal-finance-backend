@@ -36,6 +36,7 @@ describe('EmailMessageRepository', () => {
   let typeormRepository: jest.Mocked<Repository<EmailMessageOrmEntity>>;
   let findOne: jest.MockedFunction<Repository<EmailMessageOrmEntity>['findOne']>;
   let saveOrm: jest.MockedFunction<Repository<EmailMessageOrmEntity>['save']>;
+  let find: jest.MockedFunction<Repository<EmailMessageOrmEntity>['find']>;
   let repository: EmailMessageRepository;
 
   beforeEach(() => {
@@ -43,11 +44,31 @@ describe('EmailMessageRepository', () => {
 
     findOne = jest.fn();
     saveOrm = jest.fn();
+    find = jest.fn();
     typeormRepository = {
       findOne,
       save: saveOrm,
+      find,
     } as unknown as jest.Mocked<Repository<EmailMessageOrmEntity>>;
     repository = new EmailMessageRepository(typeormRepository);
+  });
+
+  describe('findReenqueuableBefore', () => {
+    it('selects only ids for retryable states using the status and creation index order', async () => {
+      const cutoff = new Date('2026-01-01T10:00:00.000Z');
+      find.mockResolvedValue([{ id: 'email-message-1' } as EmailMessageOrmEntity]);
+
+      const result = await repository.findReenqueuableBefore(cutoff, 100);
+
+      expect(find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: { id: true },
+          order: { created_at: 'ASC' },
+          take: 100,
+        }),
+      );
+      expect(result).toEqual([{ id: 'email-message-1' }]);
+    });
   });
 
   describe('findByIdempotencyKey', () => {

@@ -2,6 +2,8 @@ import objectStorageConfig from '@/config/object-storage.config';
 import mailConfig from '@/config/mail.config';
 import notificationsConfig from '@/config/notifications.config';
 import queueConfig from '@/config/queue.config';
+import workerConfig from '@/config/worker.config';
+import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import Joi from 'joi';
@@ -12,6 +14,22 @@ import googleOauthConfig from './google-oauth.config';
 import jwtConfig from './jwt.config';
 import redisConfig from './redis.config';
 import throttleConfig from './throttle.config';
+
+export const getWorkerConfigInvariantError = (value: Record<string, unknown>): string | null => {
+  if (Number(value.OUTBOX_LEASE_RENEW_INTERVAL_MS) >= Number(value.OUTBOX_LEASE_MS)) {
+    return 'OUTBOX_LEASE_RENEW_INTERVAL_MS must be lower than OUTBOX_LEASE_MS';
+  }
+
+  if (Number(value.OUTBOX_CONCURRENCY) > Number(value.OUTBOX_BATCH_SIZE)) {
+    return 'OUTBOX_CONCURRENCY must not exceed OUTBOX_BATCH_SIZE';
+  }
+
+  if (Number(value.WORKER_HEARTBEAT_INTERVAL_MS) >= Number(value.WORKER_HEARTBEAT_TTL_MS)) {
+    return 'WORKER_HEARTBEAT_INTERVAL_MS must be lower than WORKER_HEARTBEAT_TTL_MS';
+  }
+
+  return null;
+};
 
 @Module({
   imports: [
@@ -28,26 +46,60 @@ import throttleConfig from './throttle.config';
         mailConfig,
         notificationsConfig,
         queueConfig,
+        workerConfig,
       ],
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
       validationSchema: Joi.object({
+        PROCESS_ROLE: Joi.string().valid(ProcessRoles.API, ProcessRoles.WORKER).default(ProcessRoles.API),
         POSTGRES_HOST: Joi.string().required(),
         POSTGRES_PORT: Joi.number().required(),
         POSTGRES_USER: Joi.string().required(),
         POSTGRES_PASSWORD: Joi.string().required(),
         POSTGRES_DB: Joi.string().required(),
 
-        JWT_ACCESS_SECRET: Joi.string().min(32).required(),
-        JWT_REFRESH_SECRET: Joi.string().min(32).required(),
-        JWT_ACCESS_EXPIRES_IN: Joi.string().required(),
-        JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
+        JWT_ACCESS_SECRET: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().min(32).required(),
+          otherwise: Joi.string().optional(),
+        }),
+        JWT_REFRESH_SECRET: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().min(32).required(),
+          otherwise: Joi.string().optional(),
+        }),
+        JWT_ACCESS_EXPIRES_IN: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().required(),
+          otherwise: Joi.string().optional(),
+        }),
+        JWT_REFRESH_EXPIRES_IN: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().required(),
+          otherwise: Joi.string().optional(),
+        }),
 
         // google oauth
-        GOOGLE_CLIENT_ID: Joi.string().required(),
-        GOOGLE_CLIENT_SECRET: Joi.string().required(),
-        GOOGLE_CALLBACK_URL: Joi.string().uri().required(),
-        GOOGLE_LINK_CALLBACK_URI: Joi.string().uri().required(),
+        GOOGLE_CLIENT_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().required(),
+          otherwise: Joi.string().optional(),
+        }),
+        GOOGLE_CLIENT_SECRET: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().required(),
+          otherwise: Joi.string().optional(),
+        }),
+        GOOGLE_CALLBACK_URL: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().uri().required(),
+          otherwise: Joi.string().uri().optional(),
+        }),
+        GOOGLE_LINK_CALLBACK_URI: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().uri().required(),
+          otherwise: Joi.string().uri().optional(),
+        }),
 
         // redis
         REDIS_HOST: Joi.string().required(),
@@ -58,17 +110,25 @@ import throttleConfig from './throttle.config';
         // mail
         MAIL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
         MAIL_PROVIDER: Joi.string().valid('brevo', 'noop').default('noop'),
-        MAIL_DEFAULT_FROM_EMAIL: Joi.when('MAIL_ENABLED', {
-          is: true,
-          then: Joi.string().email().required(),
+        MAIL_DEFAULT_FROM_EMAIL: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.string().email().required(),
+            otherwise: Joi.string().email().optional(),
+          }),
           otherwise: Joi.string().email().optional(),
         }),
         MAIL_DEFAULT_FROM_NAME: Joi.string().trim().optional(),
-        BREVO_API_KEY: Joi.when('MAIL_ENABLED', {
-          is: true,
-          then: Joi.when('MAIL_PROVIDER', {
-            is: 'brevo',
-            then: Joi.string().required().invalid(''),
+        BREVO_API_KEY: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.string().required().invalid(''),
+              otherwise: Joi.string().allow('').optional(),
+            }),
             otherwise: Joi.string().allow('').optional(),
           }),
           otherwise: Joi.string().allow('').optional(),
@@ -103,8 +163,19 @@ import throttleConfig from './throttle.config';
         BULLMQ_BACKOFF_DELAY_MS: Joi.number().integer().min(1).default(5000),
         BULLMQ_REMOVE_ON_COMPLETE: Joi.number().integer().min(0).default(1000),
         BULLMQ_REMOVE_ON_FAIL: Joi.number().integer().min(0).default(5000),
-        BULLMQ_WORKERS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
         BULLMQ_DEFAULT_CONCURRENCY: Joi.number().integer().min(1).default(5),
+
+        OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().min(100).default(1000),
+        OUTBOX_BATCH_SIZE: Joi.number().integer().min(1).default(25),
+        OUTBOX_CONCURRENCY: Joi.number().integer().min(1).default(5),
+        OUTBOX_LEASE_MS: Joi.number().integer().min(1000).default(30000),
+        OUTBOX_LEASE_RENEW_INTERVAL_MS: Joi.number().integer().min(100).default(10000),
+        WORKER_SHUTDOWN_TIMEOUT_MS: Joi.number().integer().min(1000).default(30000),
+        EMAIL_ENQUEUE_RECONCILE_INTERVAL_MS: Joi.number().integer().min(1000).default(30000),
+        EMAIL_ENQUEUE_RECONCILE_BATCH_SIZE: Joi.number().integer().min(1).default(100),
+        EMAIL_ENQUEUE_STALE_AFTER_MS: Joi.number().integer().min(0).default(30000),
+        WORKER_HEARTBEAT_INTERVAL_MS: Joi.number().integer().min(1000).default(10000),
+        WORKER_HEARTBEAT_TTL_MS: Joi.number().integer().min(2000).default(30000),
 
         // throttle
         THROTTLE_DEFAULT_TTL: Joi.number().default(60000),
@@ -127,42 +198,57 @@ import throttleConfig from './throttle.config';
         R2_PUBLIC_BASE_URL: Joi.string().uri().required(),
 
         // app
-        CSRF_ALLOWED_ORIGINS: Joi.string()
-          .trim()
-          .min(1)
-          .required()
-          .custom((value: string, helpers) => {
-            const origins = value
-              .split(',')
-              .map(origin => origin.trim())
-              .filter(Boolean);
+        CSRF_ALLOWED_ORIGINS: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string()
+            .trim()
+            .min(1)
+            .required()
+            .custom((value: string, helpers) => {
+              const origins = value
+                .split(',')
+                .map(origin => origin.trim())
+                .filter(Boolean);
 
-            if (origins.length === 0) {
-              return helpers.error('any.invalid');
-            }
+              if (origins.length === 0) {
+                return helpers.error('any.invalid');
+              }
 
-            for (const origin of origins) {
-              try {
-                const parsed = new URL(origin);
+              for (const origin of origins) {
+                try {
+                  const parsed = new URL(origin);
 
-                if (parsed.origin !== origin) {
+                  if (parsed.origin !== origin) {
+                    return helpers.error('string.uri');
+                  }
+                } catch {
                   return helpers.error('string.uri');
                 }
-              } catch {
-                return helpers.error('string.uri');
               }
-            }
 
-            return value;
-          }, 'CSRF allowed origins validation')
-          .messages({
-            'any.invalid': 'CSRF_ALLOWED_ORIGINS must contain at least one valid origin',
-            'string.uri': 'CSRF_ALLOWED_ORIGINS must be a comma-separated list of valid origins',
-          }),
+              return value;
+            }, 'CSRF allowed origins validation')
+            .messages({
+              'any.invalid': 'CSRF_ALLOWED_ORIGINS must contain at least one valid origin',
+              'string.uri': 'CSRF_ALLOWED_ORIGINS must be a comma-separated list of valid origins',
+            }),
+          otherwise: Joi.string().optional(),
+        }),
         FRONTEND_URL: Joi.string().uri().required(),
         NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
         PORT: Joi.number().default(3000),
-        APP_URL: Joi.string().uri().required(),
+        APP_URL: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.string().uri().required(),
+          otherwise: Joi.string().uri().optional(),
+        }),
+      }).custom((value: Record<string, unknown>, helpers) => {
+        const invariantError = getWorkerConfigInvariantError(value);
+        if (invariantError) {
+          return helpers.message({ custom: invariantError });
+        }
+
+        return value;
       }),
       validationOptions: {
         abortEarly: true,

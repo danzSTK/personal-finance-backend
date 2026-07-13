@@ -3,11 +3,11 @@ import { UserAvatarRemovedEventHydrator } from '@/modules/users/infrastructure/e
 import { UserCreatedEventHydrator } from '@/modules/users/infrastructure/events/user-created-event.rehydrator';
 import { UserEmailVerifiedEventHydrator } from '@/modules/users/infrastructure/events/user-email-verified-event.rehydrator';
 import { UsersEventsModule } from '@/modules/users/users-events.module';
-import { EventRegistry, OutboxModule } from '@/shared/outbox';
+import { EventRegistry, OutboxRegistryModule } from '@/shared/outbox';
 import { Module, OnModuleInit } from '@nestjs/common';
 
 @Module({
-  imports: [OutboxModule, UsersEventsModule],
+  imports: [OutboxRegistryModule, UsersEventsModule],
 })
 export class OutboxRehydratorsModule implements OnModuleInit {
   constructor(

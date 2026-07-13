@@ -3,8 +3,8 @@ import { AppService } from '@/app/app.service';
 import { CommonModule } from '@/common/common.module';
 import { AppExceptionFilter } from '@/common/filters';
 import { ConfigModule } from '@/config/config.module';
-import { ENTITIES } from '@/config/entities';
 import throttleConfig from '@/config/throttle.config';
+import { PostgresModule } from '@/database/postgres/postgres.module';
 import { RedisModule } from '@/database/redis/redis.module';
 import { AccountsModule } from '@/modules/accounts/accounts.module';
 import { AssetsModule } from '@/modules/assets/assets.module';
@@ -13,46 +13,24 @@ import { CategoriesModule } from '@/modules/categories/categories.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { TransactionsModule } from '@/modules/transactions/transactions.module';
 import { UsersModule } from '@/modules/users/users.module';
-import { AppEventsModule } from '@/shared/events';
 import { JobsModule } from '@/shared/jobs/jobs.module';
-import { MailModule } from '@/shared/mail';
 import { OutboxModule } from '@/shared/outbox';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppStatus } from '../common/models/enums';
-import appConfig from '../config/app.config';
-import databaseConfig from '../config/database.config';
 import { RedisService } from '../database/redis/redis.service';
 import { HealthModule } from '../modules/health/health.module';
 import { JwtAuthGuard } from '../shared/guards/jwt-auth.guard';
 import { EmailVerificationStatusGuard } from '../shared/guards/email-verification-status.guard';
 import { OriginGuard } from '../shared/guards/origin.guard';
 import { SessionModule } from '../shared/session-tracking/session-metadata.module';
-import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module';
 
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (dbConfig: ConfigType<typeof databaseConfig>, app: ConfigType<typeof appConfig>) => ({
-        type: 'postgres',
-        host: dbConfig.host,
-        port: dbConfig.port,
-        username: dbConfig.username,
-        password: dbConfig.password,
-        database: dbConfig.dbName,
-        entities: ENTITIES,
-        synchronize: false,
-        logging: true,
-        ssl: (app.nodeEnv as AppStatus) === AppStatus.PRODUCTION ? { rejectUnauthorized: false } : false,
-      }),
-      inject: [databaseConfig.KEY, appConfig.KEY],
-    }),
+    PostgresModule,
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [throttleConfig.KEY, RedisService],
@@ -69,10 +47,7 @@ import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module
     }),
     RedisModule,
     JobsModule,
-    MailModule,
-    AppEventsModule,
     OutboxModule,
-    OutboxRehydratorsModule,
     UsersModule,
     AuthModule,
     CommonModule,

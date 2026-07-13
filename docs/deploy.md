@@ -17,7 +17,8 @@ A stack é composta por:
 
 | Serviço | Tecnologia | Função |
 |---|---|---|
-| API | NestJS (Node.js 22) | Backend principal |
+| API | NestJS (Node.js 22) | HTTP, casos de uso, producers e escrita da outbox |
+| Worker | NestJS (Node.js 22) | Outbox, eventos, reconciliação e jobs BullMQ |
 | Banco de dados | PostgreSQL 16 | Persistência de dados |
 | Cache e sessões | Redis 7 | Cache, sessões e rate limit |
 | Filas | Redis 7 | Backend dedicado do BullMQ com política `noeviction` |
@@ -38,6 +39,7 @@ NGINX (host) — porta 80 → redireciona para HTTPS
            Docker Compose
            ┌──────────────────────────────────────┐
            │  API (NestJS)       — porta 3000     │
+           │  Worker (NestJS)    — sem porta HTTP │
            │  Redis cache/sessão — porta 6379     │
            │  Redis BullMQ       — porta 6379 int. │
            │  PostgreSQL 16      — porta 5432     │
@@ -140,7 +142,16 @@ REDIS_PASSWORD=senha_forte_redis
 BULLMQ_REDIS_PASSWORD=senha_forte_bullmq
 BULLMQ_REDIS_DB=0
 BULLMQ_PREFIX=personal-finance
-BULLMQ_WORKERS_ENABLED=true
+
+# Worker/outbox
+OUTBOX_POLL_INTERVAL_MS=1000
+OUTBOX_BATCH_SIZE=25
+OUTBOX_CONCURRENCY=5
+OUTBOX_LEASE_MS=30000
+OUTBOX_LEASE_RENEW_INTERVAL_MS=10000
+WORKER_SHUTDOWN_TIMEOUT_MS=30000
+WORKER_HEARTBEAT_INTERVAL_MS=10000
+WORKER_HEARTBEAT_TTL_MS=30000
 
 # JWT (gere strings longas e aleatórias)
 JWT_ACCESS_SECRET=...
@@ -178,6 +189,7 @@ Você deve ver os serviços principais com status `running`/`healthy`:
 ```
 NAME                     STATUS
 personal-finance-api     Up
+personal-finance-worker  Up (healthy)
 personal-finance-db      Up
 personal-finance-redis   Up
 personal-finance-bullmq-redis Up
@@ -188,6 +200,14 @@ Acompanhe os logs da API em tempo real:
 ```bash
 docker compose logs -f api
 ```
+
+Acompanhe o processamento assíncrono:
+
+```bash
+docker compose logs -f worker
+```
+
+API e worker usam a mesma imagem, mas commands e `PROCESS_ROLE` distintos. Somente a API publica porta. Em produção, injete JWT/OAuth/CSRF apenas na API e credenciais de mail/Brevo apenas no worker; ambos ainda precisam das configurações compartilhadas de PostgreSQL, Redis, BullMQ, storage e URLs usadas pelas intenções.
 
 ---
 
@@ -295,6 +315,28 @@ Se qualquer dependência falhar, o endpoint retorna `503 Service Unavailable` co
 
 > Use o **liveness** para configurar o health check do NGINX ou de um monitor de uptime. Use o **readiness** para diagnosticar problemas de conectividade entre os serviços.
 
+### Worker
+
+O worker não abre endpoint HTTP. O Compose executa dentro do container:
+
+```bash
+npm run health:worker
+```
+
+O comando verifica PostgreSQL, os dois Redis e o heartbeat da instância, retornando código diferente de zero em falha. O runbook com consultas e alertas está em [Worker operations](./platform/worker-operations.md).
+
+## 8. Rollout E Rollback
+
+Para migrar sem janela sem consumers:
+
+1. aplique migrations compatíveis, quando existirem;
+2. publique a imagem única;
+3. inicie o worker novo e valide heartbeat, outbox e BullMQ;
+4. substitua a API pela root sem consumers;
+5. monitore backlog, mensagens `DEAD` e jobs falhos.
+
+Uma sobreposição curta com a versão anterior é tolerada por `SKIP LOCKED`, leases e idempotência. No rollback, pare o worker novo, restaure a imagem anterior e preserve PostgreSQL, Redis cache e Redis BullMQ. Não remova volumes nem limpe filas/outbox.
+
 ---
 
 ## Comandos úteis
@@ -302,7 +344,9 @@ Se qualquer dependência falhar, o endpoint retorna `503 Service Unavailable` co
 | Ação | Comando |
 |---|---|
 | Ver logs da API | `docker compose logs -f api` |
+| Ver logs do worker | `docker compose logs -f worker` |
 | Reiniciar a API | `docker compose restart api` |
+| Reiniciar o worker | `docker compose restart worker` |
 | Parar tudo | `docker compose down` |
 | Atualizar a aplicação | `git pull && docker compose up -d --build` |
 | Acessar o banco | `docker exec -it personal-finance-db psql -U <POSTGRES_USER> -d <POSTGRES_DB>` |

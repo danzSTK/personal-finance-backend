@@ -7,9 +7,13 @@ import helmet from 'helmet';
 import { AppStatus } from './common/models/enums';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { createValidationException } from './common/validation';
+import { ProcessRoles } from './common/models/constants/process-role.constants';
+import { assertProcessRole } from './app/assert-process-role';
 
 async function bootstrap() {
+  assertProcessRole(ProcessRoles.API);
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.enableShutdownHooks();
   app.use(cookieParser());
   const isProduction = process.env.NODE_ENV === AppStatus.PRODUCTION;
 

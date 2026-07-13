@@ -58,3 +58,9 @@ Se o e-mail já estiver verificado:
 - Reenvio tem cooldown de 60 minutos.
 - O limite é 5 e-mails por e-mail em 24 horas, incluindo o envio automático inicial.
 - O frontend deve extrair o token de `/verification-email?token=<token>` e confirmar via `POST`.
+
+## Processamento Assíncrono
+
+O `202 QUEUED` representa uma intenção persistida, não a confirmação de entrega pelo provider. A API grava `email_messages` e tenta adicionar o job; o envio é executado somente pelo worker.
+
+Se o PostgreSQL confirmar a intenção e o Redis BullMQ estiver indisponível, o reconciliador do worker reenfileira mensagens `PENDING` ou `FAILED_RETRYABLE` antigas. O frontend não deve repetir o resend agressivamente: cooldown, limite diário e idempotência continuam valendo.

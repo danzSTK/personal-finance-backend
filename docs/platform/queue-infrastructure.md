@@ -45,7 +45,6 @@ BULLMQ_BACKOFF_TYPE
 BULLMQ_BACKOFF_DELAY_MS
 BULLMQ_REMOVE_ON_COMPLETE
 BULLMQ_REMOVE_ON_FAIL
-BULLMQ_WORKERS_ENABLED
 BULLMQ_DEFAULT_CONCURRENCY
 ```
 
@@ -111,18 +110,19 @@ Domínio, entidades e value objects não importam BullMQ.
 
 Quando enfileirar um job fizer parte de regra de aplicação, crie uma porta na camada de aplicação e implemente essa porta na infraestrutura com BullMQ.
 
-## Workers
+## Processos
 
-Workers futuros devem respeitar `BULLMQ_WORKERS_ENABLED`.
+`PROCESS_ROLE` define o entrypoint e não funciona como feature flag:
 
-Esse flag permite separar processos no futuro:
+- `PROCESS_ROLE=api`: API HTTP, producers e escrita da outbox;
+- `PROCESS_ROLE=worker`: dispatcher da outbox, EventEmitter2, handlers, reconciliadores e processors BullMQ.
 
-- API HTTP que apenas enfileira jobs;
-- processo worker que consome jobs;
-- modo local simples com API e worker no mesmo processo.
+O processor de e-mail aplica `BULLMQ_DEFAULT_CONCURRENCY`. API e worker devem usar o mesmo `BULLMQ_PREFIX`, database e Redis dedicado.
 
 ## Outbox
 
 BullMQ não substitui o outbox.
 
 Use o outbox para garantir que eventos de domínio sejam persistidos junto da transação. Use BullMQ para executar trabalhos assíncronos retentáveis disparados por casos de uso ou handlers desses eventos.
+
+A intenção `email_messages` é persistida antes do enqueue. Um reconciliador exclusivo do worker reenfileira intenções `PENDING` ou `FAILED_RETRYABLE` antigas usando `jobId` determinístico.

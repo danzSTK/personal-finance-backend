@@ -67,7 +67,6 @@ describe('queueConfig', () => {
       delete process.env.BULLMQ_BACKOFF_DELAY_MS;
       delete process.env.BULLMQ_REMOVE_ON_COMPLETE;
       delete process.env.BULLMQ_REMOVE_ON_FAIL;
-      delete process.env.BULLMQ_WORKERS_ENABLED;
       delete process.env.BULLMQ_DEFAULT_CONCURRENCY;
 
       const config = queueConfig();
@@ -81,7 +80,6 @@ describe('queueConfig', () => {
         removeOnFail: 5000,
       });
       expect(config.workers).toEqual({
-        enabled: true,
         defaultConcurrency: 5,
       });
     });
@@ -93,7 +91,6 @@ describe('queueConfig', () => {
       process.env.BULLMQ_BACKOFF_DELAY_MS = '2500';
       process.env.BULLMQ_REMOVE_ON_COMPLETE = '10';
       process.env.BULLMQ_REMOVE_ON_FAIL = '20';
-      process.env.BULLMQ_WORKERS_ENABLED = 'false';
       process.env.BULLMQ_DEFAULT_CONCURRENCY = '2';
 
       const config = queueConfig();
@@ -107,7 +104,6 @@ describe('queueConfig', () => {
         removeOnFail: 20,
       });
       expect(config.workers).toEqual({
-        enabled: false,
         defaultConcurrency: 2,
       });
     });

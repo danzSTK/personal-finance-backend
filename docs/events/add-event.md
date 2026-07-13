@@ -165,7 +165,7 @@ Exemplo:
 export class UsersEventsModule {}
 ```
 
-Esse módulo não deve importar `OutboxModule` por obrigação. Ele só fornece providers do módulo de negócio.
+Esse módulo não deve importar o dispatcher da outbox. Ele só fornece providers do módulo de negócio.
 
 ## 6. Registrar No Módulo De Composição
 
@@ -181,7 +181,7 @@ Exemplo:
 
 ```ts
 @Module({
-  imports: [OutboxModule, UsersEventsModule],
+  imports: [OutboxRegistryModule, UsersEventsModule],
 })
 export class OutboxRehydratorsModule implements OnModuleInit {
   constructor(
@@ -196,6 +196,8 @@ export class OutboxRehydratorsModule implements OnModuleInit {
 ```
 
 O `shared/outbox` não deve importar módulos de domínio como `users`, `accounts` ou `categories`.
+
+O `OutboxRehydratorsModule` pertence ao grafo do worker. A API importa apenas `OutboxWriterModule` por meio da facade de escrita.
 
 ## 7. Criar Handler Consumidor
 
@@ -216,6 +218,8 @@ export class ProvisionDefaultAccountOnUserHandler {
 ```
 
 O handler deve chamar use case. Evite concentrar regra de negócio diretamente no handler.
+
+Exporte o handler por um módulo `<Domain>EventHandlersModule` e registre esse módulo em `WorkerEventConsumersModule`. Não importe handlers no módulo HTTP/API.
 
 ## 8. Garantir Idempotência
 
