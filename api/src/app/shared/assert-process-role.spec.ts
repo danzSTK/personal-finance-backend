@@ -1,5 +1,5 @@
 import { ProcessRoles } from '@/common/models/constants/process-role.constants';
-import { assertProcessRole } from './assert-process-role';
+import { assertProcessRole } from '@/app/shared/assert-process-role';
 
 describe('assertProcessRole', () => {
   const originalRole = process.env.PROCESS_ROLE;

@@ -4,7 +4,7 @@ import { BullmqOperationalRedisService } from '@/shared/jobs/bullmq-operational-
 import { Inject, Injectable } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { DataSource } from 'typeorm';
-import { getWorkerHeartbeatKey } from './worker-instance';
+import { getWorkerHeartbeatKey } from '@/app/worker/operations/worker-instance';
 
 @Injectable()
 export class WorkerHealthService {

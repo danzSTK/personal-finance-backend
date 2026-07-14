@@ -1,5 +1,7 @@
 # Retomada - API e Worker Separados
 
+To continue this session, run codex resume 019f5901-cf9a-7f82-b0db-f8579abf3026
+
 Este arquivo e o ponto de entrada para retomar o backend depois da separacao entre API HTTP e worker assincrono.
 
 ## Primeiro Passo Ao Voltar
@@ -37,7 +39,7 @@ O projeto continua sendo um monolito modular NestJS:
 
 Entrypoint: `api/src/main.ts`.
 
-Root: `api/src/app/app.module.ts`.
+Root: `api/src/app/api/api.module.ts` (`ApiModule`).
 
 Responsabilidades:
 
@@ -55,7 +57,7 @@ A API nao registra EventEmitter2, handlers de dominio, dispatcher da outbox, pro
 
 Entrypoint: `api/src/worker.ts`.
 
-Root: `api/src/app/worker.module.ts`.
+Root: `api/src/app/worker/worker.module.ts`.
 
 Responsabilidades:
 
@@ -132,6 +134,20 @@ Tambem sera necessario:
 - garantir idempotencia no banco e no `jobId`;
 - atualizar `docs/events`, `docs/notifications` e testes;
 - nunca incluir senha, hash, token ou dados completos de template no evento/log.
+
+## Organização De `src/app`
+
+```text
+api/src/app/
+├── api/                 # controller e ApiModule HTTP
+├── shared/              # proteção compartilhada dos entrypoints
+├── worker/
+│   ├── composition/     # handlers e hydrators
+│   ├── health/          # health one-shot
+│   ├── operations/      # heartbeat e lifecycle
+│   └── worker.module.ts
+└── process-composition.spec.ts
+```
 
 ## Onde Cada Modulo Fica
 

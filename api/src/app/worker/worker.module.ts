@@ -8,7 +8,7 @@ import { OutboxDispatcherModule } from '@/shared/outbox';
 import { Module } from '@nestjs/common';
 import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module';
 import { WorkerEventConsumersModule } from './composition/worker-event-consumers.module';
-import { WorkerOperationsModule } from './worker-operations.module';
+import { WorkerOperationsModule } from './operations/worker-operations.module';
 
 @Module({
   imports: [

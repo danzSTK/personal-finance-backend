@@ -95,7 +95,7 @@ O registro acontece por composição.
 Arquivos principais:
 
 - [users-events.module.ts](../../api/src/modules/users/users-events.module.ts)
-- [outbox-rehydrators.module.ts](../../api/src/app/composition/outbox-rehydrators.module.ts)
+- [outbox-rehydrators.module.ts](../../api/src/app/worker/composition/outbox-rehydrators.module.ts)
 
 Fluxo:
 

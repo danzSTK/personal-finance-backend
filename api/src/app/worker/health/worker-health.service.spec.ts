@@ -1,7 +1,7 @@
 import type { RedisService } from '@/database/redis/redis.service';
 import type { BullmqOperationalRedisService } from '@/shared/jobs/bullmq-operational-redis.service';
 import type { DataSource } from 'typeorm';
-import { WorkerHealthService } from './worker-health.service';
+import { WorkerHealthService } from '@/app/worker/health/worker-health.service';
 
 describe('WorkerHealthService', () => {
   const queueConfig = {

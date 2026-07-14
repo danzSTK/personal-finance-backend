@@ -67,8 +67,8 @@ Com outbox:
 | `EventRegistry`           | `api/src/shared/outbox/event-registry.ts`                               | Encontra o hydrator correto para reconstituir um evento salvo        |
 | `EventRehydrator`         | `api/src/shared/outbox/interfaces/outbox-event-rehydrator.interface.ts` | Contrato de reidratação de um evento específico                      |
 | `AppEventPublisher`       | `api/src/shared/events/app-event-publisher.service.ts`                  | Publica o `DomainEvent` no EventEmitter                              |
-| `OutboxRehydratorsModule` | `api/src/app/composition/outbox-rehydrators.module.ts`                  | Registra hydrators no boot exclusivo do worker                       |
-| `WorkerEventConsumersModule` | `api/src/app/composition/worker-event-consumers.module.ts`           | Compõe todos os módulos de handlers no worker                        |
+| `OutboxRehydratorsModule` | `api/src/app/worker/composition/outbox-rehydrators.module.ts`           | Registra hydrators no boot exclusivo do worker                       |
+| `WorkerEventConsumersModule` | `api/src/app/worker/composition/worker-event-consumers.module.ts`    | Compõe todos os módulos de handlers no worker                        |
 
 ## Escrita Do Evento
 

@@ -19,7 +19,7 @@ related:
 
 O backend continuará sendo um monólito modular NestJS com um único repositório, um único package, um único build e um único schema PostgreSQL. A mudança cria duas composition roots:
 
-- `AppModule`, iniciado por `main.ts`, compõe capacidades HTTP e producers;
+- `ApiModule`, iniciado por `main.ts`, compõe capacidades HTTP e producers;
 - `WorkerModule`, iniciado por `worker.ts`, compõe capacidades assíncronas e não abre servidor HTTP de negócio.
 
 O limite entre processos ocorre em mecanismos persistentes:
@@ -34,7 +34,7 @@ Não existe comunicação EventEmitter2 entre API e worker.
 
 ```mermaid
 flowchart LR
-  Client[Web/Mobile] --> Api[API process\nmain.ts + AppModule]
+  Client[Web/Mobile] --> Api[API process\nmain.ts + ApiModule]
 
   Api --> Pg[(PostgreSQL)]
   Api --> Cache[(Redis cache/session)]
@@ -86,6 +86,32 @@ sequenceDiagram
 
 ## Composition Roots
 
+### Organização Física Das Roots
+
+```text
+api/src/app/
+├── api/
+│   ├── api.controller.ts
+│   └── api.module.ts
+├── shared/
+│   └── assert-process-role.ts
+├── worker/
+│   ├── composition/
+│   │   ├── outbox-rehydrators.module.ts
+│   │   └── worker-event-consumers.module.ts
+│   ├── health/
+│   │   ├── worker-health.module.ts
+│   │   └── worker-health.service.ts
+│   ├── operations/
+│   │   ├── worker-heartbeat.service.ts
+│   │   ├── worker-instance.ts
+│   │   └── worker-operations.module.ts
+│   └── worker.module.ts
+└── process-composition.spec.ts
+```
+
+`app/api` e `app/worker` representam composition roots. Código de domínio e capacidades reutilizáveis continuam fora de `app`.
+
 ### API Root
 
 Estrutura:
@@ -94,21 +120,21 @@ Estrutura:
 api/src/
 ├── main.ts
 └── app/
-    ├── app.module.ts
-    └── composition/
-        └── api-composition.module.ts (opcional, se melhorar legibilidade)
+    └── api/
+        ├── api.controller.ts
+        └── api.module.ts
 ```
 
 Responsabilidades do bootstrap HTTP:
 
-- `NestFactory.create(AppModule)`;
+- `NestFactory.create(ApiModule)`;
 - cookies, CORS, Helmet, trust proxy e ValidationPipe;
 - Swagger;
 - global guards e `AppExceptionFilter`;
 - `enableShutdownHooks()`;
 - listen em `PORT`.
 
-O `AppModule` não importa:
+O `ApiModule` não importa:
 
 - `ScheduleModule`;
 - `AppEventsModule`;
@@ -125,7 +151,8 @@ Estrutura:
 api/src/
 ├── worker.ts
 └── app/
-    └── worker.module.ts
+    └── worker/
+        └── worker.module.ts
 ```
 
 Bootstrap:
@@ -164,7 +191,7 @@ O worker não configura:
 
 ### Banco Compartilhado
 
-Extrair a configuração TypeORM atualmente inline no `AppModule`:
+Extrair a configuração TypeORM atualmente inline no `ApiModule`:
 
 ```text
 api/src/database/postgres/postgres.module.ts
@@ -221,7 +248,7 @@ Responsabilidades:
 Criar um agregador de consumidores:
 
 ```text
-api/src/app/composition/worker-event-consumers.module.ts
+api/src/app/worker/composition/worker-event-consumers.module.ts
 ```
 
 Esse módulo importa/exporta módulos de handlers, sem declarar regras de negócio próprias.
@@ -333,7 +360,7 @@ Separar persistence/read providers de Users das capacidades HTTP de avatar evita
 ## Grafo De Dependências Alvo
 
 ```text
-AppModule
+ApiModule
   -> ApiConfigModule
   -> PostgresModule
   -> RedisModule
@@ -357,9 +384,9 @@ WorkerModule
 Dependências proibidas:
 
 ```text
-AppModule -> OutboxDispatcherModule
-AppModule -> NotificationsWorkerModule
-AppModule -> *EventHandlersModule
+ApiModule -> OutboxDispatcherModule
+ApiModule -> NotificationsWorkerModule
+ApiModule -> *EventHandlersModule
 WorkerModule -> *HttpModule
 WorkerModule -> AuthController/JWT/Passport/Swagger
 domain/application -> BullMQ Queue concreto
@@ -761,9 +788,9 @@ Se implementação ou `EXPLAIN` exigir mudança de schema:
 
 ### Composition/DI
 
-- `AppModule` compila sem `OutboxProcessorService`;
-- `AppModule` compila sem `EmailMessageProcessor`;
-- `AppModule` não registra handlers `@OnEvent`;
+- `ApiModule` compila sem `OutboxProcessorService`;
+- `ApiModule` compila sem `EmailMessageProcessor`;
+- `ApiModule` não registra handlers `@OnEvent`;
 - `WorkerModule` compila e contém dispatcher, hydrators, todos os handlers e processor;
 - `WorkerModule` não contém controllers de negócio;
 - nenhum binding de repository/port é duplicado ou ambíguo.

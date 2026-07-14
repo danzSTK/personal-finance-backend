@@ -10,8 +10,8 @@ import {
   OutboxWriterModule,
 } from '@/shared/outbox';
 import { MODULE_METADATA } from '@nestjs/common/constants';
-import { AppModule } from './app.module';
-import { WorkerModule } from './worker.module';
+import { ApiModule } from '@/app/api/api.module';
+import { WorkerModule } from '@/app/worker/worker.module';
 
 describe('Process composition', () => {
   const importsOf = (moduleType: object): unknown[] => {
@@ -19,7 +19,7 @@ describe('Process composition', () => {
   };
 
   it('keeps worker-only processors out of the API root', () => {
-    const imports = importsOf(AppModule);
+    const imports = importsOf(ApiModule);
 
     expect(imports).not.toContain(OutboxDispatcherModule);
     expect(imports).not.toContain(NotificationsWorkerModule);

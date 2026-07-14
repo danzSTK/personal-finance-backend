@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app/app.module';
+import { ApiModule } from '@/app/api/api.module';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -8,11 +8,11 @@ import { AppStatus } from './common/models/enums';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { createValidationException } from './common/validation';
 import { ProcessRoles } from './common/models/constants/process-role.constants';
-import { assertProcessRole } from './app/assert-process-role';
+import { assertProcessRole } from '@/app/shared/assert-process-role';
 
 async function bootstrap() {
   assertProcessRole(ProcessRoles.API);
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(ApiModule);
   app.enableShutdownHooks();
   app.use(cookieParser());
   const isProduction = process.env.NODE_ENV === AppStatus.PRODUCTION;

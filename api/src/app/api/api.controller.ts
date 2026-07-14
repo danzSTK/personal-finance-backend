@@ -4,9 +4,7 @@ import { IsPublic } from '@/common/decorators/is-public.decorator';
 
 @ApiTags('app')
 @Controller()
-export class AppController {
-  constructor() {}
-
+export class ApiController {
   @Get()
   @IsPublic()
   @ApiOperation({

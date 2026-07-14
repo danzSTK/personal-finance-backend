@@ -1,11 +1,11 @@
-import { AppController } from '@/app/app.controller';
-import { AppService } from '@/app/app.service';
+import { ApiController } from '@/app/api/api.controller';
 import { CommonModule } from '@/common/common.module';
 import { AppExceptionFilter } from '@/common/filters';
 import { ConfigModule } from '@/config/config.module';
 import throttleConfig from '@/config/throttle.config';
 import { PostgresModule } from '@/database/postgres/postgres.module';
 import { RedisModule } from '@/database/redis/redis.module';
+import { RedisService } from '@/database/redis/redis.service';
 import { AccountsModule } from '@/modules/accounts/accounts.module';
 import { AssetsModule } from '@/modules/assets/assets.module';
 import { AuthModule } from '@/modules/auth/auth.module';
@@ -20,12 +20,11 @@ import { Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { RedisService } from '../database/redis/redis.service';
-import { HealthModule } from '../modules/health/health.module';
-import { JwtAuthGuard } from '../shared/guards/jwt-auth.guard';
-import { EmailVerificationStatusGuard } from '../shared/guards/email-verification-status.guard';
-import { OriginGuard } from '../shared/guards/origin.guard';
-import { SessionModule } from '../shared/session-tracking/session-metadata.module';
+import { HealthModule } from '@/modules/health/health.module';
+import { EmailVerificationStatusGuard } from '@/shared/guards/email-verification-status.guard';
+import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
+import { OriginGuard } from '@/shared/guards/origin.guard';
+import { SessionModule } from '@/shared/session-tracking/session-metadata.module';
 
 @Module({
   imports: [
@@ -59,9 +58,8 @@ import { SessionModule } from '../shared/session-tracking/session-metadata.modul
     TransactionsModule,
     NotificationsModule,
   ],
-  controllers: [AppController],
+  controllers: [ApiController],
   providers: [
-    AppService,
     {
       provide: APP_GUARD,
       useClass: OriginGuard,
@@ -84,4 +82,4 @@ import { SessionModule } from '../shared/session-tracking/session-metadata.modul
     },
   ],
 })
-export class AppModule {}
+export class ApiModule {}

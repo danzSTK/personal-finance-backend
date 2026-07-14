@@ -33,7 +33,7 @@ API e worker são implantáveis separadamente, mas continuam versionados e liber
 Status: accepted
 
 Decision:
-Usar `main.ts + AppModule` para API e `worker.ts + WorkerModule` para worker.
+Usar `main.ts + ApiModule` para API e `worker.ts + WorkerModule` para worker.
 
 Reason:
 O grafo de providers deve determinar capacidades ativas. Um role explícito no bootstrap torna impossível iniciar processors por simples escala da API quando testes de composição estiverem presentes.
@@ -316,3 +316,16 @@ API continua usando `UsersCoreModule`; worker de notifications reutiliza somente
 - `API_ENV_FILE` e `WORKER_ENV_FILE` permitem contratos de secrets distintos no Compose, com fallback para `.env` local.
 - O smoke de container encontrou um export ausente de Accounts; `AccountsCoreModule` passou a exportar `UnarchiveAccountUseCase` e `UpdateAccountUseCase`, com teste de composição para evitar regressão.
 - O alias `@/` foi adicionado ao resolver Jest E2E para que a validação de bootstrap existente consiga executar.
+
+## DEC-020 - Organizar app por composition root
+
+Status: accepted
+
+Decision:
+Separar fisicamente `api/src/app/api`, `api/src/app/worker` e `api/src/app/shared`, renomeando `AppModule` para `ApiModule`.
+
+Reason:
+Depois da separação de processos, arquivos HTTP, health, heartbeat e composição de consumers ficaram misturados no mesmo nível de `app`, tornando ownership e imports ambíguos.
+
+Impact:
+Somente paths, nomes de classes da root HTTP e documentação mudam. O `AppService` vazio e sem consumidores é removido. Entry points compilados, endpoints, módulos de domínio, filas, eventos e contratos permanecem iguais.

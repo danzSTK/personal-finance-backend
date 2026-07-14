@@ -3,7 +3,7 @@ import workerConfig from '@/config/worker.config';
 import { BullmqOperationalRedisService } from '@/shared/jobs/bullmq-operational-redis.service';
 import { BeforeApplicationShutdown, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import { getWorkerHeartbeatKey } from './worker-instance';
+import { getWorkerHeartbeatKey } from '@/app/worker/operations/worker-instance';
 
 @Injectable()
 export class WorkerHeartbeatService implements OnModuleInit, BeforeApplicationShutdown {

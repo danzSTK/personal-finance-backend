@@ -1,5 +1,5 @@
-import queueConfig from '@/config/queue.config';
 import type { ConfigType } from '@nestjs/config';
+import queueConfig from '@/config/queue.config';
 import { hostname } from 'node:os';
 
 export const getWorkerInstanceId = (): string => process.env.WORKER_INSTANCE_ID ?? hostname();

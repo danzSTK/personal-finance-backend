@@ -193,3 +193,13 @@ related:
 - [ ] 136. Validar indisponibilidade e recuperação de PostgreSQL, Redis cache e Redis BullMQ.
 - [ ] 137. Validar que API não recebe Brevo secret e worker não recebe JWT/OAuth secrets no deploy de teste.
 - [x] 138. Revisar diff final contra requirements, design e decisões aprovadas.
+
+## Organização Das Composition Roots
+
+- [x] 139. Criar diretórios `app/api`, `app/worker`, `app/worker/composition`, `app/worker/health`, `app/worker/operations` e `app/shared`.
+- [x] 140. Mover e renomear a root HTTP para `ApiModule` e `ApiController`, removendo o `AppService` sem consumidores.
+- [x] 141. Mover composição, health e operações do worker para subdiretórios próprios.
+- [x] 142. Atualizar entrypoints, testes e imports `@/app`.
+- [x] 143. Atualizar documentação operacional e mapa de arquivos atual.
+- [x] 144. Rodar build, lint, testes unitários e E2E.
+- [x] 145. Confirmar que a reorganização não altera os grafos API/worker.

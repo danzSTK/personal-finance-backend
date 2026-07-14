@@ -1,6 +1,6 @@
-import { assertProcessRole } from '@/app/assert-process-role';
-import { WorkerHealthModule } from '@/app/worker-health.module';
-import { WorkerHealthService } from '@/app/worker-health.service';
+import { assertProcessRole } from '@/app/shared/assert-process-role';
+import { WorkerHealthModule } from '@/app/worker/health/worker-health.module';
+import { WorkerHealthService } from '@/app/worker/health/worker-health.service';
 import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

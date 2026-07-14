@@ -1,4 +1,4 @@
-import { ProcessRole, ProcessRoles } from '@/common/models/constants/process-role.constants';
+import { type ProcessRole, ProcessRoles } from '@/common/models/constants/process-role.constants';
 
 export const assertProcessRole = (expectedRole: ProcessRole): void => {
   const configuredRole = process.env.PROCESS_ROLE ?? ProcessRoles.API;
