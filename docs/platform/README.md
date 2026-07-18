@@ -15,3 +15,4 @@ Regras transversais da aplicação.
 - [Queue infrastructure](./queue-infrastructure.md)
 - [Worker operations](./worker-operations.md)
 - [Response objects](./response-objects.md)
+- [Padrões de issues](./issue-standards.md)
