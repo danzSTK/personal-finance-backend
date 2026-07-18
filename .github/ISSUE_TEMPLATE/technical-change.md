@@ -20,7 +20,7 @@ assignees: ""
 
 ## Proposta
 
-- 
+- <!-- Alteração proposta. -->
 
 ## Critérios de conclusão
 
@@ -35,12 +35,12 @@ assignees: ""
 
 <!-- Opcional. Remova esta seção quando não houver impacto ou risco relevante. -->
 
-- 
+- <!-- Impacto ou risco. -->
 
 ## Validação
 
-1. 
-2. 
+1. <!-- Primeira etapa de validação. -->
+2. <!-- Resultado esperado. -->
 
 ## Rollback
 

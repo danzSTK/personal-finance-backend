@@ -16,29 +16,29 @@ assignees: ""
 
 ## Escopo
 
-- 
+- <!-- Item incluído no escopo. -->
 
 ## Fora de escopo
 
 <!-- Opcional. Remova esta seção quando não houver exclusões relevantes. -->
 
-- 
+- <!-- Item fora do escopo. -->
 
 ## Regras de negócio
 
-- 
+- <!-- Regra de negócio. -->
 
 ## Critérios de aceitação
 
 <!-- Descreva comportamentos observáveis. Prefira Dado/Quando/Então quando útil. -->
 
-- [ ] 
+- [ ] <!-- Comportamento observável e verificável. -->
 
 ## Impactos e riscos
 
 <!-- Opcional. Remova esta seção quando não houver impacto ou risco relevante. -->
 
-- 
+- <!-- Impacto ou risco. -->
 
 ## Observações técnicas
 

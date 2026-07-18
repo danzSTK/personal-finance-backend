@@ -22,12 +22,12 @@ assignees: ""
 
 <!-- Opcional. Remova esta seção quando não houver uma reprodução confiável. -->
 
-1. 
-2. 
-3. 
+1. <!-- Primeiro passo. -->
+2. <!-- Segundo passo. -->
+3. <!-- Resultado observado. -->
 
 ## Possíveis ações
 
 <!-- Opcional. Registre hipóteses, não decisões. Remova quando não agregar contexto. -->
 
-- 
+- <!-- Possível ação. -->
