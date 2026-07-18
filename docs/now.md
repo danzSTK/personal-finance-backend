@@ -4,20 +4,133 @@ To continue this session, run codex resume 019f5901-cf9a-7f82-b0db-f8579abf3026
 
 Este arquivo e o ponto de entrada para retomar o backend depois da separacao entre API HTTP e worker assincrono.
 
+## Estado Atual De Retomada - 18/07/2026
+
+O ponto em que a revisão parou foi o entendimento da arquitetura criada para separar API e worker. A implementação já existe e está commitada na `develop`, mas ainda não foi promovida para a `main`:
+
+```text
+97960d6 refactor(platform): separar api e worker
+a0ac4c3 refactor(platform): organizar composition roots
+```
+
+Não há código da separação pendente no workspace. O que ainda precisa ser concluído é a revisão conceitual, a execução dos testes pendentes da spec e a decisão de abrir o PR `develop -> main`.
+
+### Produção E Migração De Infraestrutura
+
+- a instância Oracle executa a versão da `main`, sem a separação API/worker;
+- nessa versão, API HTTP, scheduler da outbox, EventEmitter2 e processors ainda executam no mesmo processo/container;
+- o NGINX está instalado na VM Oracle, fora dos containers, com certificado Cloudflare Origin CA;
+- a API da Oracle está em `/opt/danfy/app` e foi validada com Docker;
+- a troca do IP de saída da Oracle bloqueou o acesso ao RDS porque o Security Group da AWS ainda autorizava o IP anterior;
+- a regra do Security Group foi corrigida e o acesso ao PostgreSQL foi normalizado;
+- durante a falha, liveness retornava `200`, readiness retornava `500` e endpoints dependentes do banco aguardavam timeout;
+- na última verificação, `api.danfy.app` ainda era atendido pela AWS; confirmar novamente DNS e origem antes de considerar a migração concluída;
+- não implantar a separação API/worker na Oracle antes de revisar e validar a feature na `develop`.
+
+### Issues Abertas Durante A Migração
+
+- `#35` registra o incidente já resolvido de indisponibilidade parcial do PostgreSQL;
+- `#36` acompanha a correção de indisponibilidade do PostgreSQL em runtime;
+- `#37` acompanha a criação do repositório versionado de infraestrutura/NGINX;
+- `#38` acompanha a automação de deploy e está bloqueada pela `#37`.
+
+### Objetivo Ao Retomar
+
+1. entender completamente por que API e worker possuem composition roots separados;
+2. revisar o fluxo `API -> outbox PostgreSQL -> worker -> EventEmitter2 -> handler`;
+3. revisar o fluxo `email_messages -> BullMQ Redis -> worker -> MailService`;
+4. confirmar quais módulos pertencem somente à API, somente ao worker ou são compartilhados;
+5. executar os testes pendentes descritos na spec;
+6. somente depois decidir pela abertura do PR da `develop` para a `main`;
+7. tratar observabilidade, repositório de infraestrutura e pipeline nas issues próprias, sem misturar esses escopos com a separação API/worker.
+
+## Registro Histórico - 15/07/2026
+
+Este bloco preserva o estado registrado no início da migração. O status atual acima substitui esta lista para fins de retomada.
+
+Hoje foi revisada a configuracao de producao da instancia AWS acessada pelo alias SSH `finance-api` e foi iniciada a migracao da infraestrutura da AWS para a Oracle Cloud.
+
+Estado ao encerrar o dia:
+
+- a migracao AWS -> Oracle foi iniciada, mas ainda nao foi concluida;
+- a instancia AWS continua sendo a referencia funcional enquanto a Oracle e preparada;
+- ainda faltam o IP publico fixo/reservado da Oracle, NGINX, certificados e correcoes de DNS;
+- a revisao da separacao API/worker e da arquitetura de eventos, outbox, BullMQ e notificacoes continua pendente;
+- nenhuma alteracao foi feita no NGINX ou nos certificados da AWS durante a inspecao.
+
+### Referencia Encontrada Na AWS
+
+Configuracao ativa do NGINX na VM, fora dos containers:
+
+```text
+/etc/nginx/nginx.conf
+/etc/nginx/conf.d/cloudflare-real-ip.conf
+/etc/nginx/sites-available/danfy
+/etc/nginx/sites-enabled/danfy -> /etc/nginx/sites-available/danfy
+```
+
+Fluxo atual de producao:
+
+```text
+Cliente -> Cloudflare -> NGINX :443 -> API Docker em 127.0.0.1:3000
+```
+
+Dados importantes para reconstruir a configuracao na Oracle:
+
+- dominio: `api.danfy.app`;
+- porta 80 redireciona para HTTPS;
+- porta 443 usa HTTP/2 e TLS 1.2/1.3;
+- upstream atual: `http://127.0.0.1:3000`;
+- o arquivo `cloudflare-real-ip.conf` confia nos ranges IPv4 e IPv6 oficiais da Cloudflare;
+- certificado Cloudflare Origin CA para `*.danfy.app` e `danfy.app`;
+- validade do certificado: 19/04/2026 ate 15/04/2041;
+- certificado em `/etc/nginx/ssl/cloudflare-origin.crt`, modo `644`, usuario `root`;
+- chave em `/etc/nginx/ssl/cloudflare-origin.key`, modo `600`, usuario `root`;
+- a chave privada nao foi lida nem copiada durante a inspecao;
+- `nginx -t` passou e a API respondeu `200` pelo proxy local.
+
+Pontos de seguranca observados na AWS:
+
+- a porta 3000 esta publicada pelo Docker em todas as interfaces, embora o Security Group tenha bloqueado o teste externo;
+- a origem respondeu diretamente pela porta 443, permitindo contornar a Cloudflare se a origem for acessada diretamente;
+- nao foi encontrado Authenticated Origin Pulls/mTLS no NGINX;
+- UFW esta inativo e a cadeia `DOCKER-USER` nao restringe a porta 3000;
+- ao preparar a Oracle, nao repetir essas exposicoes: publicar a API somente em loopback/rede interna e restringir a origem a Cloudflare.
+
+### Plano Registrado Em 15/07 (Histórico)
+
+Este era o plano definido naquele dia e foi mantido como referência histórica:
+
+1. reservar e associar um IP publico fixo na Oracle;
+2. revisar Security List/NSG e liberar somente as portas realmente necessarias;
+3. garantir que a API e o worker estejam funcionando na Oracle antes da troca de DNS;
+4. instalar e adaptar o NGINX usando a configuracao da AWS como referencia;
+5. instalar com seguranca o certificado e a chave Cloudflare Origin CA, sem coloca-los no Git;
+6. configurar a Cloudflare em `Full (strict)` e considerar Authenticated Origin Pulls;
+7. corrigir o DNS de `api.danfy.app` para o IP fixo da Oracle;
+8. validar redirect HTTP, HTTPS, health da API, worker, outbox, BullMQ e envio de e-mail;
+9. manter a AWS disponivel ate concluir os testes e definir o rollback;
+10. continuar a revisao desta feature e entender completamente a arquitetura API/worker descrita abaixo.
+
+Nao encerrar a AWS nem trocar o DNS antes de existir um teste completo e um caminho de rollback.
+
 ## Primeiro Passo Ao Voltar
 
 Na raiz do backend:
 
 ```bash
 git status
+git fetch origin --prune
 git log -1 --stat
 git show --stat --oneline HEAD
+git log --oneline origin/main..origin/develop
+git diff --stat origin/main origin/develop
 git show HEAD -- docs/specs/platform/api-worker-separation/specs/design.md
 ```
 
 Depois leia, nesta ordem:
 
-1. `now.md` (este arquivo);
+1. `docs/now.md` (este arquivo);
 2. `docs/specs/platform/api-worker-separation/specs/design.md`;
 3. `docs/specs/platform/api-worker-separation/specs/decisions.md`;
 4. `docs/specs/platform/api-worker-separation/specs/tasks.md`;
@@ -47,11 +160,11 @@ Responsabilidades:
 - autenticar e validar requests;
 - executar use cases;
 - persistir aggregates;
-- gravar eventos em `outbox_messages` na mesma transacao;
-- persistir intencoes em `email_messages`;
-- produzir jobs BullMQ quando aplicavel.
+- gravar eventos em `outbox_messages` na mesma transação;
+- persistir intenções em `email_messages`;
+- produzir jobs BullMQ quando aplicável.
 
-A API nao registra EventEmitter2, handlers de dominio, dispatcher da outbox, processor BullMQ ou `MailModule`.
+A API não registra EventEmitter2, handlers de domínio, dispatcher da outbox, processor BullMQ ou `MailModule`.
 
 ### Processo Worker
 
@@ -65,15 +178,15 @@ Responsabilidades:
 - reidratar eventos;
 - publicar eventos no EventEmitter2 local;
 - executar handlers idempotentes;
-- reconciliar intencoes de e-mail que nao entraram na fila;
+- reconciliar intenções de e-mail que não entraram na fila;
 - consumir BullMQ;
 - enviar e-mails pelo `MailService`.
 
-O worker usa `NestFactory.createApplicationContext`: nao abre HTTP, Swagger ou controllers.
+O worker usa `NestFactory.createApplicationContext`: não abre HTTP, Swagger ou controllers.
 
 ## Fluxos Entre Processos
 
-### Evento De Dominio
+### Evento De Domínio
 
 ```text
 HTTP -> API/use case -> PostgreSQL (aggregate + outbox na mesma transacao)
@@ -81,7 +194,7 @@ HTTP -> API/use case -> PostgreSQL (aggregate + outbox na mesma transacao)
 -> Worker marca outbox como PUBLISHED
 ```
 
-O EventEmitter2 nao comunica API e worker. A fronteira duravel entre eles e a tabela `outbox_messages`.
+O EventEmitter2 não comunica API e worker. A fronteira durável entre eles e a tabela `outbox_messages`.
 
 ### Envio De E-mail
 
@@ -107,16 +220,16 @@ docs/specs/users/change-user-password/specs/
 Fluxo recomendado:
 
 1. `ChangeUserPasswordUseCase` valida senha atual e politica da nova senha.
-2. Dentro da mesma transacao, salva o novo hash, revoga sessoes/tokens conforme a regra e grava `user.password.changed` na outbox.
+2. Dentro da mesma transação, salva o novo hash, revoga sessões/tokens conforme a regra e grava `user.password.changed` na outbox.
 3. A API responde sem chamar Brevo ou `MailService` diretamente.
 4. O worker reivindica `user.password.changed` e o reidrata.
 5. Um handler em `NotificationsEventHandlersModule` chama `CreatePasswordChangedEmailMessageUseCase`.
 6. Esse use case cria uma linha idempotente em `email_messages`, por exemplo com chave `email:password-changed:user:<userId>:event:<eventId>`.
 7. `EmailJobQueueProducer` adiciona `send-email-message` na fila `notifications.email`.
-8. `EmailMessageProcessor` carrega a intencao e chama `SendEmailMessageUseCase`/`MailService`.
+8. `EmailMessageProcessor` carrega a intenção e chama `SendEmailMessageUseCase`/`MailService`.
 9. Em falha de Redis depois do commit, o reconciliador recupera o enqueue.
 
-Arquivos/capacidades que provavelmente serao adicionados:
+Arquivos/capacidades que provavelmente serão adicionados:
 
 ```text
 users/domain/events/user-password-changed.event.ts
@@ -126,12 +239,12 @@ notifications/application/use-cases/create-password-changed-email-message/
 notifications/email template e idempotency key
 ```
 
-Tambem sera necessario:
+Também sera necessário:
 
 - registrar o hydrator em `OutboxRehydratorsModule`;
 - registrar o handler no modulo de handlers de notifications;
 - adicionar o novo tipo/template aceito por `EmailMessage`;
-- garantir idempotencia no banco e no `jobId`;
+- garantir idempotência no banco e no `jobId`;
 - atualizar `docs/events`, `docs/notifications` e testes;
 - nunca incluir senha, hash, token ou dados completos de template no evento/log.
 
