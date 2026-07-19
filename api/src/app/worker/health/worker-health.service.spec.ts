@@ -22,16 +22,18 @@ describe('WorkerHealthService', () => {
   let bullmqRedis: jest.Mocked<BullmqOperationalRedisService>;
   let query: jest.Mock;
   let bullmqPing: jest.Mock;
+  let cachePing: jest.Mock;
   let heartbeatGet: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     query = jest.fn().mockResolvedValue([{ '?column?': 1 }]);
     bullmqPing = jest.fn().mockResolvedValue('PONG');
+    cachePing = jest.fn().mockResolvedValue('PONG');
     heartbeatGet = jest.fn().mockResolvedValue(new Date().toISOString());
     dataSource = { query } as unknown as jest.Mocked<DataSource>;
     cacheRedis = {
-      getClient: jest.fn().mockReturnValue({ ping: jest.fn().mockResolvedValue('PONG') }),
+      getClient: jest.fn().mockReturnValue({ ping: cachePing }),
     } as unknown as jest.Mocked<RedisService>;
     bullmqRedis = {
       ping: bullmqPing,
@@ -60,5 +62,31 @@ describe('WorkerHealthService', () => {
     const service = new WorkerHealthService(dataSource, cacheRedis, bullmqRedis, queueConfig);
 
     await expect(service.check()).rejects.toThrow('postgres unavailable');
+  });
+
+  it('fails when cache Redis is unavailable', async () => {
+    cachePing.mockRejectedValue(new Error('cache redis unavailable'));
+    const service = new WorkerHealthService(dataSource, cacheRedis, bullmqRedis, queueConfig);
+
+    await expect(service.check()).rejects.toThrow('cache redis unavailable');
+  });
+
+  it('fails when BullMQ Redis is unavailable', async () => {
+    bullmqPing.mockRejectedValue(new Error('bullmq redis unavailable'));
+    const service = new WorkerHealthService(dataSource, cacheRedis, bullmqRedis, queueConfig);
+
+    await expect(service.check()).rejects.toThrow('bullmq redis unavailable');
+  });
+
+  it('fails within the worker health deadline when a dependency never responds', async () => {
+    jest.useFakeTimers();
+    cachePing.mockReturnValue(new Promise(() => undefined));
+    const service = new WorkerHealthService(dataSource, cacheRedis, bullmqRedis, queueConfig);
+
+    const check = expect(service.check()).rejects.toThrow('cache Redis health check timed out after 2000ms');
+    await jest.advanceTimersByTimeAsync(2_000);
+
+    await check;
+    jest.useRealTimers();
   });
 });

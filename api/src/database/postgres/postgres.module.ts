@@ -5,24 +5,33 @@ import { ENTITIES } from '@/config/entities';
 import { AppStatus } from '@/common/models/enums';
 import { Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+
+export const createPostgresOptions = (
+  dbConfig: ConfigType<typeof databaseConfig>,
+  app: ConfigType<typeof appConfig>,
+): TypeOrmModuleOptions => {
+  const isProduction = (app.nodeEnv as AppStatus) === AppStatus.PRODUCTION;
+
+  return {
+    type: 'postgres',
+    host: dbConfig.host,
+    port: dbConfig.port,
+    username: dbConfig.username,
+    password: dbConfig.password,
+    database: dbConfig.dbName,
+    entities: ENTITIES,
+    synchronize: false,
+    logging: isProduction ? ['error'] : true,
+    ssl: isProduction ? { rejectUnauthorized: false } : false,
+  };
+};
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (dbConfig: ConfigType<typeof databaseConfig>, app: ConfigType<typeof appConfig>) => ({
-        type: 'postgres',
-        host: dbConfig.host,
-        port: dbConfig.port,
-        username: dbConfig.username,
-        password: dbConfig.password,
-        database: dbConfig.dbName,
-        entities: ENTITIES,
-        synchronize: false,
-        logging: true,
-        ssl: (app.nodeEnv as AppStatus) === AppStatus.PRODUCTION ? { rejectUnauthorized: false } : false,
-      }),
+      useFactory: createPostgresOptions,
       inject: [databaseConfig.KEY, appConfig.KEY],
     }),
   ],
