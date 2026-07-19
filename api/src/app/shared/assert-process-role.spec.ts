@@ -25,4 +25,12 @@ describe('assertProcessRole', () => {
 
     expect(() => assertProcessRole(ProcessRoles.API)).toThrow('Process role mismatch: expected api, received worker.');
   });
+
+  it('rejects the worker entrypoint when configured as API', () => {
+    process.env.PROCESS_ROLE = ProcessRoles.API;
+
+    expect(() => assertProcessRole(ProcessRoles.WORKER)).toThrow(
+      'Process role mismatch: expected worker, received api.',
+    );
+  });
 });

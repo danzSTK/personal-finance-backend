@@ -12,6 +12,17 @@ import {
 import { MODULE_METADATA } from '@nestjs/common/constants';
 import { ApiModule } from '@/app/api/api.module';
 import { WorkerModule } from '@/app/worker/worker.module';
+import { WorkerEventConsumersModule } from '@/app/worker/composition/worker-event-consumers.module';
+import { AccountsEventHandlersModule } from '@/modules/accounts/accounts-event-handlers.module';
+import { AssetsEventHandlersModule } from '@/modules/assets/assets-event-handlers.module';
+import { AuthEventHandlersModule } from '@/modules/auth/auth-event-handlers.module';
+import { CategoriesEventHandlersModule } from '@/modules/categories/categories-event-handlers.module';
+import { NotificationsEventHandlersModule } from '@/modules/notifications/notifications-event-handlers.module';
+import { UsersEventsModule } from '@/modules/users/users-events.module';
+import { UserCreatedEventHydrator } from '@/modules/users/infrastructure/events/user-created-event.rehydrator';
+import { UserEmailVerifiedEventHydrator } from '@/modules/users/infrastructure/events/user-email-verified-event.rehydrator';
+import { UserAvatarUpdatedEventHydrator } from '@/modules/users/infrastructure/events/user-avatar-updated-event.rehydrator';
+import { UserAvatarRemovedEventHydrator } from '@/modules/users/infrastructure/events/user-avatar-removed-event.rehydrator';
 
 describe('Process composition', () => {
   const importsOf = (moduleType: object): unknown[] => {
@@ -43,5 +54,26 @@ describe('Process composition', () => {
     const exports = (Reflect.getMetadata(MODULE_METADATA.EXPORTS, AccountsCoreModule) as unknown[] | undefined) ?? [];
 
     expect(exports).toEqual(expect.arrayContaining([UnarchiveAccountUseCase, UpdateAccountUseCase]));
+  });
+
+  it('registers the complete event-handler module catalog in the worker', () => {
+    expect(importsOf(WorkerEventConsumersModule)).toEqual([
+      AccountsEventHandlersModule,
+      AssetsEventHandlersModule,
+      AuthEventHandlersModule,
+      CategoriesEventHandlersModule,
+      NotificationsEventHandlersModule,
+    ]);
+  });
+
+  it('exports the complete outbox hydrator catalog used by the worker', () => {
+    const exports = (Reflect.getMetadata(MODULE_METADATA.EXPORTS, UsersEventsModule) as unknown[] | undefined) ?? [];
+
+    expect(exports).toEqual([
+      UserCreatedEventHydrator,
+      UserEmailVerifiedEventHydrator,
+      UserAvatarUpdatedEventHydrator,
+      UserAvatarRemovedEventHydrator,
+    ]);
   });
 });
