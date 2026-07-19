@@ -153,8 +153,8 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
         SUPPORT_URL_LABEL: Joi.string().trim().min(1).default('Central de ajuda'),
 
         // bullmq
-        BULLMQ_REDIS_HOST: Joi.string().optional(),
-        BULLMQ_REDIS_PORT: Joi.number().port().optional(),
+        BULLMQ_REDIS_HOST: Joi.string().required(),
+        BULLMQ_REDIS_PORT: Joi.number().port().default(6379),
         BULLMQ_REDIS_PASSWORD: Joi.string().allow('').optional(),
         BULLMQ_REDIS_DB: Joi.number().integer().min(0).default(1),
         BULLMQ_PREFIX: Joi.string().trim().min(1).default('personal-finance'),

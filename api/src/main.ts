@@ -4,10 +4,10 @@ import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import { AppStatus } from './common/models/enums';
+import { AppStatus } from '@/common/models/enums';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { createValidationException } from './common/validation';
-import { ProcessRoles } from './common/models/constants/process-role.constants';
+import { createValidationException } from '@/common/validation';
+import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import { assertProcessRole } from '@/app/shared/assert-process-role';
 
 async function bootstrap() {

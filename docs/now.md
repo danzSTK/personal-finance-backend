@@ -353,9 +353,11 @@ Use terminais separados. `PROCESS_ROLE` protege contra iniciar o entrypoint erra
 - smoke completo API -> outbox -> handlers -> BullMQ -> e-mail noop;
 - API e worker simultâneos em watch mode;
 - contratos de secrets e role dos entrypoints;
-- build, lint, 183 testes unitários, 20 testes de integração e E2E.
+- build, lint, 188 testes unitários, 22 testes de integração e E2E.
 
 Durante os testes, o health do worker revelou que o `PING` do Redis de cache podia aguardar indefinidamente. As três dependências agora são verificadas em paralelo, com timeout interno de 2 segundos por dependência. Também foi corrigido o `PostgresModule` para registrar somente erros SQL em produção.
+
+Após a revisão da PR, o outbox passou a iniciar somente depois do bootstrap completo e da prontidão do EventEmitter2; publicação sem listeners agora falha em vez de marcar a mensagem como `PUBLISHED`. BullMQ passou a exigir host dedicado sem fallback para Redis de cache, e o Compose de produção mantém PostgreSQL no RDS enquanto o override local preserva PostgreSQL em container.
 
 A task list da separação entre API e worker está concluída, incluindo a atualização de `docs/events/events-map.canvas`. O próximo assunto técnico é a observabilidade, que deve ser especificada separadamente antes de novas mudanças.
 

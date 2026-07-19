@@ -5,18 +5,21 @@ import type { AppEventPublisher } from '@/shared/events';
 import type { EventRegistry } from '@/shared/outbox/event-registry';
 import type { OutboxMessageOrmEntity } from '@/shared/outbox/persistence/outbox-message-orm.entity';
 import type { OutboxMessageRepository } from '@/shared/outbox/persistence/outbox-message.repository';
+import type { EventEmitterReadinessWatcher } from '@nestjs/event-emitter';
 import { OutboxProcessorService } from './outbox-processor.service';
 
 describe('OutboxProcessorService', () => {
   let repository: jest.Mocked<OutboxMessageRepository>;
   let eventPublisher: jest.Mocked<AppEventPublisher>;
   let eventRegistry: jest.Mocked<EventRegistry>;
+  let eventEmitterReadiness: jest.Mocked<EventEmitterReadinessWatcher>;
   let service: OutboxProcessorService;
   let claimReadyBatch: jest.Mock;
   let markPublished: jest.Mock;
   let markFailed: jest.Mock;
   let extendLease: jest.Mock;
   let emitAsync: jest.Mock;
+  let waitUntilReady: jest.Mock;
 
   const config: WorkerConfig = {
     outbox: {
@@ -81,10 +84,15 @@ describe('OutboxProcessorService', () => {
     eventRegistry = {
       rehydrate: jest.fn().mockReturnValue(event),
     } as unknown as jest.Mocked<EventRegistry>;
-    service = new OutboxProcessorService(repository, eventPublisher, eventRegistry, config);
+    waitUntilReady = jest.fn().mockResolvedValue(undefined);
+    eventEmitterReadiness = {
+      waitUntilReady,
+    } as unknown as jest.Mocked<EventEmitterReadinessWatcher>;
+    service = new OutboxProcessorService(repository, eventPublisher, eventRegistry, eventEmitterReadiness, config);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await service.beforeApplicationShutdown();
     jest.useRealTimers();
   });
 
@@ -150,6 +158,38 @@ describe('OutboxProcessorService', () => {
       await service.processReadyMessages();
 
       expect(claimReadyBatch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('start', () => {
+    it('does not claim messages before EventEmitter listeners are ready', async () => {
+      let markReady: (() => void) | undefined;
+      waitUntilReady.mockImplementation(
+        async () =>
+          await new Promise<void>(resolve => {
+            markReady = resolve;
+          }),
+      );
+
+      const starting = service.start();
+      await Promise.resolve();
+
+      expect(claimReadyBatch).not.toHaveBeenCalled();
+
+      markReady?.();
+      await starting;
+      await Promise.resolve();
+
+      expect(claimReadyBatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts polling only once', async () => {
+      await service.start();
+      await service.start();
+      await Promise.resolve();
+
+      expect(waitUntilReady).toHaveBeenCalledTimes(1);
+      expect(claimReadyBatch).toHaveBeenCalledTimes(1);
     });
   });
 });

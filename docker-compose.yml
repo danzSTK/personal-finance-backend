@@ -9,10 +9,11 @@ services:
     env_file:
       - ${API_ENV_FILE:-.env}
     environment:
-      # Sobrescreve o .env: dentro do Docker, os hosts são os nomes dos serviços
+      # Redis usa a rede interna. PostgreSQL vem do env_file; o override local adiciona o container postgres.
       REDIS_HOST: redis
       BULLMQ_REDIS_HOST: bullmq-redis
       BULLMQ_REDIS_PORT: 6379
+      BULLMQ_REDIS_PASSWORD: ${BULLMQ_REDIS_PASSWORD:-}
       PROCESS_ROLE: api
     ports:
       - "3000:3000"
@@ -39,6 +40,7 @@ services:
       REDIS_HOST: redis
       BULLMQ_REDIS_HOST: bullmq-redis
       BULLMQ_REDIS_PORT: 6379
+      BULLMQ_REDIS_PASSWORD: ${BULLMQ_REDIS_PASSWORD:-}
       PROCESS_ROLE: worker
     mem_limit: 512m
     cpus: 0.50

@@ -116,4 +116,12 @@ describe('Process bootstrap and secret contracts integration', () => {
 
     expect(result.status).toBe(1);
   });
+
+  it('rejects missing dedicated BullMQ host instead of falling back to Redis cache', () => {
+    const invalidEnv = { ...baseEnv };
+    delete invalidEnv.BULLMQ_REDIS_HOST;
+    const result = validateConfig({ ...invalidEnv, PROCESS_ROLE: 'worker' });
+
+    expect(result.status).toBe(1);
+  });
 });

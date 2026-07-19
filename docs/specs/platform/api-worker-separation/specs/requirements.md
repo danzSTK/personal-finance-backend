@@ -49,7 +49,7 @@ O processo HTTP atual também executa trabalho assíncrono:
 - EventEmitter2 continua sendo um barramento somente dentro do processo worker.
 - BullMQ continua sendo a infraestrutura de execução assíncrona e não substitui o transactional outbox.
 - API e worker devem compartilhar contratos de domínio e aplicação sem duplicar regras de negócio.
-- Processors, schedulers e handlers devem ser ativados por composição de módulos, não por condicionais espalhadas em providers.
+- Processors, timers e handlers devem ser ativados por composição de módulos, não por condicionais espalhadas em providers.
 - Todo processamento assíncrono continua at-least-once e seus consumidores devem ser idempotentes.
 
 ## Escopo
@@ -62,7 +62,7 @@ Esta spec cobre:
 - separar escrita e processamento da outbox;
 - separar producer e processor de notifications/BullMQ;
 - separar handlers de eventos das composições HTTP dos módulos consumidores;
-- registrar EventEmitter2, hydrators, scheduler e handlers somente no worker;
+- registrar EventEmitter2, hydrators, polling e handlers somente no worker;
 - garantir que a API consiga gravar outbox sem inicializar o processor;
 - garantir que a API consiga produzir jobs sem inicializar processors;
 - aplicar configuração e validação de ambiente por tipo de processo;
@@ -106,7 +106,7 @@ O processo `api` deve:
 - conectar ao Redis de cache/sessões;
 - conectar ao Redis BullMQ apenas para produzir jobs;
 - gravar mensagens na outbox dentro das transações de negócio;
-- não registrar `ScheduleModule` para a outbox;
+- não registrar polling da outbox;
 - não registrar `OutboxProcessorService`;
 - não registrar `EmailMessageProcessor` ou qualquer `WorkerHost`;
 - não registrar handlers `@OnEvent` usados pelo processamento da outbox;
@@ -122,10 +122,11 @@ O processo `worker` deve:
 - conectar ao Redis de cache quando os repositories usados pelos handlers ainda forem cacheados;
 - carregar Object Storage para os handlers de limpeza de avatar;
 - carregar `MailService` e o provider de e-mail para jobs de notifications;
-- registrar `ScheduleModule`, outbox processor, EventEmitter2, registry, hydrators e handlers;
+- registrar outbox processor, EventEmitter2, registry, hydrators e handlers;
+- iniciar o polling da outbox somente depois que o application context concluir o bootstrap e os listeners `@OnEvent` estiverem registrados;
 - registrar processors BullMQ;
 - não registrar controllers, guards HTTP, Passport strategies, Swagger, CORS ou throttling HTTP;
-- encerrar scheduler, workers BullMQ, conexões e tarefas em andamento de forma graciosa.
+- encerrar timers, workers BullMQ, conexões e tarefas em andamento de forma graciosa.
 
 ## Fluxos Preservados
 
@@ -191,6 +192,8 @@ O enqueue imediato pode continuar existindo para reduzir latência, mas não pod
 - Segredos devem continuar vindo de ambiente/secret manager e nunca entrar na imagem.
 - API e worker podem usar o mesmo arquivo local de ambiente, mas o contrato de produção deve permitir conjuntos de segredos distintos.
 - O Redis do BullMQ deve continuar dedicado e configurado com `noeviction` e AOF.
+- Host e senha do Redis BullMQ não devem usar Redis cache/sessão como fallback.
+- `BULLMQ_REDIS_HOST` deve ser obrigatório para API e worker; senha BullMQ vazia ou ausente significa conexão sem autenticação.
 - O prefixo BullMQ deve permanecer igual entre API e worker do mesmo ambiente.
 
 ## Regras De Erros
@@ -218,7 +221,7 @@ O enqueue imediato pode continuar existindo para reduzir latência, mas não pod
 ### REQ-001 - Iniciar API sem consumidores
 
 WHEN o entrypoint da API iniciar
-THE SYSTEM SHALL registrar o servidor HTTP e providers síncronos sem registrar scheduler da outbox, handlers de eventos ou processors BullMQ.
+THE SYSTEM SHALL registrar o servidor HTTP e providers síncronos sem registrar polling da outbox, handlers de eventos ou processors BullMQ.
 
 ### REQ-002 - Iniciar worker sem API de negócio
 
@@ -322,6 +325,7 @@ THE SYSTEM SHALL preservar endpoints, response DTOs, cookies e códigos de erro 
 ### Performance
 
 - O polling da outbox deve ser configurável e não executar ciclos sobrepostos na mesma instância.
+- O primeiro claim da outbox não pode ocorrer durante `onModuleInit` nem antes da prontidão do EventEmitter2.
 - Batch, lease, concurrency e shutdown timeout devem ter limites positivos validados.
 - Nenhum índice novo deve ser criado sem análise da query e evidência por `EXPLAIN (ANALYZE, BUFFERS)` em volume representativo.
 
@@ -361,6 +365,12 @@ THE SYSTEM SHALL preservar endpoints, response DTOs, cookies e códigos de erro 
 - IF o worker iniciar sem um hydrator necessário
   THEN o bootstrap deve falhar por validação do catálogo esperado ou a mensagem deve falhar de forma diagnosticável sem ser marcada como publicada.
 
+- IF o worker iniciar com mensagens pendentes na outbox
+  THEN nenhum claim deve ocorrer antes do registro completo dos listeners `@OnEvent` e nenhum evento sem listener pode ser marcado como publicado.
+
+- IF `BULLMQ_REDIS_PASSWORD` estiver ausente ou vazio
+  THEN API e worker devem conectar ao Redis BullMQ sem autenticação, sem reutilizar `REDIS_PASSWORD`.
+
 - IF API e worker usarem prefixos BullMQ diferentes
   THEN o bootstrap/health check deve evidenciar a divergência antes de considerar o ambiente pronto.
 
@@ -383,8 +393,10 @@ THE SYSTEM SHALL preservar endpoints, response DTOs, cookies e códigos de erro 
 - A API sobe e responde health/E2E sem instanciar outbox processor ou processors BullMQ.
 - O worker sobe sem controllers/rotas de negócio e registra todos os handlers, hydrators e processors esperados.
 - `BULLMQ_WORKERS_ENABLED` deixa de ser uma configuração inefetiva; a composição explícita passa a ser a fonte de verdade.
-- Outbox writer funciona na API sem `ScheduleModule`.
+- Outbox writer funciona na API sem timer ou processor de polling.
 - Outbox dispatcher funciona no worker e valida ownership nas transições finais.
+- Outbox dispatcher inicia somente após o bootstrap completo e rejeita publicação sem listeners.
+- Configuração BullMQ dedicada falha no bootstrap sem host próprio e nunca herda credenciais do Redis de cache.
 - Teste concorrente comprova que duas instâncias não concluem validamente a mesma tentativa.
 - Teste de lease expirado comprova que worker antigo não sobrescreve o novo dono.
 - Teste de falha de enqueue comprova recuperação de `email_messages` pelo reconciliador.

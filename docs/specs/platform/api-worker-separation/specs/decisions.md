@@ -344,3 +344,29 @@ Impact:
 A suíte de integração exige Docker e roda em série. Ela compila os entrypoints antes dos testes, executa migrations em banco efêmero e não acessa PostgreSQL, Redis, filas ou provedores externos do ambiente do desenvolvedor.
 
 Durante os testes de indisponibilidade, o Redis de cache revelou que uma operação de health podia aguardar indefinidamente. O health do worker passou a verificar PostgreSQL, Redis de cache e Redis BullMQ em paralelo, com timeout interno de 2 segundos por dependência.
+
+## DEC-022 - Iniciar outbox depois do bootstrap completo
+
+Status: accepted
+
+Decision:
+Remover o start do polling de `onModuleInit`. O entrypoint do worker inicia explicitamente o `OutboxProcessorService` somente depois que `createApplicationContext` concluir e o `EventEmitterReadinessWatcher` confirmar o registro dos listeners.
+
+Reason:
+O loader de `@OnEvent` registra subscribers em `onApplicationBootstrap`. Um claim iniciado em `onModuleInit` pode emitir sem listeners; EventEmitter2 trata isso como sucesso vazio e permitiria marcar a mensagem como `PUBLISHED` sem executar efeitos.
+
+Impact:
+O start é idempotente, publicação sem listeners falha de forma retentável e o log de worker pronto ocorre apenas depois da ativação do processor. Um teste deve iniciar o worker com outbox pendente.
+
+## DEC-023 - BullMQ não reutiliza configuração do Redis de cache
+
+Status: accepted
+
+Decision:
+Remover fallbacks `BULLMQ_REDIS_* -> REDIS_*`. O host BullMQ é obrigatório, a porta possui default próprio e senha vazia/ausente significa sem autenticação.
+
+Reason:
+O Redis BullMQ é uma dependência dedicada com AOF e `noeviction`. Fallback silencioso pode conectar filas ao Redis de cache ou autenticar no Redis BullMQ sem senha usando a senha do cache.
+
+Impact:
+API e worker falham cedo sem `BULLMQ_REDIS_HOST`. Compose repassa a mesma senha BullMQ aos três containers envolvidos. PostgreSQL permanece externo no RDS e continua configurado pelo `env_file`.

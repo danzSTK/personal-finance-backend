@@ -50,11 +50,11 @@ related:
 
 - [x] 24. Criar `OutboxPersistenceModule` sem scheduler/event bus.
 - [x] 25. Criar `OutboxWriterModule` com `OutboxWriteService` e exports necessários.
-- [x] 26. Criar `OutboxDispatcherModule` com scheduler, registry e processor.
+- [x] 26. Criar `OutboxDispatcherModule` com polling, registry e processor.
 - [x] 27. Atualizar use cases produtores para importar/injetar writer sem mudar comportamento transacional.
 - [x] 28. Mover `OutboxRehydratorsModule` para composição exclusiva do worker.
 - [x] 29. Remover o módulo monolítico antigo ou transformá-lo em facade temporária sem ativação implícita.
-- [x] 30. Testar que importar writer não instancia ScheduleModule, EventRegistry ou processor.
+- [x] 30. Testar que importar writer não instancia timer, EventRegistry ou processor.
 
 ## Outbox Lease E Concorrência
 
@@ -124,7 +124,7 @@ related:
 - [x] 82. Habilitar shutdown hooks na API.
 - [x] 83. Habilitar shutdown hooks no worker.
 - [x] 84. Implementar estado draining e timeout de shutdown do worker.
-- [x] 85. Garantir fechamento de scheduler, BullMQ workers, application context e conexões.
+- [x] 85. Garantir fechamento de timers, BullMQ workers, application context e conexões.
 - [x] 86. Adicionar logs de startup com role, instance id e capacidades sem secrets.
 - [x] 87. Adicionar testes de bootstrap para role mismatch e falha de configuração.
 - [x] 88. Adicionar smoke test de WorkerModule sem HTTP adapter.
@@ -203,3 +203,14 @@ related:
 - [x] 143. Atualizar documentação operacional e mapa de arquivos atual.
 - [x] 144. Rodar build, lint, testes unitários e E2E.
 - [x] 145. Confirmar que a reorganização não altera os grafos API/worker.
+
+## Correções Da Revisão Da PR
+
+- [x] 146. Remover start da outbox de `onModuleInit` e iniciar depois do bootstrap completo do worker.
+- [x] 147. Aguardar prontidão do EventEmitter2 e impedir `PUBLISHED` quando não houver listeners.
+- [x] 148. Adicionar regressão com mensagem outbox pendente antes do bootstrap.
+- [x] 149. Remover fallbacks BullMQ para Redis de cache e exigir host dedicado.
+- [x] 150. Repassar senha BullMQ explicitamente no Compose e documentar PostgreSQL externo no RDS.
+- [x] 151. Remover `ScheduleModule` e a dependência `@nestjs/schedule` sem uso.
+- [x] 152. Padronizar imports novos de `main.ts` com `@/`.
+- [x] 153. Rodar build, lint, testes unitários, integração, E2E e validar `docker compose config`.

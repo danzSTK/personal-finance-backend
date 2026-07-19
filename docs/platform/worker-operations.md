@@ -23,7 +23,7 @@ npm run start:worker:prod
 npm run health:worker
 ```
 
-O health one-shot retorna `0` somente quando PostgreSQL, Redis de cache, Redis BullMQ e o heartbeat da instância estão disponíveis. Ele não registra processors, handlers ou schedulers.
+O health one-shot retorna `0` somente quando PostgreSQL, Redis de cache, Redis BullMQ e o heartbeat da instância estão disponíveis. Ele não registra processors, handlers ou timers periódicos.
 
 As dependências são verificadas em paralelo e cada operação possui timeout de 2 segundos. Assim, uma conexão silenciosamente bloqueada torna o worker `unhealthy` antes do timeout de 10 segundos configurado no Docker.
 

@@ -3,15 +3,17 @@ import { AppEventPublisher } from '@/shared/events';
 import { EventRegistry } from '@/shared/outbox/event-registry';
 import { OutboxMessageOrmEntity } from '@/shared/outbox/persistence/outbox-message-orm.entity';
 import { OutboxMessageRepository } from '@/shared/outbox/persistence/outbox-message.repository';
-import { BeforeApplicationShutdown, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BeforeApplicationShutdown, Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
+import { EventEmitterReadinessWatcher } from '@nestjs/event-emitter';
 import { randomUUID } from 'crypto';
 
 @Injectable()
-export class OutboxProcessorService implements OnModuleInit, BeforeApplicationShutdown {
+export class OutboxProcessorService implements BeforeApplicationShutdown {
   private readonly logger = new Logger(OutboxProcessorService.name);
   private readonly lockedBy = `outbox-${process.pid}-${randomUUID()}`;
   private interval: NodeJS.Timeout | null = null;
+  private isStarted = false;
   private isProcessing = false;
   private isDraining = false;
 
@@ -19,11 +21,23 @@ export class OutboxProcessorService implements OnModuleInit, BeforeApplicationSh
     private readonly repository: OutboxMessageRepository,
     private readonly eventPublisher: AppEventPublisher,
     private readonly eventRegistry: EventRegistry,
+    private readonly eventEmitterReadiness: EventEmitterReadinessWatcher,
     @Inject(workerConfig.KEY)
     private readonly config: ConfigType<typeof workerConfig>,
   ) {}
 
-  onModuleInit(): void {
+  async start(): Promise<void> {
+    if (this.isStarted || this.isDraining) {
+      return;
+    }
+
+    await this.eventEmitterReadiness.waitUntilReady();
+
+    if (this.isStarted || this.isDraining) {
+      return;
+    }
+
+    this.isStarted = true;
     this.interval = setInterval(() => void this.processReadyMessages(), this.config.outbox.pollIntervalMs);
     this.interval.unref();
     void this.processReadyMessages();
@@ -31,6 +45,7 @@ export class OutboxProcessorService implements OnModuleInit, BeforeApplicationSh
 
   async beforeApplicationShutdown(): Promise<void> {
     this.isDraining = true;
+    this.isStarted = false;
 
     if (this.interval) {
       clearInterval(this.interval);

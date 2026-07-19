@@ -5,6 +5,7 @@ describe('queueConfig', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
+    process.env.BULLMQ_REDIS_HOST = 'queue-redis';
   });
 
   afterAll(() => {
@@ -12,7 +13,7 @@ describe('queueConfig', () => {
   });
 
   describe('redis connection', () => {
-    it('uses REDIS values as fallback for BullMQ connection', () => {
+    it('requires a dedicated BullMQ host instead of falling back to Redis cache', () => {
       process.env.REDIS_HOST = 'redis';
       process.env.REDIS_PORT = '6379';
       process.env.REDIS_PASSWORD = 'secret';
@@ -20,14 +21,7 @@ describe('queueConfig', () => {
       delete process.env.BULLMQ_REDIS_PORT;
       delete process.env.BULLMQ_REDIS_PASSWORD;
 
-      const config = queueConfig();
-
-      expect(config.redis).toEqual({
-        host: 'redis',
-        port: 6379,
-        password: 'secret',
-        db: 1,
-      });
+      expect(() => queueConfig()).toThrow('BULLMQ_REDIS_HOST is required');
     });
 
     it('prefers explicit BullMQ connection values', () => {
@@ -50,12 +44,24 @@ describe('queueConfig', () => {
     });
 
     it('treats an explicit empty BullMQ password as no password', () => {
+      process.env.BULLMQ_REDIS_HOST = 'queue-redis';
       process.env.REDIS_PASSWORD = 'secret';
       process.env.BULLMQ_REDIS_PASSWORD = '';
 
       const config = queueConfig();
 
       expect(config.redis.password).toBeUndefined();
+    });
+
+    it('does not inherit Redis cache credentials when BullMQ password is absent', () => {
+      process.env.BULLMQ_REDIS_HOST = 'queue-redis';
+      process.env.REDIS_PASSWORD = 'cache-secret';
+      delete process.env.BULLMQ_REDIS_PASSWORD;
+
+      const config = queueConfig();
+
+      expect(config.redis.password).toBeUndefined();
+      expect(config.redis.port).toBe(6379);
     });
   });
 

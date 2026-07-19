@@ -41,6 +41,7 @@ describe('API and worker flow integration', () => {
   let apiContext: INestApplicationContext;
   let workerContext: INestApplicationContext;
   let consoleLog: jest.SpyInstance;
+  let preBootstrapUserId: string;
 
   beforeAll(async () => {
     consoleLog = jest.spyOn(console, 'log').mockImplementation();
@@ -129,10 +130,36 @@ describe('API and worker flow integration', () => {
     const { ApiModule } = jest.requireActual<typeof import('@/app/api/api.module')>('@/app/api/api.module');
     apiContext = await NestFactory.createApplicationContext(ApiModule, { logger: false });
 
+    const { SignUpUseCase } = jest.requireActual<
+      typeof import('@/modules/auth/application/use-cases/sign-up/sign-up.use-case')
+    >('@/modules/auth/application/use-cases/sign-up/sign-up.use-case');
+    const preBootstrapSignUp = apiContext.get(SignUpUseCase, { strict: false });
+    const preBootstrapSuffix = Date.now();
+    const preBootstrapResult = await preBootstrapSignUp.execute({
+      email: `pre-bootstrap-${preBootstrapSuffix}@example.com`,
+      password: 'A-valid-integration-password-123!',
+      firstName: 'Pre',
+      lastName: 'Bootstrap',
+      userName: `pre_bootstrap_${preBootstrapSuffix}`,
+      sessionMetadata: {
+        browser: 'Jest',
+        os: 'Linux',
+        device: 'Test runner',
+        ip: '127.0.0.1',
+        location: 'Integration',
+        loginAt: new Date().toISOString(),
+      },
+    });
+    preBootstrapUserId = preBootstrapResult.user.id;
+
     process.env.PROCESS_ROLE = 'worker';
     const { WorkerModule } =
       jest.requireActual<typeof import('@/app/worker/worker.module')>('@/app/worker/worker.module');
     workerContext = await NestFactory.createApplicationContext(WorkerModule, { logger: false });
+    const { OutboxProcessorService } = jest.requireActual<
+      typeof import('@/shared/outbox/services/outbox-processor.service')
+    >('@/shared/outbox/services/outbox-processor.service');
+    await workerContext.get(OutboxProcessorService, { strict: false }).start();
   });
 
   afterAll(async () => {
@@ -159,6 +186,28 @@ describe('API and worker flow integration', () => {
     expect(workerContext.get(OutboxProcessorService, { strict: false })).toBeInstanceOf(OutboxProcessorService);
     expect(workerContext.get(EmailMessageProcessor, { strict: false })).toBeInstanceOf(EmailMessageProcessor);
     expect('getHttpAdapter' in workerContext).toBe(false);
+  });
+
+  it('processes an outbox message that existed before worker bootstrap', async () => {
+    await waitFor(async () => {
+      const rows = await verificationDataSource.query<StatusRow<OutboxMessageStatus>[]>(
+        `SELECT status FROM outbox_messages WHERE aggregate_id = $1`,
+        [preBootstrapUserId],
+      );
+      return rows.length === 1 && rows[0].status === OutboxMessageStatus.PUBLISHED;
+    });
+
+    const [accounts] = await verificationDataSource.query<CountRow[]>(
+      `SELECT count(*)::text AS count FROM accounts WHERE user_id = $1`,
+      [preBootstrapUserId],
+    );
+    const [categories] = await verificationDataSource.query<CountRow[]>(
+      `SELECT count(*)::text AS count FROM categories WHERE user_id = $1`,
+      [preBootstrapUserId],
+    );
+
+    expect(Number(accounts.count)).toBeGreaterThan(0);
+    expect(Number(categories.count)).toBeGreaterThan(0);
   });
 
   it('processes API -> outbox -> EventEmitter2 -> BullMQ -> noop email end to end', async () => {

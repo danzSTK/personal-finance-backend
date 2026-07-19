@@ -136,7 +136,7 @@ Responsabilidades do bootstrap HTTP:
 
 O `ApiModule` não importa:
 
-- `ScheduleModule`;
+- polling da outbox;
 - `AppEventsModule`;
 - `OutboxDispatcherModule`;
 - módulos de event handlers;
@@ -181,7 +181,6 @@ O worker não configura:
 - Redis de cache, enquanto necessário pelos repositories ativos;
 - Jobs/BullMQ;
 - EventEmitter2;
-- ScheduleModule;
 - Outbox dispatcher e hydrators;
 - módulos de handlers de eventos;
 - Notifications worker;
@@ -221,7 +220,7 @@ Responsabilidades:
 
 - registrar `OutboxMessageOrmEntity`;
 - fornecer `OutboxMessageRepository`;
-- não importar ScheduleModule ou EventEmitter2.
+- não importar timers, processor ou EventEmitter2.
 
 #### OutboxWriterModule
 
@@ -235,9 +234,13 @@ Responsabilidades:
 
 Responsabilidades:
 
-- importar persistence, `ScheduleModule.forRoot()`, `AppEventsModule` e `OutboxRehydratorsModule`;
+- importar persistence, `AppEventsModule` e registry;
 - fornecer `EventRegistry` e `OutboxProcessorService`;
 - existir somente no grafo do worker.
+
+O processor não inicia polling em `onModuleInit`. Depois que `NestFactory.createApplicationContext(WorkerModule)` concluir, o bootstrap do worker obtém o processor, aguarda a prontidão do `EventEmitter2` e chama uma operação idempotente de start. O log `Worker started` só ocorre depois desse start.
+
+Antes de marcar uma mensagem como `PUBLISHED`, a publicação deve confirmar que ao menos um listener recebeu o evento. A ausência total de listeners é falha retentável e nunca sucesso silencioso.
 
 `EventRegistry` pertence ao dispatcher, não ao writer. Hydrators só são necessários para leitura/processamento.
 
@@ -433,7 +436,7 @@ API não exige:
 
 - `BREVO_API_KEY`;
 - configuração de concurrency de consumer;
-- configuração do scheduler de outbox.
+- configuração do polling de outbox.
 
 ### Worker Env
 
@@ -455,6 +458,15 @@ Worker não exige:
 - CSRF origins;
 - throttle HTTP;
 - API listen port.
+
+### Contrato Do Redis BullMQ
+
+- `BULLMQ_REDIS_HOST` é obrigatório para API e worker;
+- `BULLMQ_REDIS_PORT` usa `6379` como default próprio, sem consultar `REDIS_PORT`;
+- `BULLMQ_REDIS_PASSWORD` vazio ou ausente significa sem autenticação;
+- nenhuma configuração BullMQ usa `REDIS_HOST`, `REDIS_PORT` ou `REDIS_PASSWORD` como fallback;
+- Compose fornece a mesma senha BullMQ ao Redis dedicado, API e worker;
+- PostgreSQL continua vindo do `env_file` e aponta para o RDS; Compose não cria nem sobrescreve host PostgreSQL.
 
 ### Variáveis Novas
 
@@ -663,7 +675,7 @@ Como o worker usa application context sem HTTP, implementar:
 - Docker healthcheck chamando esse comando;
 - exit code `0` saudável, diferente de zero não saudável.
 
-O health command não deve inicializar processors/schedulers.
+O health command não deve inicializar processors ou timers periódicos.
 
 ### Shutdown
 
@@ -779,7 +791,10 @@ Se implementação ou `EXPLAIN` exigir mudança de schema:
 ### Unit
 
 - configuração por role e validações cruzadas de interval/lease;
+- configuração BullMQ não herda host, porta ou senha do Redis de cache;
 - bootstrap role mismatch;
+- outbox não reivindica mensagens antes do start explícito e start é idempotente;
+- publicação sem listeners falha sem marcar mensagem como publicada;
 - outbox processor limita concurrency e para em shutdown;
 - transições passam `lockedBy`;
 - lease perdido não marca published/failed;
@@ -830,6 +845,7 @@ Não usar Redis real nos testes unitários de cached repositories; manter `REDIS
 - email verification confirm produz welcome pelo worker;
 - processo worker inicia sem rota HTTP pública;
 - Compose sobe API e worker saudáveis.
+- mensagem outbox existente antes do bootstrap só é processada depois do registro dos listeners.
 
 Os testes de integração são executados por `npm run test:integration`. O comando compila os três entrypoints e usa Testcontainers com PostgreSQL 16, Redis 7 e Toxiproxy; Docker é um pré-requisito apenas para essa suíte.
 

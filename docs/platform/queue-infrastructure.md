@@ -48,7 +48,7 @@ BULLMQ_REMOVE_ON_FAIL
 BULLMQ_DEFAULT_CONCURRENCY
 ```
 
-Quando `BULLMQ_REDIS_HOST`, `BULLMQ_REDIS_PORT` ou `BULLMQ_REDIS_PASSWORD` não forem definidos, `queue.config.ts` usa `REDIS_HOST`, `REDIS_PORT` e `REDIS_PASSWORD` como fallback.
+`BULLMQ_REDIS_HOST` é obrigatório. `BULLMQ_REDIS_PORT` usa `6379` por padrão e `BULLMQ_REDIS_PASSWORD` vazio ou ausente significa conexão sem autenticação. Nenhuma variável BullMQ usa o Redis de cache como fallback.
 
 ## Redis
 
@@ -91,7 +91,7 @@ appendonly yes
 
 BullMQ depende de chaves internas no Redis. Políticas de eviction voltadas para cache podem remover dados de jobs e reduzir a confiabilidade da fila.
 
-O Redis de cache/sessões continua separado no serviço `redis`, com política adequada para cache. Não aponte BullMQ para esse Redis em produção.
+O Redis de cache/sessões continua separado no serviço `redis`, com política adequada para cache. Não aponte BullMQ para esse Redis em nenhum ambiente.
 
 ## Como Criar Filas Futuras
 
