@@ -25,6 +25,8 @@ npm run health:worker
 
 O health one-shot retorna `0` somente quando PostgreSQL, Redis de cache, Redis BullMQ e o heartbeat da instância estão disponíveis. Ele não registra processors, handlers ou schedulers.
 
+As dependências são verificadas em paralelo e cada operação possui timeout de 2 segundos. Assim, uma conexão silenciosamente bloqueada torna o worker `unhealthy` antes do timeout de 10 segundos configurado no Docker.
+
 ## Heartbeat
 
 A chave usa o formato:
@@ -34,6 +36,16 @@ A chave usa o formato:
 ```
 
 `WORKER_HEARTBEAT_INTERVAL_MS` deve ser menor que `WORKER_HEARTBEAT_TTL_MS`. Em orquestradores, configure `WORKER_INSTANCE_ID` com um identificador único e estável por instância.
+
+## Testes De Integração
+
+Com Docker disponível, execute em `api/`:
+
+```bash
+npm run test:integration
+```
+
+O comando compila os entrypoints e cria dependências efêmeras. Ele valida concorrência e leases da outbox em PostgreSQL, múltiplos workers BullMQ, reconciliação de e-mail, heartbeat/TTL, contratos de secrets, smoke completo e indisponibilidade/recuperação por falhas de rede controladas.
 
 ## Consultas PostgreSQL
 

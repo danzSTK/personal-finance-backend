@@ -329,3 +329,18 @@ Depois da separação de processos, arquivos HTTP, health, heartbeat e composiç
 
 Impact:
 Somente paths, nomes de classes da root HTTP e documentação mudam. O `AppService` vazio e sem consumidores é removido. Entry points compilados, endpoints, módulos de domínio, filas, eventos e contratos permanecem iguais.
+
+## DEC-021 - Isolar testes reais em uma suíte de integração com containers
+
+Status: accepted
+
+Decision:
+Executar testes PostgreSQL, Redis, BullMQ e falhas de rede em `npm run test:integration`, usando Testcontainers e Toxiproxy, separados de `npm test`.
+
+Reason:
+Mocks não validam `FOR UPDATE SKIP LOCKED`, ownership de lease, TTL Redis, deduplicação BullMQ, múltiplos workers ou recuperação de conexões. Ao mesmo tempo, exigir Docker em toda execução unitária reduziria a velocidade e dificultaria desenvolvimento local.
+
+Impact:
+A suíte de integração exige Docker e roda em série. Ela compila os entrypoints antes dos testes, executa migrations em banco efêmero e não acessa PostgreSQL, Redis, filas ou provedores externos do ambiente do desenvolvedor.
+
+Durante os testes de indisponibilidade, o Redis de cache revelou que uma operação de health podia aguardar indefinidamente. O health do worker passou a verificar PostgreSQL, Redis de cache e Redis BullMQ em paralelo, com timeout interno de 2 segundos por dependência.

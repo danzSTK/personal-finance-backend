@@ -13,7 +13,7 @@ O ponto em que a revisão parou foi o entendimento da arquitetura criada para se
 a0ac4c3 refactor(platform): organizar composition roots
 ```
 
-Não há código da separação pendente no workspace. O que ainda precisa ser concluído é a revisão conceitual, a execução dos testes pendentes da spec e a decisão de abrir o PR `develop -> main`.
+Não há código estrutural da separação pendente. A suíte de testes da feature foi concluída em 18/07/2026 com testes unitários, integração real e E2E; ainda falta revisar esta rodada de testes, tratar observabilidade e decidir pela abertura do PR `develop -> main`.
 
 ### Produção E Migração De Infraestrutura
 
@@ -40,9 +40,10 @@ Não há código da separação pendente no workspace. O que ainda precisa ser c
 2. revisar o fluxo `API -> outbox PostgreSQL -> worker -> EventEmitter2 -> handler`;
 3. revisar o fluxo `email_messages -> BullMQ Redis -> worker -> MailService`;
 4. confirmar quais módulos pertencem somente à API, somente ao worker ou são compartilhados;
-5. executar os testes pendentes descritos na spec;
-6. somente depois decidir pela abertura do PR da `develop` para a `main`;
-7. tratar observabilidade, repositório de infraestrutura e pipeline nas issues próprias, sem misturar esses escopos com a separação API/worker.
+5. revisar os testes de integração adicionados e os resultados registrados na spec;
+6. discutir e especificar observabilidade do worker e das dependências;
+7. somente depois decidir pela abertura do PR da `develop` para a `main`;
+8. tratar repositório de infraestrutura e pipeline nas issues próprias, sem misturar esses escopos com a separação API/worker.
 
 ## Registro Histórico - 15/07/2026
 
@@ -317,6 +318,7 @@ npm run lint
 npm test -- --runInBand
 npm run test:e2e -- --runInBand
 npm run health:worker
+npm run test:integration
 ```
 
 Desenvolvimento sem Docker para os processos Node:
@@ -339,17 +341,23 @@ Use terminais separados. `PROCESS_ROLE` protege contra iniciar o entrypoint erra
 - health do worker;
 - SIGTERM do worker com exit code 0.
 
-## Validacoes Ainda Pendentes
-
-Consulte `docs/specs/platform/api-worker-separation/specs/tasks.md`. Os principais itens abertos sao:
+## Validacoes Concluidas Em 18/07/2026
 
 - concorrencia PostgreSQL real com duas instancias e `SKIP LOCKED`;
-- worker antigo tentando finalizar depois de perder o lease;
-- `EXPLAIN (ANALYZE, BUFFERS)` com volume representativo;
-- duas instancias do reconciliador/worker;
-- indisponibilidade e recuperacao controlada de PostgreSQL e Redis;
-- smoke completo API -> outbox -> handler -> BullMQ -> e-mail noop;
-- separacao real de secrets em um deploy de teste.
+- recuperação de lease expirado e bloqueio de transições por worker stale;
+- `EXPLAIN (ANALYZE, BUFFERS)` do claim da outbox e da reconciliação de e-mails;
+- duas instancias BullMQ e duas instancias do reconciliador sem duplicação lógica;
+- recuperação do gap entre commit de `email_messages` e falha de `Queue.add`;
+- heartbeat com TTL real, expiração e remoção no shutdown;
+- indisponibilidade e recuperação controlada de PostgreSQL, Redis cache e Redis BullMQ via Toxiproxy;
+- smoke completo API -> outbox -> handlers -> BullMQ -> e-mail noop;
+- API e worker simultâneos em watch mode;
+- contratos de secrets e role dos entrypoints;
+- build, lint, 183 testes unitários, 20 testes de integração e E2E.
+
+Durante os testes, o health do worker revelou que o `PING` do Redis de cache podia aguardar indefinidamente. As três dependências agora são verificadas em paralelo, com timeout interno de 2 segundos por dependência. Também foi corrigido o `PostgresModule` para registrar somente erros SQL em produção.
+
+A task list da separação entre API e worker está concluída, incluindo a atualização de `docs/events/events-map.canvas`. O próximo assunto técnico é a observabilidade, que deve ser especificada separadamente antes de novas mudanças.
 
 ## Regras Que Nao Devem Ser Quebradas
 

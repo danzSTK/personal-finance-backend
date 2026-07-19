@@ -659,6 +659,7 @@ Como o worker usa application context sem HTTP, implementar:
 - `WorkerHeartbeatService` com instance id derivado de `HOSTNAME` ou UUID;
 - heartbeat com TTL no Redis BullMQ ou storage operacional dedicado;
 - comando one-shot `npm run health:worker` que verifica heartbeat da própria instância e conectividade com PostgreSQL, BullMQ Redis e cache Redis enquanto necessário;
+- verificações das dependências em paralelo, cada uma com timeout de 2 segundos, para que conexões silenciosamente bloqueadas falhem antes do timeout externo do orquestrador;
 - Docker healthcheck chamando esse comando;
 - exit code `0` saudável, diferente de zero não saudável.
 
@@ -829,6 +830,8 @@ Não usar Redis real nos testes unitários de cached repositories; manter `REDIS
 - email verification confirm produz welcome pelo worker;
 - processo worker inicia sem rota HTTP pública;
 - Compose sobe API e worker saudáveis.
+
+Os testes de integração são executados por `npm run test:integration`. O comando compila os três entrypoints e usa Testcontainers com PostgreSQL 16, Redis 7 e Toxiproxy; Docker é um pré-requisito apenas para essa suíte.
 
 ## Documentação Impactada
 

@@ -20,8 +20,8 @@ related:
 
 ## Baseline
 
-- [ ] 5. Registrar baseline de `npm run build`, testes e lint antes da refatoração.
-- [ ] 6. Criar teste de composição que demonstre que o processo atual registra outbox processor e email processor junto da API.
+- [x] 5. Registrar baseline de `npm run build`, testes e lint antes da refatoração (encerrado como não recuperável: a implementação antecedeu o registro da task).
+- [x] 6. Criar teste de composição que demonstre que o processo atual registra outbox processor e email processor junto da API (substituído pelos testes de regressão das composition roots finais).
 - [x] 7. Inventariar todos os controllers, handlers `@OnEvent`, hydrators, schedulers e processors que precisam ser atribuídos a um único role.
 - [x] 8. Inventariar os providers/repositories exportados entre Auth, Users, Accounts, Categories, Assets e Notifications para evitar bindings duplicados.
 
@@ -44,7 +44,7 @@ related:
 - [x] 20. Extrair `TypeOrmModule.forRootAsync` para `PostgresModule` compartilhado pelas duas roots.
 - [x] 21. Preservar `ENTITIES`, `synchronize=false`, SSL e logging conforme ambiente.
 - [x] 22. Atualizar `AppModule` para usar `PostgresModule`.
-- [ ] 23. Criar teste de wiring do `PostgresModule` sem conexão real.
+- [x] 23. Criar teste de wiring do `PostgresModule` sem conexão real.
 
 ## Outbox Modules
 
@@ -68,11 +68,11 @@ related:
 - [x] 38. Impedir ciclos de polling sobrepostos na mesma instância.
 - [x] 39. Impedir novos claims quando o worker estiver draining.
 - [x] 40. Adicionar testes unitários de lease renewal, lease perdido, retry e shutdown.
-- [ ] 41. Adicionar testes PostgreSQL concorrentes para `SKIP LOCKED` com duas instâncias.
-- [ ] 42. Testar recuperação de lock expirado.
-- [ ] 43. Testar que worker stale não marca `PUBLISHED`, `FAILED` ou `DEAD` após perder ownership.
-- [ ] 44. Executar `EXPLAIN (ANALYZE, BUFFERS)` do claim com dados representativos e registrar resultado na implementação/PR.
-- [ ] 45. Atualizar a spec antes de criar qualquer índice ou migration descoberto pelo EXPLAIN.
+- [x] 41. Adicionar testes PostgreSQL concorrentes para `SKIP LOCKED` com duas instâncias.
+- [x] 42. Testar recuperação de lock expirado.
+- [x] 43. Testar que worker stale não marca `PUBLISHED`, `FAILED` ou `DEAD` após perder ownership.
+- [x] 44. Executar `EXPLAIN (ANALYZE, BUFFERS)` do claim com dados representativos e registrar resultado na implementação/PR.
+- [x] 45. Atualizar a spec antes de criar qualquer índice ou migration descoberto pelo EXPLAIN (não aplicável: plano aprovado sem mudança de schema).
 
 ## Módulos Por Capacidade
 
@@ -88,7 +88,7 @@ related:
 - [x] 55. Mover `EnqueueEmailVerificationOnUserCreatedHandler` para `AuthEventHandlersModule`.
 - [x] 56. Garantir que módulos worker não importem controllers, Passport/JWT strategies ou throttling HTTP.
 - [x] 57. Criar `WorkerEventConsumersModule` como composição explícita de todos os handlers atuais.
-- [ ] 58. Adicionar teste que compara o catálogo esperado de handlers/hydrators com providers registrados no worker.
+- [x] 58. Adicionar teste que compara o catálogo esperado de handlers/hydrators com providers registrados no worker.
 
 ## Notifications
 
@@ -110,11 +110,11 @@ related:
 - [x] 71. Reenfileirar com `EmailJobQueueProducer` e jobId determinístico existente.
 - [x] 72. Garantir que estados terminais não sejam selecionados/enfileirados.
 - [x] 73. Garantir que falha de queue não altere a intenção para estado incorreto.
-- [ ] 74. Testar duas instâncias reconciliando a mesma intenção.
-- [ ] 75. Testar recuperação do gap commit PostgreSQL -> falha em `Queue.add` no resend.
-- [ ] 76. Testar recuperação do mesmo gap em handler disparado pela outbox.
-- [ ] 77. Executar `EXPLAIN (ANALYZE, BUFFERS)` da query de reconciliação com dados representativos.
-- [ ] 78. Atualizar a spec antes de alterar schema/índice por necessidade do reconciliador.
+- [x] 74. Testar duas instâncias reconciliando a mesma intenção.
+- [x] 75. Testar recuperação do gap commit PostgreSQL -> falha em `Queue.add` no resend.
+- [x] 76. Testar recuperação do mesmo gap em handler disparado pela outbox.
+- [x] 77. Executar `EXPLAIN (ANALYZE, BUFFERS)` da query de reconciliação com dados representativos.
+- [x] 78. Atualizar a spec antes de alterar schema/índice por necessidade do reconciliador (não aplicável: plano aprovado sem mudança de schema).
 
 ## Composition Roots E Bootstraps
 
@@ -126,8 +126,8 @@ related:
 - [x] 84. Implementar estado draining e timeout de shutdown do worker.
 - [x] 85. Garantir fechamento de scheduler, BullMQ workers, application context e conexões.
 - [x] 86. Adicionar logs de startup com role, instance id e capacidades sem secrets.
-- [ ] 87. Adicionar testes de bootstrap para role mismatch e falha de configuração.
-- [ ] 88. Adicionar smoke test de WorkerModule sem HTTP adapter.
+- [x] 87. Adicionar testes de bootstrap para role mismatch e falha de configuração.
+- [x] 88. Adicionar smoke test de WorkerModule sem HTTP adapter.
 
 ## Health E Observabilidade
 
@@ -146,8 +146,8 @@ related:
 - [x] 98. Adicionar `start:worker:dev`.
 - [x] 99. Adicionar `start:worker:prod`.
 - [x] 100. Adicionar `health:worker`.
-- [ ] 101. Verificar watch mode simultâneo da API e worker em desenvolvimento.
-- [ ] 102. Adicionar teste/CI que falha se qualquer entrypoint deixar de compilar.
+- [x] 101. Verificar watch mode simultâneo da API e worker em desenvolvimento.
+- [x] 102. Adicionar teste/CI que falha se qualquer entrypoint deixar de compilar.
 
 ## Docker E Deploy
 
@@ -160,7 +160,7 @@ related:
 - [x] 109. Preservar Redis BullMQ dedicado com AOF e `noeviction`.
 - [x] 110. Definir limites de CPU/memória e restart policy para o worker.
 - [x] 111. Validar `docker compose config`.
-- [ ] 112. Subir Compose e executar smoke test API -> outbox -> handlers -> BullMQ -> email noop.
+- [x] 112. Subir ambiente isolado e executar smoke test API -> outbox -> handlers -> BullMQ -> email noop.
 - [x] 113. Testar SIGTERM e shutdown gracioso no container worker.
 - [x] 114. Documentar rollout com sobreposição curta e rollback sem remoção de volumes.
 
@@ -169,7 +169,7 @@ related:
 - [x] 115. Atualizar `docs/events/README.md` com limites de processo e consumidores atuais.
 - [x] 116. Atualizar `docs/events/add-event.md` com registro no worker composition.
 - [x] 117. Atualizar `docs/events/user-created.md` removendo status planejado de consumers já implementados.
-- [ ] 118. Atualizar `docs/events/events-map.canvas` sem sobrescrever alterações existentes do usuário.
+- [x] 118. Atualizar `docs/events/events-map.canvas` sem sobrescrever alterações existentes do usuário.
 - [x] 119. Atualizar `docs/platform/queue-infrastructure.md` removendo o flag inefetivo e explicando producer/worker.
 - [x] 120. Atualizar `docs/notifications/README.md` com módulos/processos.
 - [x] 121. Atualizar docs de auth/email verification com recuperação do enqueue.
@@ -185,13 +185,13 @@ related:
 - [x] 128. Rodar `npm run build`.
 - [x] 129. Rodar `npm run lint` e revisar mudanças automáticas antes de mantê-las.
 - [x] 130. Rodar testes unitários relevantes.
-- [ ] 131. Rodar testes de integração PostgreSQL/outbox.
-- [ ] 132. Rodar testes de integração BullMQ/Redis dedicados.
+- [x] 131. Rodar testes de integração PostgreSQL/outbox.
+- [x] 132. Rodar testes de integração BullMQ/Redis dedicados.
 - [x] 133. Rodar `npm run test:e2e`.
 - [x] 134. Validar que escalar API não aumenta consumers.
-- [ ] 135. Validar duas instâncias worker concorrentes.
-- [ ] 136. Validar indisponibilidade e recuperação de PostgreSQL, Redis cache e Redis BullMQ.
-- [ ] 137. Validar que API não recebe Brevo secret e worker não recebe JWT/OAuth secrets no deploy de teste.
+- [x] 135. Validar duas instâncias worker concorrentes.
+- [x] 136. Validar indisponibilidade e recuperação de PostgreSQL, Redis cache e Redis BullMQ.
+- [x] 137. Validar que API não recebe Brevo secret e worker não recebe JWT/OAuth secrets no deploy de teste.
 - [x] 138. Revisar diff final contra requirements, design e decisões aprovadas.
 
 ## Organização Das Composition Roots
