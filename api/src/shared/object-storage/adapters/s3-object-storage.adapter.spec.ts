@@ -23,7 +23,7 @@ describe('S3ObjectStorageAdapter', () => {
   let adapter: S3ObjectStorageAdapter;
 
   beforeEach(() => {
-    send = jest.fn<(command: unknown) => Promise<unknown>>();
+    send = jest.fn<Promise<unknown>, [command: unknown]>();
     adapter = new S3ObjectStorageAdapter({ send } as unknown as S3Client, config);
     jest.spyOn(Logger.prototype, 'error').mockImplementation();
     jest.clearAllMocks();

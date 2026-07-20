@@ -7,7 +7,9 @@ import { Email } from '@/common/domain/value-objects/email.value-object';
 import { UserName } from '@/modules/users/domain/value-objects/user-name.value-object';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
-import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
+import { EntityManager, QueryFailedError } from 'typeorm';
+
+type RunInTransaction = (callback: (manager: EntityManager) => Promise<User>) => Promise<User>;
 
 describe('UpdateUsernameUseCase', () => {
   const userId = '85423f76-b2e0-4499-8b94-da58b1df6f74';
@@ -18,15 +20,14 @@ describe('UpdateUsernameUseCase', () => {
   let findByIdForUpdate: jest.MockedFunction<IUserRepository['findByIdForUpdate']>;
   let findByUserName: jest.MockedFunction<IUserRepository['findByUserName']>;
   let save: jest.MockedFunction<IUserRepository['save']>;
-  let transaction: jest.MockedFunction<DataSource['transaction']>;
+  let transaction: jest.MockedFunction<RunInTransaction>;
 
   beforeEach(async () => {
     findByIdForUpdate = jest.fn();
     findByUserName = jest.fn();
     save = jest.fn().mockImplementation((user: User) => Promise.resolve(user));
-    const runInTransaction = async <T>(callback: (manager: EntityManager) => Promise<T>): Promise<T> =>
-      callback(manager);
-    transaction = jest.fn(runInTransaction) as jest.MockedFunction<DataSource['transaction']>;
+    const runInTransaction: RunInTransaction = async callback => callback(manager);
+    transaction = jest.fn(runInTransaction);
 
     moduleRef = await Test.createTestingModule({
       providers: [
