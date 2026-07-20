@@ -4,12 +4,12 @@
 .env.bws.runtime
 
 
-#claude
+# Claude
 CLAUDE.md
 .claude/
 
-
-.obsidian/
+# Estado local do Obsidian
+docs/.obsidian/workspace*.json
 
 # Docker
 postgres_data/
@@ -81,5 +81,3 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-docs/.obsidian/*
-docs/.obsidian/workspace.json
