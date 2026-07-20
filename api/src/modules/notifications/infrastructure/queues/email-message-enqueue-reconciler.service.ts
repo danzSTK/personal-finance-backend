@@ -51,6 +51,11 @@ export class EmailMessageEnqueueReconciler implements OnModuleInit, BeforeApplic
           );
         }
       }
+    } catch (error) {
+      this.logger.error(
+        `Failed to reconcile email message batch`,
+        error instanceof Error ? error.stack : String(error),
+      );
     } finally {
       this.isRunning = false;
     }

@@ -1,6 +1,7 @@
 import { WorkerConfig } from '@/config/worker.config';
 import { EmailJobQueueProducer } from '@/modules/notifications/application/queues/email-job-queue-producer.port';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
+import { Logger } from '@nestjs/common';
 import { EmailMessageEnqueueReconciler } from './email-message-enqueue-reconciler.service';
 
 describe('EmailMessageEnqueueReconciler', () => {
@@ -44,5 +45,16 @@ describe('EmailMessageEnqueueReconciler', () => {
     await reconciler.reconcile();
 
     expect(enqueueEmailMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles a failure while loading the reconciliation batch', async () => {
+    const error = new Error('postgres unavailable');
+    const loggerError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    findReenqueuableBefore.mockRejectedValue(error);
+
+    await expect(reconciler.reconcile()).resolves.toBeUndefined();
+
+    expect(enqueueEmailMessage).not.toHaveBeenCalled();
+    expect(loggerError).toHaveBeenCalledWith('Failed to reconcile email message batch', error.stack);
   });
 });
