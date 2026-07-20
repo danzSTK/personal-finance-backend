@@ -14,6 +14,6 @@
 - [x] 12. Adicionar job de build, migrations, startup e health checks.
 - [x] 13. Atualizar o exemplo didatico da pipeline.
 - [x] 14. Validar o smoke test sem interferir nos containers locais existentes.
-- [ ] 15. Validar o novo job na draft PR contra `develop`.
+- [x] 15. Validar o novo job na draft PR contra `develop`.
 - [ ] 16. Decidir quando e como os jobs se tornarao checks obrigatorios.
 - [ ] 17. Planejar a fase de publicacao de imagem e deploy em workflow separado.
