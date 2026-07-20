@@ -8,6 +8,7 @@
 # - executar testes unitarios com relatorio de cobertura;
 # - executar o teste E2E atual;
 # - executar testes de integracao com PostgreSQL, Redis e Toxiproxy reais;
+# - construir e iniciar a imagem real da API e do worker via Docker Compose;
 # - manter CI e deploy como responsabilidades separadas.
 #
 # Situacao conhecida em 2026-07-20:
@@ -30,6 +31,7 @@ on:
       - "api/**"
       - "docker-compose.yml"
       - ".env.exemple"
+      - ".github/compose/backend-ci.override.yml"
       - ".github/workflows/backend-ci.yml"
       - "!**/*.md"
   push:
@@ -40,6 +42,7 @@ on:
       - "api/**"
       - "docker-compose.yml"
       - ".env.exemple"
+      - ".github/compose/backend-ci.override.yml"
       - ".github/workflows/backend-ci.yml"
       - "!**/*.md"
   workflow_dispatch:
@@ -222,6 +225,99 @@ jobs:
       # O script test:integration ja executa o build e usa --runInBand.
       - name: Run integration tests
         run: npm run test:integration
+
+  # Job 4: prova que o artefato que sera implantado realmente constroi e sobe.
+  # Diferente de Testcontainers, API e worker executam dentro da imagem criada
+  # pelo api/Dockerfile e usam a composicao versionada no repositorio.
+  container-smoke:
+    name: Container smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # A fixture contem apenas valores ficticios. O overlay remove nomes fixos,
+      # adiciona PostgreSQL descartavel e isola portas sem usar o override local.
+      CONTAINER_SMOKE_ENV_FILE: api/test/fixtures/container-smoke.env
+      CONTAINER_SMOKE_OVERRIDE: .github/compose/backend-ci.override.yml
+      COMPOSE_PROJECT_NAME: backend-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate Docker Compose
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          config --quiet
+
+      # O build acontece dentro do Dockerfile multi-stage e instala novamente as
+      # dependencias, reproduzindo o artefato que sera publicado no futuro CD.
+      - name: Build application image
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          build api
+
+      - name: Start infrastructure dependencies
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          up --detach --wait --wait-timeout 120 postgres redis bullmq-redis
+
+      # Executar pela imagem tambem valida node_modules de producao, dist e o
+      # data source compilado, sem acessar nenhum banco remoto.
+      - name: Run migrations through the image
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          run --rm --no-deps api npm run migration:run:prod
+
+      # --no-build garante que os processos usam exatamente a imagem validada
+      # no step anterior. --wait observa os health checks do Compose.
+      - name: Start API and worker containers
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          up --detach --no-build --wait --wait-timeout 120 api worker
+
+      - name: Check API readiness
+        run: |
+          api_address="$(docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE" \
+            -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE" \
+            port api 3000)"
+          curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 \
+            "http://${api_address}/health/readiness"
+
+      - name: Check worker health
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          exec --no-TTY worker npm run health:worker
+
+      # Diagnosticos executam antes do cleanup para tornar falhas acionaveis.
+      - name: Show container status on failure
+        if: ${{ failure() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          ps --all
+
+      - name: Show container logs on failure
+        if: ${{ failure() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          logs --no-color
+
+      - name: Remove smoke test resources
+        if: ${{ always() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          down --volumes --remove-orphans
 
 # Deliberadamente fora deste exemplo:
 # - build e publicacao de imagem Docker;

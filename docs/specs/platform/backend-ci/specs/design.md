@@ -2,11 +2,12 @@
 
 ## Arquitetura
 
-A CI fica em um workflow separado do futuro CD. O arquivo `.github/workflows/backend-ci.yml` contem tres jobs paralelos e independentes:
+A CI fica em um workflow separado do futuro CD. O arquivo `.github/workflows/backend-ci.yml` contem quatro jobs paralelos e independentes:
 
 1. `quality`: formatacao, lint, typecheck e build.
 2. `tests`: testes unitarios com cobertura e teste E2E.
 3. `integration`: testes com PostgreSQL, Redis e Toxiproxy gerenciados por Testcontainers.
+4. `container-smoke`: validacao do Compose, build da imagem, migrations e startup real de API e worker.
 
 ## Runner E Dependencias
 
@@ -23,9 +24,9 @@ Cada job instala suas proprias dependencias. Isso repete `npm ci`, mas preserva 
 ```text
 pull_request | push | workflow_dispatch
                     |
-        +-----------+-----------+
-        |           |           |
-     quality      tests     integration
+        +-----------+-----------+-----------+
+        |           |           |           |
+     quality      tests     integration  container-smoke
 ```
 
 Os jobs nao usam `needs`, portanto uma falha nao impede as demais validacoes de produzirem resultado.
@@ -47,14 +48,26 @@ O job `tests` declara valores ficticios para as variaveis obrigatorias do `Confi
 
 O script `test:integration` executa build e Jest em modo sequencial. Testcontainers controla imagens, portas e limpeza de PostgreSQL, Redis e Toxiproxy; nao sao declarados `services` duplicados no GitHub Actions.
 
+## Smoke Test De Containers
+
+O job `container-smoke` usa o `api/Dockerfile` e o `docker-compose.yml` de producao para API, worker, Redis de cache e Redis de BullMQ. Como o PostgreSQL de producao e externo, o overlay exclusivo da CI adiciona um PostgreSQL descartavel somente para o smoke test. O `docker-compose.override.yml`, exclusivo do desenvolvimento local, nao participa da CI.
+
+O fluxo valida o Compose, constroi a imagem, aguarda as dependencias, executa migrations pela imagem, inicia API e worker e verifica:
+
+- health check de liveness da API dentro do container;
+- endpoint de readiness da API contra PostgreSQL e Redis;
+- comando `health:worker` contra PostgreSQL, cache Redis, BullMQ Redis e heartbeat.
+
+O overlay exclusivo da CI remove nomes fixos, remove publicacoes desnecessarias das dependencias, publica a API em porta efemera e conecta API e worker ao PostgreSQL descartavel. O nome do projeto Compose inclui a execucao do GitHub para isolar recursos. Em falha, status e logs sao impressos; o cleanup com volumes e orfaos executa sempre.
+
 ## Filtros De Caminho
 
-A execucao automatica observa `api/**`, Compose, `.env.exemple` e o proprio workflow, excluindo Markdown. Essa escolha reduz execucoes sem valor para o backend, mas devera ser reavaliada antes de configurar os jobs como checks obrigatorios.
+A execucao automatica observa `api/**`, o Compose de producao, a configuracao Compose da CI, `.env.exemple` e o proprio workflow, excluindo Markdown. O `docker-compose.override.yml` permanece fora por ser exclusivo do desenvolvimento local. Essa escolha reduz execucoes sem valor para o backend, mas devera ser reavaliada antes de configurar os jobs como checks obrigatorios.
 
 ## Impactos
 
 - Banco de dados: nenhum.
 - Migrations: nenhuma.
 - API/contratos HTTP: nenhum.
-- Codigo de producao: nenhum.
+- Codigo de producao: nenhum; o Compose recebe health check operacional da API.
 - Documentacao: exemplo didatico e especificacao desta fase.

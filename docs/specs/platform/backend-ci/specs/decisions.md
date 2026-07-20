@@ -64,3 +64,16 @@ O Jest coleta cobertura de arquivos nao importados diretamente pelas suites e po
 
 Impact:
 Os testes reproduzem a validacao de configuracao sem armazenar secrets ou acessar servicos externos; e-mail permanece desabilitado e os endpoints apontam para `localhost`.
+
+## DEC-006 - Validar O Artefato Em Um Smoke Test Compose Isolado
+
+Status: accepted
+
+Decision:
+Adicionar um quarto job que constroi a imagem pelo Dockerfile, executa migrations e inicia API, worker e dependencias pelo Compose de producao com um overlay exclusivo da CI. O override local nao participa.
+
+Reason:
+Testcontainers valida integracoes da aplicacao, mas API e worker ainda executam pelo Node do runner. Ele nao detecta falhas no Dockerfile, na composicao, nos comandos dos containers ou nos health checks.
+
+Impact:
+A CI passa a validar o artefato implantavel sem publica-lo. O overlay adiciona um PostgreSQL descartavel porque producao usa banco externo, substitui nomes e portas para permitir isolamento e remove todos os recursos efemeros ao final.
