@@ -1,11 +1,16 @@
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
-import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
+import {
+  IEmailMessageRepository,
+  ReenqueuableEmailMessage,
+} from '@/modules/notifications/domain/repositories/email-message.repository.interface';
 import { EmailMessageMapper } from '@/modules/notifications/infrastructure/mappers/email-message.mapper';
 import { EmailMessageOrmEntity } from '@/modules/notifications/infrastructure/persistence/email-message-orm.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { In, LessThanOrEqual } from 'typeorm';
+import { EmailMessageStatus } from '@/modules/notifications/domain/constants/email-message.constants';
 
 @Injectable()
 export class EmailMessageRepository implements IEmailMessageRepository {
@@ -36,6 +41,20 @@ export class EmailMessageRepository implements IEmailMessageRepository {
     const emailMessage = await repository.findOne({ where: { idempotency_key: idempotencyKey } });
 
     return emailMessage ? EmailMessageMapper.toDomain(emailMessage) : null;
+  }
+
+  async findReenqueuableBefore(cutoff: Date, limit: number): Promise<ReenqueuableEmailMessage[]> {
+    const messages = await this.repository.find({
+      select: { id: true },
+      where: {
+        status: In([EmailMessageStatus.PENDING, EmailMessageStatus.FAILED_RETRYABLE]),
+        created_at: LessThanOrEqual(cutoff),
+      },
+      order: { created_at: 'ASC' },
+      take: limit,
+    });
+
+    return messages;
   }
 
   async save(emailMessage: EmailMessage, options?: IRepositoryOptions): Promise<EmailMessage> {

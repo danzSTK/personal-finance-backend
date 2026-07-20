@@ -20,8 +20,10 @@ Hoje o padrão da plataforma é:
 
 - o domínio cria `DomainEvent` em memória;
 - o use case persiste o aggregate e grava os eventos na outbox dentro da mesma transação;
-- o processor da outbox publica o evento depois do commit;
-- handlers de outros módulos reagem pelo `EventEmitter2`.
+- o worker reivindica a outbox depois do commit;
+- handlers de outros módulos reagem pelo `EventEmitter2` local ao worker.
+
+A API e o worker são processos separados. A API nunca publica eventos diretamente no `EventEmitter2`: PostgreSQL é a fronteira durável entre os processos.
 
 Mapa visual geral: [Events map](./events-map.canvas).
 
@@ -33,7 +35,7 @@ Guia para criar novos eventos: [Add event](./add-event.md).
 
 | Evento                                          | Status  | Produtor | Consumidores                                                      |
 | ----------------------------------------------- | ------- | -------- | ----------------------------------------------------------------- |
-| [user.created](./user-created.md)               | current | `users`  | `accounts` atual; `categories` e `notifications/email` planejados |
+| [user.created](./user-created.md)               | current | `users`  | `accounts`, `categories`, `auth` e `notifications/email`          |
 | [user.email.verified](./user-email-verified.md) | current | `users`  | `notifications/email` welcome email                               |
 | [user.avatar.updated](./user-avatar-updated.md) | current | `users`  | remoção idempotente do asset anterior em `assets`                 |
 | [user.avatar.removed](./user-avatar-removed.md) | current | `users`  | remoção idempotente do asset removido em `assets`                 |
@@ -65,7 +67,8 @@ Com outbox:
 | `EventRegistry`           | `api/src/shared/outbox/event-registry.ts`                               | Encontra o hydrator correto para reconstituir um evento salvo        |
 | `EventRehydrator`         | `api/src/shared/outbox/interfaces/outbox-event-rehydrator.interface.ts` | Contrato de reidratação de um evento específico                      |
 | `AppEventPublisher`       | `api/src/shared/events/app-event-publisher.service.ts`                  | Publica o `DomainEvent` no EventEmitter                              |
-| `OutboxRehydratorsModule` | `api/src/app/composition/outbox-rehydrators.module.ts`                  | Registra hydrators disponíveis no boot da aplicação                  |
+| `OutboxRehydratorsModule` | `api/src/app/worker/composition/outbox-rehydrators.module.ts`           | Registra hydrators no boot exclusivo do worker                       |
+| `WorkerEventConsumersModule` | `api/src/app/worker/composition/worker-event-consumers.module.ts`    | Compõe todos os módulos de handlers no worker                        |
 
 ## Escrita Do Evento
 
@@ -88,7 +91,7 @@ Pontos importantes:
 
 ## Processamento Da Outbox
 
-`OutboxProcessorService` roda com `@Interval`.
+`OutboxProcessorService` existe somente no `WorkerModule` e usa um timer com proteção contra ciclos sobrepostos.
 
 Cada ciclo tenta reivindicar um lote de mensagens prontas usando `OutboxMessageRepository.claimReadyBatch()`.
 
@@ -105,8 +108,10 @@ Depois do claim:
 
 - `EventRegistry.rehydrate()` transforma a mensagem em `DomainEvent`;
 - `AppEventPublisher.emitAsync()` publica no EventEmitter;
-- sucesso chama `markPublished()`;
-- erro chama `markFailed()`, que agenda retry ou move para `DEAD`.
+- enquanto o handler está ativo, o worker renova o lease;
+- sucesso chama `markPublished(id, lockedBy)`;
+- erro chama `markFailed(message, lockedBy, error)`, que agenda retry ou move para `DEAD`;
+- uma atualização final que não encontra o mesmo owner/status é tratada como lease perdido e não sobrescreve o novo dono.
 
 ## Hydrator
 
@@ -132,7 +137,7 @@ Hydrator é infraestrutura do módulo, não domínio. Ele pode depender de valid
 
 ## Inicialização Dos Hydrators
 
-Hydrators são registrados no boot da aplicação.
+Hydrators são registrados no boot do worker.
 
 O desenho atual é uma camada de composição:
 
@@ -185,8 +190,8 @@ Campos operacionais importantes:
 
 ## Limites Atuais
 
-- O outbox publica eventos dentro da mesma aplicação NestJS, usando EventEmitter.
-- Ainda não é uma fila distribuída externa.
+- O outbox atravessa API e worker pelo PostgreSQL; o EventEmitter só distribui dentro de uma instância do worker.
+- EventEmitter2 não é transporte distribuído e não comunica processos.
 - Handlers continuam precisando de idempotência própria.
 - O registry atual registra hydrators explicitamente no módulo de composição.
 - Eventos sem hydrator registrado falham no processor e entram em retry/falha.

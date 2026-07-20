@@ -1,10 +1,10 @@
 // api/src/database/redis/redis.service.ts
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { REDIS_CLIENT } from './redis.provider';
 import Redis from 'ioredis';
 
 @Injectable()
-export class RedisService {
+export class RedisService implements OnApplicationShutdown {
   constructor(
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
@@ -104,5 +104,16 @@ export class RedisService {
   // Acesso direto ao client (para o ThrottlerStorage na Fase 2)
   getClient(): Redis {
     return this.redis;
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    if (this.redis.status === 'ready') {
+      await this.redis.quit();
+      return;
+    }
+
+    if (this.redis.status !== 'end') {
+      this.redis.disconnect();
+    }
   }
 }

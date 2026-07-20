@@ -1,5 +1,6 @@
 services:
   api:
+    image: personal-finance-backend:local
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -8,20 +9,52 @@ services:
     env_file:
       - ${API_ENV_FILE:-.env}
     environment:
-      # Sobrescreve o .env: dentro do Docker, os hosts são os nomes dos serviços
-      POSTGRES_HOST: ${POSTGRES_HOST}
+      # Redis usa a rede interna. PostgreSQL vem do env_file; o override local adiciona o container postgres.
       REDIS_HOST: redis
       BULLMQ_REDIS_HOST: bullmq-redis
       BULLMQ_REDIS_PORT: 6379
       BULLMQ_REDIS_PASSWORD: ${BULLMQ_REDIS_PASSWORD:-}
+      PROCESS_ROLE: api
     ports:
       - "3000:3000"
     mem_limit: 512m
+    cpus: 0.50
     depends_on:
       redis:
         condition: service_healthy
       bullmq-redis:
         condition: service_healthy
+    networks:
+      - app-network
+  worker:
+    image: personal-finance-backend:local
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: personal-finance-worker
+    restart: always
+    command: ["node", "--max-old-space-size=400", "dist/worker.js"]
+    env_file:
+      - ${WORKER_ENV_FILE:-.env}
+    environment:
+      REDIS_HOST: redis
+      BULLMQ_REDIS_HOST: bullmq-redis
+      BULLMQ_REDIS_PORT: 6379
+      BULLMQ_REDIS_PASSWORD: ${BULLMQ_REDIS_PASSWORD:-}
+      PROCESS_ROLE: worker
+    mem_limit: 512m
+    cpus: 0.50
+    depends_on:
+      redis:
+        condition: service_healthy
+      bullmq-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "npm", "run", "health:worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - app-network
   redis:

@@ -6,15 +6,26 @@ import {
 } from '@/modules/notifications/infrastructure/queues/email-job.constants';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
+import { Inject, OnApplicationBootstrap } from '@nestjs/common';
+import queueConfig from '@/config/queue.config';
+import type { ConfigType } from '@nestjs/config';
 import { Job } from 'bullmq';
 
 @Injectable()
 @Processor(NotificationsQueues.EMAIL)
-export class EmailMessageProcessor extends WorkerHost {
+export class EmailMessageProcessor extends WorkerHost implements OnApplicationBootstrap {
   private readonly logger = new Logger(EmailMessageProcessor.name);
 
-  constructor(private readonly sendEmailMessageUseCase: SendEmailMessageUseCase) {
+  constructor(
+    private readonly sendEmailMessageUseCase: SendEmailMessageUseCase,
+    @Inject(queueConfig.KEY)
+    private readonly queueConfiguration: ConfigType<typeof queueConfig>,
+  ) {
     super();
+  }
+
+  onApplicationBootstrap(): void {
+    this.worker.concurrency = this.queueConfiguration.workers.defaultConcurrency;
   }
 
   async process(job: Job<SendEmailMessageJobPayload>): Promise<void> {

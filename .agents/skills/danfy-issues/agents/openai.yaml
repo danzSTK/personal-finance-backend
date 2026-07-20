@@ -1,0 +1,4 @@
+interface:
+  display_name: "Danfy Issues"
+  short_description: "Classificar e redigir issues padronizadas da Danfy."
+  default_prompt: "Use $danfy-issues para classificar e redigir esta issue no padrão do projeto."

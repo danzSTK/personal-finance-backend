@@ -15,6 +15,10 @@ export class AppEventPublisher {
   }
 
   async emitAsync(event: DomainEvent): Promise<unknown[]> {
+    if (this.eventEmitter.listenerCount(event.eventName) === 0) {
+      throw new Error(`No listeners registered for event ${event.eventName}.`);
+    }
+
     return (await this.eventEmitter.emitAsync(event.eventName, event)) as unknown[];
   }
 }

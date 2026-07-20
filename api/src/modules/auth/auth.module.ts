@@ -2,16 +2,15 @@ import { Module } from '@nestjs/common';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import jwtConfig from '@/config/jwt.config';
 import { UsersModule } from '../users/users.module';
 import { CommonModule } from '@/common/common.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { OutboxModule } from '@/shared/outbox';
+import { AuthEmailVerificationCoreModule } from './auth-email-verification-core.module';
 
 // Domain
 import { ISessionRepository } from './domain/repositories/session.repository.interface';
-import { IEmailVerificationChallengeRepository } from './domain/repositories/email-verification-challenge.repository.interface';
 
 // Application — Use Cases
 import { GenerateTokenUseCase } from './application/use-cases/generate-token/generate-token.use-case';
@@ -27,14 +26,10 @@ import { LinkEmailProviderUseCase } from './application/use-cases/link-email-pro
 import { LinkGoogleProviderUseCase } from './application/use-cases/link-google-provider/link-google-provider.use-case';
 import { RefreshTokenValidationService } from './application/services/refresh-token-validation.service';
 import { ConfirmEmailVerificationUseCase } from './application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
-import { CreateEmailVerificationChallengeUseCase } from './application/use-cases/create-email-verification-challenge/create-email-verification-challenge.use-case';
 import { ResendEmailVerificationUseCase } from './application/use-cases/resend-email-verification/resend-email-verification.use-case';
-import { EnqueueEmailVerificationOnUserCreatedHandler } from './application/handlers/enqueue-email-verification-on-user-created.handler';
 
 // Infrastructure — Persistence
 import { RedisSessionRepository } from './infrastructure/persistence/redis-session.repository';
-import { EmailVerificationChallengeOrmEntity } from './infrastructure/persistence/email-verification-challenge-orm.entity';
-import { EmailVerificationChallengeRepository } from './infrastructure/persistence/email-verification-challenge.repository';
 
 // Infrastructure — Strategies
 import { LocalStrategy } from './infrastructure/strategies/local.strategy';
@@ -68,9 +63,9 @@ import { AuthController } from './presentation/http/auth.controller';
     UsersModule,
     CommonModule,
     NotificationsModule,
+    AuthEmailVerificationCoreModule,
     OutboxModule,
     PassportModule,
-    TypeOrmModule.forFeature([EmailVerificationChallengeOrmEntity]),
   ],
   controllers: [AuthController],
   providers: [
@@ -79,13 +74,8 @@ import { AuthController } from './presentation/http/auth.controller';
       provide: ISessionRepository,
       useClass: RedisSessionRepository,
     },
-    {
-      provide: IEmailVerificationChallengeRepository,
-      useClass: EmailVerificationChallengeRepository,
-    },
 
     // Use Cases
-    CreateEmailVerificationChallengeUseCase,
     ConfirmEmailVerificationUseCase,
     ResendEmailVerificationUseCase,
     GenerateTokenUseCase,
@@ -100,7 +90,6 @@ import { AuthController } from './presentation/http/auth.controller';
     LinkEmailProviderUseCase,
     LinkGoogleProviderUseCase,
     RefreshTokenValidationService,
-    EnqueueEmailVerificationOnUserCreatedHandler,
 
     // Strategies
     LocalStrategy,

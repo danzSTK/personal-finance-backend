@@ -7,6 +7,7 @@ Este guia descreve como subir a API em um ambiente Linux (Ubuntu 22.04) utilizan
 > **⚠️ Pré-requisitos de conhecimento**
 >
 > Este documento **não** é um tutorial de Docker, Docker Compose ou Linux. Ele pressupõe que você já tem familiaridade básica com:
+>
 > - Navegação e execução de comandos no terminal Linux
 > - Conceitos fundamentais de Docker e Docker Compose (containers, volumes, networks, variáveis de ambiente)
 > - Configuração básica de NGINX (server blocks, proxy_pass)
@@ -15,13 +16,14 @@ Este guia descreve como subir a API em um ambiente Linux (Ubuntu 22.04) utilizan
 
 A stack é composta por:
 
-| Serviço | Tecnologia | Função |
-|---|---|---|
-| API | NestJS (Node.js 22) | Backend principal |
-| Banco de dados | PostgreSQL 16 | Persistência de dados |
-| Cache e sessões | Redis 7 | Cache, sessões e rate limit |
-| Filas | Redis 7 | Backend dedicado do BullMQ com política `noeviction` |
-| Proxy reverso | NGINX (host) | SSL/TLS + roteamento de tráfego |
+| Serviço         | Tecnologia           | Função                                               |
+| --------------- | -------------------- | ---------------------------------------------------- |
+| API             | NestJS (Node.js 22)  | HTTP, casos de uso, producers e escrita da outbox    |
+| Worker          | NestJS (Node.js 22)  | Outbox, eventos, reconciliação e jobs BullMQ         |
+| Banco de dados  | PostgreSQL 16 no RDS | Persistência de dados externa ao Compose             |
+| Cache e sessões | Redis 7              | Cache, sessões e rate limit                          |
+| Filas           | Redis 7              | Backend dedicado do BullMQ com política `noeviction` |
+| Proxy reverso   | NGINX (host)         | SSL/TLS + roteamento de tráfego                      |
 
 ---
 
@@ -35,29 +37,31 @@ NGINX (host) — porta 80 → redireciona para HTTPS
               — porta 443 → proxy reverso com SSL (Let's Encrypt)
                   │
                   ▼
-           Docker Compose
-           ┌──────────────────────────────────────┐
-           │  API (NestJS)       — porta 3000     │
-           │  Redis cache/sessão — porta 6379     │
+           Docker Compose                         AWS
+           ┌──────────────────────────────────────┐   ┌─────────────────┐
+           │  API (NestJS)       — porta 3000     │──>│ PostgreSQL RDS  │
+           │  Worker (NestJS)    — sem porta HTTP │──>│ endpoint no env │
+           │  Redis cache/sessão — porta 6379     │   └─────────────────┘
            │  Redis BullMQ       — porta 6379 int. │
-           │  PostgreSQL 16      — porta 5432     │
            └──────────────────────────────────────┘
 ```
 
-> **Nota:** O NGINX roda diretamente no host (não em container). Os serviços da aplicação rodam em containers Docker na mesma rede interna (`app-network`). A API só é acessível externamente via NGINX. O Redis de BullMQ deve ficar separado do Redis de cache/sessões para evitar eviction de chaves de jobs.
+> **Nota:** O NGINX roda diretamente no host (não em container). API, worker e Redis rodam em containers na rede interna (`app-network`), enquanto PostgreSQL permanece no RDS e é acessado pelo endpoint definido em `POSTGRES_HOST`. A API só é acessível externamente via NGINX. O Redis de BullMQ deve ficar separado do Redis de cache/sessões para evitar eviction de chaves de jobs.
+
+> Em produção, execute Compose com `-f docker-compose.yml`. O arquivo `docker-compose.override.yml` é exclusivo do desenvolvimento local e adiciona um PostgreSQL em container.
 
 ---
 
 ## Requisitos da VM
 
-| Recurso | Mínimo recomendado |
-|---|---|
-| Sistema Operacional | Ubuntu 22.04 LTS |
-| CPU | 1 vCPU |
-| RAM | 1 GB (a stack usa ~1 GB no total) |
-| Disco | 20 GB |
-| Porta 80 | Aberta no firewall (HTTP) |
-| Porta 443 | Aberta no firewall (HTTPS) |
+| Recurso             | Mínimo recomendado                |
+| ------------------- | --------------------------------- |
+| Sistema Operacional | Ubuntu 22.04 LTS                  |
+| CPU                 | 1 vCPU                            |
+| RAM                 | 1 GB (a stack usa ~1 GB no total) |
+| Disco               | 20 GB                             |
+| Porta 80            | Aberta no firewall (HTTP)         |
+| Porta 443           | Aberta no firewall (HTTPS)        |
 
 ### Software necessário no host
 
@@ -129,6 +133,8 @@ Preencha **todas** as variáveis obrigatórias. As mais críticas são:
 
 ```env
 # PostgreSQL
+POSTGRES_HOST=endpoint-do-rds.amazonaws.com
+POSTGRES_PORT=5432
 POSTGRES_USER=seu_usuario
 POSTGRES_PASSWORD=senha_forte_aqui
 POSTGRES_DB=nome_do_banco
@@ -137,10 +143,21 @@ POSTGRES_DB=nome_do_banco
 REDIS_PASSWORD=senha_forte_redis
 
 # Redis dedicado para BullMQ
+BULLMQ_REDIS_HOST=bullmq-redis
+BULLMQ_REDIS_PORT=6379
 BULLMQ_REDIS_PASSWORD=senha_forte_bullmq
 BULLMQ_REDIS_DB=0
 BULLMQ_PREFIX=personal-finance
-BULLMQ_WORKERS_ENABLED=true
+
+# Worker/outbox
+OUTBOX_POLL_INTERVAL_MS=1000
+OUTBOX_BATCH_SIZE=25
+OUTBOX_CONCURRENCY=5
+OUTBOX_LEASE_MS=30000
+OUTBOX_LEASE_RENEW_INTERVAL_MS=10000
+WORKER_SHUTDOWN_TIMEOUT_MS=30000
+WORKER_HEARTBEAT_INTERVAL_MS=10000
+WORKER_HEARTBEAT_TTL_MS=30000
 
 # JWT (gere strings longas e aleatórias)
 JWT_ACCESS_SECRET=...
@@ -164,13 +181,13 @@ openssl rand -base64 48
 ## 4. Subir a aplicação com Docker Compose
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml up -d --build
 ```
 
 Verifique se todos os containers estão rodando:
 
 ```bash
-docker compose ps
+docker compose -f docker-compose.yml ps
 ```
 
 Você deve ver os serviços principais com status `running`/`healthy`:
@@ -178,6 +195,7 @@ Você deve ver os serviços principais com status `running`/`healthy`:
 ```
 NAME                     STATUS
 personal-finance-api     Up
+personal-finance-worker  Up (healthy)
 personal-finance-db      Up
 personal-finance-redis   Up
 personal-finance-bullmq-redis Up
@@ -186,8 +204,16 @@ personal-finance-bullmq-redis Up
 Acompanhe os logs da API em tempo real:
 
 ```bash
-docker compose logs -f api
+docker compose -f docker-compose.yml logs -f api
 ```
+
+Acompanhe o processamento assíncrono:
+
+```bash
+docker compose -f docker-compose.yml logs -f worker
+```
+
+API e worker usam a mesma imagem, mas commands e `PROCESS_ROLE` distintos. Somente a API publica porta. Em produção, injete JWT/OAuth/CSRF apenas na API e credenciais de mail/Brevo apenas no worker; ambos ainda precisam das configurações compartilhadas de PostgreSQL, Redis, BullMQ, storage e URLs usadas pelas intenções.
 
 ---
 
@@ -237,6 +263,7 @@ sudo certbot --nginx -d seu-dominio.com
 ```
 
 O Certbot irá:
+
 - Validar o domínio via HTTP
 - Emitir o certificado Let's Encrypt
 - Ajustar automaticamente a configuração do NGINX para HTTPS
@@ -270,6 +297,7 @@ Resposta esperada (`200 OK`):
 ### `GET /health/readiness`
 
 Verifica se a aplicação está **pronta para receber tráfego**. Checa ativamente:
+
 - Conectividade com o **PostgreSQL** (ping com timeout de 300ms)
 - Uso de **memória heap** da API (limite: 300 MB)
 - Conectividade com o **Redis**
@@ -295,16 +323,40 @@ Se qualquer dependência falhar, o endpoint retorna `503 Service Unavailable` co
 
 > Use o **liveness** para configurar o health check do NGINX ou de um monitor de uptime. Use o **readiness** para diagnosticar problemas de conectividade entre os serviços.
 
+### Worker
+
+O worker não abre endpoint HTTP. O Compose executa dentro do container:
+
+```bash
+npm run health:worker
+```
+
+O comando verifica PostgreSQL, os dois Redis e o heartbeat da instância, retornando código diferente de zero em falha. O runbook com consultas e alertas está em [Worker operations](./platform/worker-operations.md).
+
+## 8. Rollout E Rollback
+
+Para migrar sem janela sem consumers:
+
+1. aplique migrations compatíveis, quando existirem;
+2. publique a imagem única;
+3. inicie o worker novo e valide heartbeat, outbox e BullMQ;
+4. substitua a API pela root sem consumers;
+5. monitore backlog, mensagens `DEAD` e jobs falhos.
+
+Uma sobreposição curta com a versão anterior é tolerada por `SKIP LOCKED`, leases e idempotência. No rollback, pare o worker novo, restaure a imagem anterior e preserve PostgreSQL, Redis cache e Redis BullMQ. Não remova volumes nem limpe filas/outbox.
+
 ---
 
 ## Comandos úteis
 
-| Ação | Comando |
-|---|---|
-| Ver logs da API | `docker compose logs -f api` |
-| Reiniciar a API | `docker compose restart api` |
-| Parar tudo | `docker compose down` |
-| Atualizar a aplicação | `git pull && docker compose up -d --build` |
-| Acessar o banco | `docker exec -it personal-finance-db psql -U <POSTGRES_USER> -d <POSTGRES_DB>` |
-| Acessar o Redis CLI | `docker exec -it personal-finance-redis redis-cli -a <REDIS_PASSWORD>` |
+| Ação                       | Comando                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------ |
+| Ver logs da API            | `docker compose -f docker-compose.yml logs -f api`                                   |
+| Ver logs do worker         | `docker compose -f docker-compose.yml logs -f worker`                                |
+| Reiniciar a API            | `docker compose -f docker-compose.yml restart api`                                   |
+| Reiniciar o worker         | `docker compose -f docker-compose.yml restart worker`                                |
+| Parar tudo                 | `docker compose -f docker-compose.yml down`                                          |
+| Atualizar a aplicação      | `git pull && docker compose -f docker-compose.yml up -d --build`                     |
+| Acessar o banco            | `docker exec -it personal-finance-db psql -U <POSTGRES_USER> -d <POSTGRES_DB>`       |
+| Acessar o Redis CLI        | `docker exec -it personal-finance-redis redis-cli -a <REDIS_PASSWORD>`               |
 | Acessar o Redis BullMQ CLI | `docker exec -it personal-finance-bullmq-redis redis-cli -a <BULLMQ_REDIS_PASSWORD>` |

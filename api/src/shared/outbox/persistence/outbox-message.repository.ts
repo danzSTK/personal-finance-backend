@@ -111,27 +111,50 @@ export class OutboxMessageRepository {
     });
   }
 
-  async markPublished(id: string): Promise<void> {
-    await this.repository.update(id, {
-      status: OutboxMessageStatus.PUBLISHED,
-      lockedBy: null,
-      lockedUntil: null,
-      lastError: null,
-      publishedAt: new Date(),
-    });
+  async markPublished(id: string, lockedBy: string): Promise<boolean> {
+    const result = await this.repository.update(
+      { id, status: OutboxMessageStatus.PROCESSING, lockedBy },
+      {
+        status: OutboxMessageStatus.PUBLISHED,
+        lockedBy: null,
+        lockedUntil: null,
+        lastError: null,
+        publishedAt: new Date(),
+      },
+    );
+
+    return result.affected === 1;
   }
 
-  async markFailed(message: OutboxMessageOrmEntity, error: unknown): Promise<void> {
+  async markFailed(message: OutboxMessageOrmEntity, lockedBy: string, error: unknown): Promise<boolean> {
     const status = message.attempts >= message.maxAttempts ? OutboxMessageStatus.DEAD : OutboxMessageStatus.FAILED;
     const nextRetryAt = status === OutboxMessageStatus.FAILED ? this.calculateNextRetryAt(message.attempts) : null;
 
-    await this.repository.update(message.id, {
-      status,
-      lockedBy: null,
-      lockedUntil: null,
-      lastError: this.serializeError(error),
-      nextRetryAt: status === OutboxMessageStatus.DEAD ? null : nextRetryAt,
-    });
+    const result = await this.repository.update(
+      { id: message.id, status: OutboxMessageStatus.PROCESSING, lockedBy },
+      {
+        status,
+        lockedBy: null,
+        lockedUntil: null,
+        lastError: this.serializeError(error),
+        nextRetryAt: status === OutboxMessageStatus.DEAD ? null : nextRetryAt,
+      },
+    );
+
+    return result.affected === 1;
+  }
+
+  async extendLease(id: string, lockedBy: string, lockForMs: number): Promise<boolean> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(OutboxMessageOrmEntity)
+      .set({ lockedUntil: () => `NOW() + (${lockForMs} * INTERVAL '1 millisecond')` })
+      .where('id = :id', { id })
+      .andWhere('status = :status', { status: OutboxMessageStatus.PROCESSING })
+      .andWhere('locked_by = :lockedBy', { lockedBy })
+      .execute();
+
+    return result.affected === 1;
   }
 
   private serializeError(error: unknown): string {

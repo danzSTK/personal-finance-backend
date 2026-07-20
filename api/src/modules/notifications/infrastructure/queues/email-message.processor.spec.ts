@@ -7,6 +7,7 @@ import {
 } from '@/modules/notifications/infrastructure/queues/email-job.constants';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import { QueueConfig } from '@/config/queue.config';
 
 describe('EmailMessageProcessor', () => {
   let sendEmailMessageUseCase: jest.Mocked<SendEmailMessageUseCase>;
@@ -22,7 +23,10 @@ describe('EmailMessageProcessor', () => {
     sendEmailMessageUseCase = {
       execute,
     } as unknown as jest.Mocked<SendEmailMessageUseCase>;
-    processor = new EmailMessageProcessor(sendEmailMessageUseCase);
+    const queueConfig = {
+      workers: { defaultConcurrency: 2 },
+    } as QueueConfig;
+    processor = new EmailMessageProcessor(sendEmailMessageUseCase, queueConfig);
   });
 
   afterEach(() => {
