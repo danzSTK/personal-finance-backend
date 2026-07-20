@@ -51,3 +51,16 @@ O baseline global mistura camadas com alvos diferentes; o projeto define metas d
 
 Impact:
 Thresholds por caminho/camada ficam para uma evolucao posterior da CI.
+
+## DEC-005 - Usar Configuracao Ficticia No Job De Testes
+
+Status: accepted
+
+Decision:
+Declarar no job `tests` valores locais ficticios para todas as variaveis obrigatorias validadas pelo `ConfigModule`.
+
+Reason:
+O Jest coleta cobertura de arquivos nao importados diretamente pelas suites e pode carregar a configuracao global. O runner nao possui o `.env` de desenvolvimento.
+
+Impact:
+Os testes reproduzem a validacao de configuracao sem armazenar secrets ou acessar servicos externos; e-mail permanece desabilitado e os endpoints apontam para `localhost`.

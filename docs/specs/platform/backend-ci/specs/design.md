@@ -41,6 +41,8 @@ Os jobs nao usam `needs`, portanto uma falha nao impede as demais validacoes de 
 
 `npm run test:cov` gera o relatorio e mostra o resumo nos logs. Nesta fase nao existe `coverageThreshold`; os alvos por camada devem ser definidos em trabalho posterior, sem aplicar 90% como limite global indiscriminado.
 
+O job `tests` declara valores ficticios para as variaveis obrigatorias do `ConfigModule`. Isso e necessario porque a coleta de cobertura analisa arquivos fora do caminho executado pelas suites e aciona a validacao Joi. Os valores existem somente no runner, nao sao secrets e mantem provedores externos desabilitados.
+
 ## Testes De Integracao
 
 O script `test:integration` executa build e Jest em modo sequencial. Testcontainers controla imagens, portas e limpeza de PostgreSQL, Redis e Toxiproxy; nao sao declarados `services` duplicados no GitHub Actions.

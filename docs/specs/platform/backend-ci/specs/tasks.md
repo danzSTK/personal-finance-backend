@@ -7,6 +7,6 @@
 - [x] 5. Configurar Node.js 22, cache npm, permissoes e concorrencia.
 - [x] 6. Excluir alteracoes somente de documentacao dos gatilhos automaticos.
 - [x] 7. Criar exemplo didatico comentado em `docs/platform/`.
-- [ ] 8. Validar o workflow em uma draft PR contra `develop`.
+- [x] 8. Abrir o workflow em uma draft PR contra `develop` e corrigir a configuracao exigida pelo job de testes.
 - [ ] 9. Decidir quando e como os jobs se tornarao checks obrigatorios.
 - [ ] 10. Planejar a fase de build de imagem e deploy em workflow separado.

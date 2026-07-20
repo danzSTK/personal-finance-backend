@@ -77,6 +77,38 @@ jobs:
     name: Unit and E2E tests
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      NODE_ENV: "test"
+      PROCESS_ROLE: "api"
+      POSTGRES_HOST: "localhost"
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: "ci-user"
+      POSTGRES_PASSWORD: "ci-password"
+      POSTGRES_DB: "ci-database"
+      JWT_ACCESS_SECRET: "ci-access-secret-with-at-least-32-characters"
+      JWT_REFRESH_SECRET: "ci-refresh-secret-with-at-least-32-characters"
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_EXPIRES_IN: "7d"
+      GOOGLE_CLIENT_ID: "ci-google-client-id"
+      GOOGLE_CLIENT_SECRET: "ci-google-client-secret"
+      GOOGLE_CALLBACK_URL: "http://localhost:3000/auth/google/callback"
+      GOOGLE_LINK_CALLBACK_URI: "http://localhost:3000/auth/providers/link/google/callback"
+      REDIS_HOST: "localhost"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "ci-redis-password"
+      BULLMQ_REDIS_HOST: "localhost"
+      MAIL_ENABLED: "false"
+      MAIL_PROVIDER: "noop"
+      R2_ENDPOINT: "http://localhost:9000"
+      R2_ACCOUNT_ID: "ci-account-id"
+      R2_ACCESS_KEY_ID: "ci-access-key-id"
+      R2_SECRET_ACCESS_KEY: "ci-secret-access-key"
+      R2_PUBLIC_BUCKET_NAME: "ci-public-bucket"
+      R2_PRIVATE_BUCKET_NAME: "ci-private-bucket"
+      R2_PUBLIC_BASE_URL: "http://localhost:9000/public"
+      CSRF_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+      FRONTEND_URL: "http://localhost:5173"
+      APP_URL: "http://localhost:3000"
 
     steps:
       - name: Checkout repository
