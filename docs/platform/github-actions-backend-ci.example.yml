@@ -1,0 +1,330 @@
+# EXEMPLO DIDATICO DE CI PARA O BACKEND
+#
+# Este arquivo esta em docs/ e, por isso, NAO e executado pelo GitHub Actions.
+# O GitHub so executa workflows versionados dentro de .github/workflows/.
+#
+# Objetivo deste exemplo:
+# - validar formatacao, lint, tipos e build;
+# - executar testes unitarios com relatorio de cobertura;
+# - executar o teste E2E atual;
+# - executar testes de integracao com PostgreSQL, Redis e Toxiproxy reais;
+# - construir e iniciar a imagem real da API e do worker via Docker Compose;
+# - manter CI e deploy como responsabilidades separadas.
+#
+# Situacao conhecida em 2026-07-20:
+# - format:check, lint:check, typecheck e build passam;
+# - os testes unitarios, E2E e de integracao passam;
+# - a cobertura e apenas publicada como artefato; ainda nao existe threshold no Jest.
+
+name: Backend CI
+
+# "on" define quais eventos iniciam o workflow.
+# Os filtros evitam executar a CI em mudancas somente de documentacao.
+# Se os jobs virarem checks obrigatorios, essa decisao precisa ser revisada:
+# um workflow ignorado por filtro pode permanecer pendente no pull request.
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - "api/**"
+      - "docker-compose.yml"
+      - ".env.exemple"
+      - ".github/compose/backend-ci.override.yml"
+      - ".github/workflows/backend-ci.yml"
+      - "!**/*.md"
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - "api/**"
+      - "docker-compose.yml"
+      - ".env.exemple"
+      - ".github/compose/backend-ci.override.yml"
+      - ".github/workflows/backend-ci.yml"
+      - "!**/*.md"
+  workflow_dispatch:
+
+# Se novos commits chegarem ao mesmo PR/branch, a execucao antiga da CI e
+# cancelada. Isso economiza tempo porque somente o commit mais recente importa.
+# Esta politica e apropriada para CI, mas nao deve ser copiada automaticamente
+# para deploy de producao.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Principio do menor privilegio: esta CI so precisa ler o repositorio.
+# O futuro workflow de deploy tera permissoes proprias e separadas.
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+
+# "defaults.run" vale para steps que usam "run".
+# Nao afeta actions declaradas com "uses" nem os caminhos passados em "with".
+defaults:
+  run:
+    shell: bash
+    working-directory: api
+
+jobs:
+  # Job 1: verificacoes estaticas e compilacao.
+  # Ele nao inicia banco, Redis ou a aplicacao.
+  quality:
+    name: Quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      # Cada item de "steps" comeca com um unico hifen.
+      # "name" e "uses" pertencem ao mesmo item.
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # setup-node instala/seleciona o Node 22 e configura o cache de downloads
+      # do npm. Ele nao guarda node_modules entre jobs.
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          # Actions executadas com "uses" enxergam caminhos a partir da raiz.
+          cache-dependency-path: api/package-lock.json
+
+      # npm ci usa exatamente as versoes registradas no package-lock.json.
+      # Em CI ele e preferivel a npm install.
+      - name: Install dependencies
+        run: npm ci
+
+      # Usamos os comandos ":check" porque eles apenas validam.
+      # npm run format e npm run lint alterariam arquivos.
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Check lint
+        run: npm run lint:check
+
+      # Este check cobre tambem os arquivos de teste, ao contrario do build.
+      - name: Check TypeScript types
+        run: npm run typecheck
+
+      # Garante que o Nest consegue gerar dist/main.js, dist/worker.js e
+      # dist/worker-health.js.
+      - name: Build application
+        run: npm run build
+
+  # Job 2: testes que nao dependem de Docker nem de servicos externos reais.
+  tests:
+    name: Unit and E2E tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    # O coverage analisa tambem arquivos que nao foram importados diretamente
+    # pelos testes. Ao carregar o ConfigModule, o Joi valida estas variaveis.
+    # Os valores abaixo sao ficticios, existem apenas durante este job e nao
+    # concedem acesso a nenhum ambiente ou servico externo.
+    env:
+      NODE_ENV: "test"
+      PROCESS_ROLE: "api"
+      POSTGRES_HOST: "localhost"
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: "ci-user"
+      POSTGRES_PASSWORD: "ci-password"
+      POSTGRES_DB: "ci-database"
+      JWT_ACCESS_SECRET: "ci-access-secret-with-at-least-32-characters"
+      JWT_REFRESH_SECRET: "ci-refresh-secret-with-at-least-32-characters"
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_EXPIRES_IN: "7d"
+      GOOGLE_CLIENT_ID: "ci-google-client-id"
+      GOOGLE_CLIENT_SECRET: "ci-google-client-secret"
+      GOOGLE_CALLBACK_URL: "http://localhost:3000/auth/google/callback"
+      GOOGLE_LINK_CALLBACK_URI: "http://localhost:3000/auth/providers/link/google/callback"
+      REDIS_HOST: "localhost"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "ci-redis-password"
+      BULLMQ_REDIS_HOST: "localhost"
+      MAIL_ENABLED: "false"
+      MAIL_PROVIDER: "noop"
+      R2_ENDPOINT: "http://localhost:9000"
+      R2_ACCOUNT_ID: "ci-account-id"
+      R2_ACCESS_KEY_ID: "ci-access-key-id"
+      R2_SECRET_ACCESS_KEY: "ci-secret-access-key"
+      R2_PUBLIC_BUCKET_NAME: "ci-public-bucket"
+      R2_PRIVATE_BUCKET_NAME: "ci-private-bucket"
+      R2_PUBLIC_BASE_URL: "http://localhost:9000/public"
+      CSRF_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+      FRONTEND_URL: "http://localhost:5173"
+      APP_URL: "http://localhost:3000"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # O projeto ainda nao possui coverageThreshold. Portanto, este comando
+      # falha por teste quebrado, mas nao por percentual baixo de cobertura.
+      - name: Run unit tests with coverage
+        run: npm run test:cov -- --runInBand
+
+      # Hoje existe um E2E simples do endpoint raiz. Ele fica explicito para
+      # podermos ampliar essa suite futuramente sem mudar a estrutura da CI.
+      - name: Run E2E tests
+        run: npm run test:e2e -- --runInBand
+
+      # "uses" nao herda working-directory. O relatorio do Jest fica em
+      # api/coverage, considerando a configuracao atual do package.json.
+      - name: Upload coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: backend-unit-coverage
+          path: api/coverage
+          if-no-files-found: warn
+          retention-days: 7
+
+  # Job 3: testes com infraestrutura real e descartavel.
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # O runner Ubuntu padrao possui Docker. Testcontainers cria e remove:
+      # - PostgreSQL 16;
+      # - Redis 7 para cache;
+      # - Redis 7 para BullMQ;
+      # - Toxiproxy para testes de indisponibilidade e recuperacao.
+      #
+      # Nao declaramos "services" do GitHub Actions porque os proprios testes
+      # controlam o ciclo de vida e as portas desses containers.
+      # O script test:integration ja executa o build e usa --runInBand.
+      - name: Run integration tests
+        run: npm run test:integration
+
+  # Job 4: prova que o artefato que sera implantado realmente constroi e sobe.
+  # Diferente de Testcontainers, API e worker executam dentro da imagem criada
+  # pelo api/Dockerfile e usam a composicao versionada no repositorio.
+  container-smoke:
+    name: Container smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # A fixture contem apenas valores ficticios. O overlay remove nomes fixos,
+      # adiciona PostgreSQL descartavel e isola portas sem usar o override local.
+      CONTAINER_SMOKE_ENV_FILE: api/test/fixtures/container-smoke.env
+      CONTAINER_SMOKE_OVERRIDE: .github/compose/backend-ci.override.yml
+      COMPOSE_PROJECT_NAME: backend-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate Docker Compose
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          config --quiet
+
+      # O build acontece dentro do Dockerfile multi-stage e instala novamente as
+      # dependencias, reproduzindo o artefato que sera publicado no futuro CD.
+      - name: Build application image
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          build api
+
+      - name: Start infrastructure dependencies
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          up --detach --wait --wait-timeout 120 postgres redis bullmq-redis
+
+      # Executar pela imagem tambem valida node_modules de producao, dist e o
+      # data source compilado, sem acessar nenhum banco remoto.
+      - name: Run migrations through the image
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          run --rm --no-deps api npm run migration:run:prod
+
+      # --no-build garante que os processos usam exatamente a imagem validada
+      # no step anterior. --wait observa os health checks do Compose.
+      - name: Start API and worker containers
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          up --detach --no-build --wait --wait-timeout 120 api worker
+
+      - name: Check API readiness
+        run: |
+          api_address="$(docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE" \
+            -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE" \
+            port api 3000)"
+          curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 \
+            "http://${api_address}/health/readiness"
+
+      - name: Check worker health
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          exec --no-TTY worker npm run health:worker
+
+      # Diagnosticos executam antes do cleanup para tornar falhas acionaveis.
+      - name: Show container status on failure
+        if: ${{ failure() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          ps --all
+
+      - name: Show container logs on failure
+        if: ${{ failure() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          logs --no-color
+
+      - name: Remove smoke test resources
+        if: ${{ always() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          down --volumes --remove-orphans
+
+# Deliberadamente fora deste exemplo:
+# - build e publicacao de imagem Docker;
+# - login no GHCR;
+# - migrations em ambiente remoto;
+# - SSH, secrets ou GitHub Environments;
+# - deploy, health check pos-deploy e rollback.
+#
+# Esses itens pertencem ao futuro workflow de CD, com gatilhos e permissoes
+# diferentes dos usados por uma CI que executa codigo vindo de pull requests.

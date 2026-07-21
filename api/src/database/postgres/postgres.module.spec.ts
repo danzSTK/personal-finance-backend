@@ -37,7 +37,11 @@ describe('createPostgresOptions', () => {
       nodeEnv: AppStatus.PRODUCTION,
     } as ConfigType<typeof appConfig>);
 
-    expect(options.logging).toEqual(['error']);
-    expect(options.ssl).toEqual({ rejectUnauthorized: false });
+    expect(options).toEqual(
+      expect.objectContaining({
+        logging: ['error'],
+        ssl: { rejectUnauthorized: false },
+      }),
+    );
   });
 });

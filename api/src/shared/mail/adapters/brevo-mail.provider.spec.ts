@@ -14,7 +14,7 @@ describe('BrevoMailProvider', () => {
     const client: BrevoClientPort = {
       transactionalEmails: {
         sendTransacEmail,
-      } as BrevoClientPort['transactionalEmails'],
+      } as unknown as BrevoClientPort['transactionalEmails'],
     };
 
     provider = new BrevoMailProvider(client);

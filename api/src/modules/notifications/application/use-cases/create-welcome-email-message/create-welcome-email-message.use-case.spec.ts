@@ -16,7 +16,7 @@ import { IUserRepository } from '@/modules/users/domain/repositories/user.respos
 import { ConfigType } from '@nestjs/config';
 import { QueryFailedError } from 'typeorm';
 
-const makeEmailMessage = (status = EmailMessageStatus.PENDING): EmailMessage =>
+const makeEmailMessage = (status: EmailMessageStatus = EmailMessageStatus.PENDING): EmailMessage =>
   EmailMessage.reconstitute(
     {
       type: EmailMessageType.WELCOME,
@@ -73,6 +73,7 @@ describe('CreateWelcomeEmailMessageUseCase', () => {
       findById: jest.fn(),
       findByIdForUpdate: jest.fn(),
       findByIdempotencyKey,
+      findReenqueuableBefore: jest.fn(),
       save: saveEmailMessage,
     };
 

@@ -1,0 +1,238 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - "api/**"
+      - "docker-compose.yml"
+      - ".env.exemple"
+      - ".github/compose/backend-ci.override.yml"
+      - ".github/workflows/backend-ci.yml"
+      - "!**/*.md"
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - "api/**"
+      - "docker-compose.yml"
+      - ".env.exemple"
+      - ".github/compose/backend-ci.override.yml"
+      - ".github/workflows/backend-ci.yml"
+      - "!**/*.md"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+
+defaults:
+  run:
+    shell: bash
+    working-directory: api
+
+jobs:
+  # Job 1: verificacoes estaticas e compilacao.
+  # Ele nao inicia banco, Redis ou a aplicacao.
+  quality:
+    name: Quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Check lint
+        run: npm run lint:check
+
+      - name: Check TypeScript types
+        run: npm run typecheck
+
+      - name: Build application
+        run: npm run build
+
+  # Job 2: testes que nao dependem de Docker nem de servicos externos reais.
+  tests:
+    name: Unit and E2E tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      NODE_ENV: "test"
+      PROCESS_ROLE: "api"
+      POSTGRES_HOST: "localhost"
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: "ci-user"
+      POSTGRES_PASSWORD: "ci-password"
+      POSTGRES_DB: "ci-database"
+      JWT_ACCESS_SECRET: "ci-access-secret-with-at-least-32-characters"
+      JWT_REFRESH_SECRET: "ci-refresh-secret-with-at-least-32-characters"
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_EXPIRES_IN: "7d"
+      GOOGLE_CLIENT_ID: "ci-google-client-id"
+      GOOGLE_CLIENT_SECRET: "ci-google-client-secret"
+      GOOGLE_CALLBACK_URL: "http://localhost:3000/auth/google/callback"
+      GOOGLE_LINK_CALLBACK_URI: "http://localhost:3000/auth/providers/link/google/callback"
+      REDIS_HOST: "localhost"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "ci-redis-password"
+      BULLMQ_REDIS_HOST: "localhost"
+      MAIL_ENABLED: "false"
+      MAIL_PROVIDER: "noop"
+      R2_ENDPOINT: "http://localhost:9000"
+      R2_ACCOUNT_ID: "ci-account-id"
+      R2_ACCESS_KEY_ID: "ci-access-key-id"
+      R2_SECRET_ACCESS_KEY: "ci-secret-access-key"
+      R2_PUBLIC_BUCKET_NAME: "ci-public-bucket"
+      R2_PRIVATE_BUCKET_NAME: "ci-private-bucket"
+      R2_PUBLIC_BASE_URL: "http://localhost:9000/public"
+      CSRF_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+      FRONTEND_URL: "http://localhost:5173"
+      APP_URL: "http://localhost:3000"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm run test:cov -- --runInBand
+
+      - name: Run E2E tests
+        run: npm run test:e2e -- --runInBand
+
+  # Job 3: testes com infraestrutura real e descartavel.
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+  # Job 4: valida o artefato implantavel e a composicao real dos processos.
+  container-smoke:
+    name: Container smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CONTAINER_SMOKE_ENV_FILE: api/test/fixtures/container-smoke.env
+      CONTAINER_SMOKE_OVERRIDE: .github/compose/backend-ci.override.yml
+      COMPOSE_PROJECT_NAME: backend-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate Docker Compose
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          config --quiet
+
+      - name: Build application image
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          build api
+
+      - name: Start infrastructure dependencies
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          up --detach --wait --wait-timeout 120 postgres redis bullmq-redis
+
+      - name: Run migrations through the image
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          run --rm --no-deps api npm run migration:run:prod
+
+      - name: Start API and worker containers
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          up --detach --no-build --wait --wait-timeout 120 api worker
+
+      - name: Check API readiness
+        run: |
+          api_address="$(docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE" \
+            -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE" \
+            port api 3000)"
+          curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 \
+            "http://${api_address}/health/readiness"
+
+      - name: Check worker health
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          exec --no-TTY worker npm run health:worker
+
+      - name: Show container status on failure
+        if: ${{ failure() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          ps --all
+
+      - name: Show container logs on failure
+        if: ${{ failure() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          logs --no-color
+
+      - name: Remove smoke test resources
+        if: ${{ always() }}
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          down --volumes --remove-orphans
