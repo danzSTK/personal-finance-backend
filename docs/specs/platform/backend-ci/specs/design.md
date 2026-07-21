@@ -50,7 +50,7 @@ O script `test:integration` executa build e Jest em modo sequencial. Testcontain
 
 ## Smoke Test De Containers
 
-O job `container-smoke` usa o `api/Dockerfile` e o `docker-compose.yml` de producao para API, worker, Redis de cache e Redis de BullMQ. Como o PostgreSQL de producao e externo, o overlay exclusivo da CI adiciona um PostgreSQL descartavel somente para o smoke test. O `docker-compose.override.yml`, exclusivo do desenvolvimento local, nao participa da CI.
+O job `container-smoke` usa o `api/Dockerfile` e o `docker-compose.yml` de producao para API, worker, Redis de cache e Redis de BullMQ. O Compose base referencia somente a imagem publicada, portanto o overlay exclusivo da CI restaura a configuracao de build e usa uma tag descartavel. Como o PostgreSQL de producao e externo, o overlay tambem adiciona um PostgreSQL descartavel somente para o smoke test. O `docker-compose.override.yml`, exclusivo do desenvolvimento local, nao participa da CI.
 
 O fluxo valida o Compose, constroi a imagem, aguarda as dependencias, executa migrations pela imagem, inicia API e worker e verifica:
 

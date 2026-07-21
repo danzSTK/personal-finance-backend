@@ -1,6 +1,9 @@
 services:
   api:
     image: personal-finance-backend:container-smoke
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     container_name: !reset null
     restart: "no"
     environment:
@@ -16,6 +19,9 @@ services:
 
   worker:
     image: personal-finance-backend:container-smoke
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     container_name: !reset null
     restart: "no"
     environment:
