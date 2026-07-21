@@ -1,4 +1,5 @@
 import { TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
+import { DateOnlyString, toDateOnly } from '@/common/utils/date-only';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import {
   InvalidTransactionError,
@@ -23,8 +24,8 @@ describe('Transaction', () => {
   });
 
   it('rejects invalid date-only strings', () => {
-    expect(() => createTransaction({ date: '2026-02-31' })).toThrow(InvalidTransactionError);
-    expect(() => createTransaction({ date: '2026-6-3' })).toThrow(InvalidTransactionError);
+    expect(() => createTransaction({ date: '2026-02-31' as DateOnlyString })).toThrow(InvalidTransactionError);
+    expect(() => createTransaction({ date: '2026-6-3' as DateOnlyString })).toThrow(InvalidTransactionError);
   });
 
   it('rejects zero or negative amount cents', () => {
@@ -112,7 +113,7 @@ describe('Transaction', () => {
         type: TransactionType.EXPENSE,
         status,
         amountCents: 1990,
-        date: '2026-06-23',
+        date: toDateOnly('2026-06-23'),
         effectiveAt: status === TransactionStatus.EFFECTIVE ? now : null,
         description: 'Mercado',
         direction: null,

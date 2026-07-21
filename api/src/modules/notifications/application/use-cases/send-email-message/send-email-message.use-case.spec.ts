@@ -67,6 +67,7 @@ describe('SendEmailMessageUseCase', () => {
       findById: jest.fn(),
       findByIdForUpdate,
       findByIdempotencyKey: jest.fn(),
+      findReenqueuableBefore: jest.fn(),
       save: saveEmailMessage,
     };
     mailService = {
