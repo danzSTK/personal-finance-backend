@@ -109,6 +109,10 @@ jobs:
     name: Publish multi-architecture image
     needs:
       - build-and-scan
+    outputs:
+      image_ref: ${{ steps.manifest.outputs.image_ref }}
+      release_version: ${{ steps.manifest.outputs.release_version }}
+      release_commit: ${{ steps.manifest.outputs.release_commit }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -134,8 +138,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish release manifest
+        id: manifest
         env:
           DIGEST_DIRECTORY: ${{ runner.temp }}/digests
+          MANIFEST_METADATA_FILE: ${{ runner.temp }}/manifest-metadata.json
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           mapfile -t digests < <(find "$DIGEST_DIRECTORY" -maxdepth 1 -type f -printf '%f\n' | sort)
@@ -157,22 +163,36 @@ jobs:
           docker buildx imagetools create \
             --tag "${IMAGE_NAME}:${RELEASE_TAG}" \
             --tag "${IMAGE_NAME}:sha-${GITHUB_SHA:0:7}" \
+            --metadata-file "$MANIFEST_METADATA_FILE" \
             "${sources[@]}"
+
+          manifest_digest="$(jq -r '."containerimage.descriptor".digest // empty' "$MANIFEST_METADATA_FILE")"
+          if [[ ! "$manifest_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid manifest digest: ${manifest_digest:-missing}" >&2
+            exit 1
+          fi
+
+          {
+            echo "image_ref=${IMAGE_NAME}@${manifest_digest}"
+            echo "release_version=${RELEASE_TAG}"
+            echo "release_commit=${GITHUB_SHA}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Verify published platforms
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          IMAGE_REF: ${{ steps.manifest.outputs.image_ref }}
         run: |
-          docker buildx imagetools inspect "${IMAGE_NAME}:${RELEASE_TAG}" --raw \
+          docker buildx imagetools inspect "$IMAGE_REF" --raw \
             | jq -e '
                 ([.manifests[].platform | "\(.os)/\(.architecture)"] | index("linux/amd64") != null)
                 and
                 ([.manifests[].platform | "\(.os)/\(.architecture)"] | index("linux/arm64") != null)
               '
-          docker buildx imagetools inspect "${IMAGE_NAME}:${RELEASE_TAG}"
+          docker buildx imagetools inspect "$IMAGE_REF"
 
       - name: Write publication summary
         env:
+          IMAGE_REF: ${{ steps.manifest.outputs.image_ref }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           {
@@ -180,5 +200,170 @@ jobs:
             echo ""
             echo "- \`${IMAGE_NAME}:${RELEASE_TAG}\`"
             echo "- \`${IMAGE_NAME}:sha-${GITHUB_SHA:0:7}\`"
+            echo "- \`${IMAGE_REF}\`"
             echo "- Platforms: \`linux/amd64\`, \`linux/arm64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-production:
+    name: Deploy to production
+    needs:
+      - publish-manifest
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    concurrency:
+      group: production-backend-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    env:
+      IMAGE_REF: ${{ needs.publish-manifest.outputs.image_ref }}
+      RELEASE_VERSION: ${{ needs.publish-manifest.outputs.release_version }}
+      RELEASE_COMMIT: ${{ needs.publish-manifest.outputs.release_commit }}
+      PRODUCTION_HOST: ${{ vars.PRODUCTION_HOST }}
+      PRODUCTION_SSH_USER: ${{ vars.PRODUCTION_SSH_USER }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+
+    steps:
+      - name: Validate deployment configuration
+        run: |
+          if [[ ! "$IMAGE_REF" =~ ^ghcr\.io/danzstk/personal-finance-backend@sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid or missing IMAGE_REF." >&2
+            exit 1
+          fi
+          if [[ ! "$RELEASE_VERSION" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Invalid or missing RELEASE_VERSION." >&2
+            exit 1
+          fi
+          if [[ ! "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid or missing RELEASE_COMMIT." >&2
+            exit 1
+          fi
+          if [[ ! "$PRODUCTION_HOST" =~ ^[a-z0-9.-]+$ ]]; then
+            echo "Invalid or missing PRODUCTION_HOST." >&2
+            exit 1
+          fi
+          if [[ "$PRODUCTION_SSH_USER" != "deploy" ]]; then
+            echo "PRODUCTION_SSH_USER must be deploy." >&2
+            exit 1
+          fi
+          if [[ "$PRODUCTION_URL" != "https://api.danfy.app" ]]; then
+            echo "PRODUCTION_URL must be https://api.danfy.app." >&2
+            exit 1
+          fi
+
+          mkdir -p "$RUNNER_TEMP/deployment-diagnostics"
+
+      - name: Connect ephemeral runner to Tailscale
+        id: tailscale
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:github-deploy
+          ping: ${{ vars.PRODUCTION_HOST }}
+
+      - name: Validate remote identity and privileges
+        run: |
+          remote_identity="$(ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
+            'id -un')"
+
+          if [[ "$remote_identity" != "deploy" ]]; then
+            echo "Unexpected remote identity: $remote_identity" >&2
+            exit 1
+          fi
+
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
+            'if id -nG | tr " " "\n" | grep -qx docker; then exit 1; fi; sudo -n -l /usr/local/sbin/danfy-backend-deploy >/dev/null'
+
+      - name: Deploy immutable image
+        id: deploy
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USERNAME: ${{ github.actor }}
+        run: |
+          {
+            printf '%s\n' "$GHCR_USERNAME"
+            printf '%s\n' "$GHCR_TOKEN"
+          } | ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
+            "sudo -n /usr/local/sbin/danfy-backend-deploy deploy '${IMAGE_REF}' '${RELEASE_VERSION}' '${RELEASE_COMMIT}'" \
+            2>&1 | tee "$RUNNER_TEMP/deployment-diagnostics/deploy.log"
+
+      - name: Validate external readiness
+        id: external_health
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --retry 12 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            "${PRODUCTION_URL}/health/readiness"
+
+      - name: Roll back after external health failure
+        id: external_rollback
+        if: ${{ always() && steps.deploy.outcome == 'success' && steps.external_health.outcome == 'failure' }}
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USERNAME: ${{ github.actor }}
+        run: |
+          {
+            printf '%s\n' "$GHCR_USERNAME"
+            printf '%s\n' "$GHCR_TOKEN"
+          } | ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
+            'sudo -n /usr/local/sbin/danfy-backend-deploy rollback previous' \
+            2>&1 | tee "$RUNNER_TEMP/deployment-diagnostics/rollback.log"
+
+      - name: Collect remote deployment status
+        if: ${{ always() && steps.tailscale.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
+            'sudo -n /usr/local/sbin/danfy-backend-deploy status' \
+            | tee "$RUNNER_TEMP/deployment-diagnostics/deployment-status.json"
+
+      - name: Upload deployment diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: production-deploy-${{ github.event.release.tag_name }}
+          path: ${{ runner.temp }}/deployment-diagnostics
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Write deployment summary
+        if: ${{ success() }}
+        run: |
+          {
+            echo "### Production deployment"
+            echo ""
+            echo "- Version: \`${RELEASE_VERSION}\`"
+            echo "- Image: \`${IMAGE_REF}\`"
+            echo "- Commit: \`${RELEASE_COMMIT}\`"
+            echo "- URL: ${PRODUCTION_URL}"
           } >> "$GITHUB_STEP_SUMMARY"

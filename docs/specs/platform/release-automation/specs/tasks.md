@@ -9,4 +9,5 @@
 - [x] 7. Validar sintaxe e consistencia dos arquivos locais.
 - [ ] 8. Validar a execucao real depois que o workflow chegar a `main`.
 - [x] 9. Projetar e implementar a publicacao de imagem em `backend-cd.yml`.
-- [ ] 10. Integrar o deploy remoto ao `backend-cd.yml` em fase posterior.
+- [x] 10. Integrar o deploy remoto ao `backend-cd.yml`.
+- [ ] 11. Validar a primeira release e o deploy em produção.

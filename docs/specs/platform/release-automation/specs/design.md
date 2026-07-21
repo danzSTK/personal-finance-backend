@@ -7,7 +7,7 @@ A automacao permanece separada em tres responsabilidades:
 ```text
 backend-ci.yml       -> valida o codigo
 release-please.yml   -> mantem PR, versao, changelog, tag e GitHub Release
-backend-cd.yml       -> publica a imagem; recebera o deploy remoto em seguida
+backend-cd.yml       -> publica a imagem e orquestra o deploy remoto
 ```
 
 `release-please.yml` executa em todo push para `main`. Como a ruleset exige pull request, esse push e o resultado de um merge aprovado.
@@ -55,7 +55,7 @@ CI + revisao + merge pelo maintainer
 Release Please cria v0.1.0 + GitHub Release publicada
        |
        v
-backend-cd.yml recebe release.published e publica a imagem multi-arquitetura
+backend-cd.yml recebe release.published, publica a imagem e aguarda o deploy
 ```
 
 ## Concorrencia E Recuperacao
