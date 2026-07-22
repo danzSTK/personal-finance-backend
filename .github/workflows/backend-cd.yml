@@ -272,9 +272,8 @@ jobs:
 
       - name: Validate remote identity and privileges
         run: |
-          remote_identity="$(tailscale ssh \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+          remote_identity="$(timeout --signal=TERM --kill-after=5s 20s \
+            tailscale ssh \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
             'id -un')"
 
@@ -283,9 +282,8 @@ jobs:
             exit 1
           fi
 
-          tailscale ssh \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+          timeout --signal=TERM --kill-after=5s 20s \
+            tailscale ssh \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
             'if id -nG | tr " " "\n" | grep -qx docker; then exit 1; fi; sudo -n -l /usr/local/sbin/danfy-backend-deploy >/dev/null'
 
@@ -295,16 +293,15 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USERNAME: ${{ github.actor }}
         run: |
+          set -o pipefail
+
           {
             printf '%s\n' "$GHCR_USERNAME"
             printf '%s\n' "$GHCR_TOKEN"
-          } | tailscale ssh \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            -o ServerAliveInterval=15 \
-            -o ServerAliveCountMax=3 \
-            "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
-            "sudo -n /usr/local/sbin/danfy-backend-deploy deploy '${IMAGE_REF}' '${RELEASE_VERSION}' '${RELEASE_COMMIT}'" \
+          } | timeout --signal=TERM --kill-after=10s 20m \
+              tailscale ssh \
+              "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
+              "sudo -n /usr/local/sbin/danfy-backend-deploy deploy '${IMAGE_REF}' '${RELEASE_VERSION}' '${RELEASE_COMMIT}'" \
             2>&1 | tee "$RUNNER_TEMP/deployment-diagnostics/deploy.log"
 
       - name: Validate external readiness
@@ -326,25 +323,25 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USERNAME: ${{ github.actor }}
         run: |
+          set -o pipefail
+
           {
             printf '%s\n' "$GHCR_USERNAME"
             printf '%s\n' "$GHCR_TOKEN"
-          } | tailscale ssh \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            -o ServerAliveInterval=15 \
-            -o ServerAliveCountMax=3 \
-            "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
-            'sudo -n /usr/local/sbin/danfy-backend-deploy rollback previous' \
+          } | timeout --signal=TERM --kill-after=10s 10m \
+              tailscale ssh \
+              "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
+              'sudo -n /usr/local/sbin/danfy-backend-deploy rollback previous' \
             2>&1 | tee "$RUNNER_TEMP/deployment-diagnostics/rollback.log"
 
       - name: Collect remote deployment status
         if: ${{ always() && steps.tailscale.outcome == 'success' }}
         continue-on-error: true
         run: |
-          tailscale ssh \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+          set -o pipefail
+
+          timeout --signal=TERM --kill-after=5s 20s \
+            tailscale ssh \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
             'sudo -n /usr/local/sbin/danfy-backend-deploy status' \
             | tee "$RUNNER_TEMP/deployment-diagnostics/deployment-status.json"
