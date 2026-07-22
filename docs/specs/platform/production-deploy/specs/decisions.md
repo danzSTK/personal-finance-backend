@@ -64,3 +64,16 @@ Permite diagnóstico sem conceder acesso Docker ou SSH adicional ao runner.
 
 Impact:
 Credenciais continuam fora dos logs porque atravessam apenas stdin.
+
+## DEC-006 - Validar O Host Remoto Pelo Tailscale SSH
+
+Status: accepted
+
+Decision:
+Executar todas as sessões remotas com `tailscale ssh` em vez de desabilitar `StrictHostKeyChecking` ou confiar em um `known_hosts` preenchido durante o job.
+
+Reason:
+O runner de produção é efêmero e inicia sem chaves conhecidas. O wrapper valida automaticamente a chave SSH do destino contra a chave anunciada pelo nó no control plane do Tailscale.
+
+Impact:
+O deploy preserva verificação de identidade do host sem armazenar uma chave fixa no GitHub ou aceitar silenciosamente qualquer chave apresentada.

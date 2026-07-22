@@ -31,6 +31,7 @@ O executor na VM confirma novamente os labels `org.opencontainers.image.version`
 - Secrets Tailscale disponíveis somente pelo Environment `production`.
 - `GITHUB_TOKEN` e nome do ator atravessam stdin e não aparecem na linha de comando.
 - Referências, URL, host e usuário remoto são validados antes do deploy.
+- Todas as sessões remotas usam `tailscale ssh`, que valida a chave SSH anunciada pelo nó no control plane e funciona em runners efêmeros sem desabilitar a verificação de host.
 - O usuário remoto continua sem grupo Docker e com sudo restrito ao executor.
 - A tag Tailscale do runner continua `tag:github-deploy`.
 

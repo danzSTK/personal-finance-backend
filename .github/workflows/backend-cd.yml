@@ -272,7 +272,7 @@ jobs:
 
       - name: Validate remote identity and privileges
         run: |
-          remote_identity="$(ssh \
+          remote_identity="$(tailscale ssh \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
@@ -283,7 +283,7 @@ jobs:
             exit 1
           fi
 
-          ssh \
+          tailscale ssh \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \
@@ -298,7 +298,7 @@ jobs:
           {
             printf '%s\n' "$GHCR_USERNAME"
             printf '%s\n' "$GHCR_TOKEN"
-          } | ssh \
+          } | tailscale ssh \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             -o ServerAliveInterval=15 \
@@ -329,7 +329,7 @@ jobs:
           {
             printf '%s\n' "$GHCR_USERNAME"
             printf '%s\n' "$GHCR_TOKEN"
-          } | ssh \
+          } | tailscale ssh \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             -o ServerAliveInterval=15 \
@@ -342,7 +342,7 @@ jobs:
         if: ${{ always() && steps.tailscale.outcome == 'success' }}
         continue-on-error: true
         run: |
-          ssh \
+          tailscale ssh \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_HOST}" \

@@ -10,3 +10,4 @@
 - [x] 8. Validar Prettier, `actionlint`, ShellCheck e testes locais.
 - [x] 9. Publicar os commits no backend e no `danfy-infra`.
 - [ ] 10. Validar conectividade e primeiro deploy após merge e aprovação de produção.
+- [x] 11. Usar `tailscale ssh` para verificar a chave do host em runners efêmeros.
