@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/danzSTK/personal-finance-backend/compare/v0.1.2...v0.1.3) (2026-07-22)
+
+
+### Bug Fixes
+
+* **cd:** corrige chamada do tailscale ssh ([#48](https://github.com/danzSTK/personal-finance-backend/issues/48)) ([2fbdb7c](https://github.com/danzSTK/personal-finance-backend/commit/2fbdb7c93387e1768e384d96130567c20b4b76ab))
+
 ## [0.1.2](https://github.com/danzSTK/personal-finance-backend/compare/v0.1.1...v0.1.2) (2026-07-22)
 
 
