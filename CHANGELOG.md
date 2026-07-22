@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/danzSTK/personal-finance-backend/compare/v0.1.1...v0.1.2) (2026-07-22)
+
+
+### Bug Fixes
+
+* **cd:** valida host com tailscale ssh ([#46](https://github.com/danzSTK/personal-finance-backend/issues/46)) ([b5d3dce](https://github.com/danzSTK/personal-finance-backend/commit/b5d3dce086806cd70bcad5c12688c324aa844156))
+
 ## [0.1.1](https://github.com/danzSTK/personal-finance-backend/compare/v0.1.0...v0.1.1) (2026-07-22)
 
 
