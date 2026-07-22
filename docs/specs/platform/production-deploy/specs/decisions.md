@@ -77,3 +77,16 @@ O runner de produção é efêmero e inicia sem chaves conhecidas. O wrapper val
 
 Impact:
 O deploy preserva verificação de identidade do host sem armazenar uma chave fixa no GitHub ou aceitar silenciosamente qualquer chave apresentada.
+
+## DEC-007 - Delimitar Sessões Remotas Fora Do Wrapper SSH
+
+Status: accepted
+
+Decision:
+Passar `usuário@host` como primeiro argumento de `tailscale ssh` e aplicar limites de duração com GNU `timeout`, sem opções OpenSSH `-o`. Ativar `pipefail` nas sessões cuja saída atravessa `tee`.
+
+Reason:
+O wrapper do Tailscale aceita o destino como primeiro argumento e configura internamente o OpenSSH seguro. Argumentos `-o` antes do destino são rejeitados pelo parser; depois do destino seriam interpretados como parte do comando remoto. Sem `pipefail`, o sucesso de `tee` poderia ocultar uma falha do executor.
+
+Impact:
+Conexões travadas são encerradas dentro do limite adequado a cada operação, e qualquer código não zero do Tailscale, SSH ou executor permanece visível ao GitHub Actions.

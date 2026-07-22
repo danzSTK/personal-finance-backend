@@ -31,7 +31,7 @@ O executor na VM confirma novamente os labels `org.opencontainers.image.version`
 - Secrets Tailscale disponíveis somente pelo Environment `production`.
 - `GITHUB_TOKEN` e nome do ator atravessam stdin e não aparecem na linha de comando.
 - Referências, URL, host e usuário remoto são validados antes do deploy.
-- Todas as sessões remotas usam `tailscale ssh`, que valida a chave SSH anunciada pelo nó no control plane e funciona em runners efêmeros sem desabilitar a verificação de host.
+- Todas as sessões remotas usam `tailscale ssh`, com `usuário@host` como primeiro argumento, para validar a chave SSH anunciada pelo nó no control plane sem desabilitar a verificação de host.
 - O usuário remoto continua sem grupo Docker e com sudo restrito ao executor.
 - A tag Tailscale do runner continua `tag:github-deploy`.
 
@@ -41,7 +41,7 @@ O executor aceita nomes normais do GitHub e o sufixo sintético `[bot]`, necess�
 
 O build pode ocorrer por release, mas o job de deploy usa o grupo fixo `production-backend-deploy` com `cancel-in-progress: false`. Assim, releases concorrentes aguardam em vez de interromper uma migration ou ativação.
 
-O timeout do job limita conexão, deploy, health check e diagnóstico. O host mantém um segundo controle de exclusividade por `flock`.
+O timeout do job limita toda a implantação. Cada sessão remota também é delimitada pelo `timeout` do runner: 20 segundos para validação e status, 20 minutos para deploy e 10 minutos para rollback. Pipelines que preservam logs com `tee` usam `pipefail`, garantindo que a falha do comando remoto determine o resultado do step. O host mantém um segundo controle de exclusividade por `flock`.
 
 ## Saúde E Rollback
 
