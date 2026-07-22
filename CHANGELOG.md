@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/danzSTK/personal-finance-backend/compare/v0.1.0...v0.1.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* **cd:** corrige scan multi-arquitetura da imagem ([#44](https://github.com/danzSTK/personal-finance-backend/issues/44)) ([959bd9b](https://github.com/danzSTK/personal-finance-backend/commit/959bd9b7ae06564ee2dafaaa8fa15f215721e94f))
+
 ## 0.1.0 (2026-07-21)
 
 
