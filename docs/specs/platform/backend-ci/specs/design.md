@@ -62,7 +62,7 @@ O overlay exclusivo da CI remove nomes fixos, remove publicacoes desnecessarias 
 
 ## Filtros De Caminho
 
-A execucao automatica observa `api/**`, o Compose de producao, a configuracao Compose da CI, `.env.exemple` e o proprio workflow, excluindo Markdown. O `docker-compose.override.yml` permanece fora por ser exclusivo do desenvolvimento local. Essa escolha reduz execucoes sem valor para o backend, mas devera ser reavaliada antes de configurar os jobs como checks obrigatorios.
+A execucao automatica observa `api/**`, o Compose de producao, a configuracao Compose da CI, `.env.exemple` e os workflows `backend-ci.yml` e `backend-cd.yml`, excluindo Markdown. O `docker-compose.override.yml` permanece fora por ser exclusivo do desenvolvimento local. Mudancas no CD executam a CI porque esses jobs sao checks obrigatorios da `main`; sem esse caminho, uma PR exclusiva do CD ficaria bloqueada aguardando checks que nunca foram disparados.
 
 ## Impactos
 

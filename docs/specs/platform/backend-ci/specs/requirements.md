@@ -46,6 +46,7 @@ Criar a primeira fase da automacao associada a issue 38: uma pipeline de integra
 9. WHEN a imagem for construida, THE SYSTEM SHALL executar as migrations por essa imagem antes de iniciar API e worker.
 10. WHEN API e worker iniciarem, THE SYSTEM SHALL exigir liveness e readiness saudaveis da API e health check saudavel do worker.
 11. WHETHER o smoke test passe ou falhe, THE SYSTEM SHALL registrar diagnosticos em falha e remover containers, redes e volumes criados pela execucao.
+12. WHEN o workflow de CD do backend for alterado, THE SYSTEM SHALL executar a CI antes do merge.
 
 ## Casos Limite
 
@@ -54,7 +55,7 @@ Criar a primeira fase da automacao associada a issue 38: uma pipeline de integra
 - O smoke test deve usar somente valores ficticios e nao pode depender de secrets ou servicos externos.
 - A execucao deve permanecer isolada de outros projetos Compose por nome de projeto e portas efemeras.
 - Uma falha de startup deve preservar logs nos logs do job antes do cleanup.
-- Alteracoes no proprio workflow devem iniciar a CI.
+- Alteracoes nos workflows de CI ou CD do backend devem iniciar a CI.
 - O uso futuro de checks obrigatorios deve revisar o impacto dos filtros de caminho em pull requests somente de documentacao.
 
 ## Criterios De Aceite
