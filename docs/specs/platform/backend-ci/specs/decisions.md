@@ -77,3 +77,16 @@ Testcontainers valida integracoes da aplicacao, mas API e worker ainda executam 
 
 Impact:
 A CI passa a validar o artefato implantavel sem publica-lo. O overlay adiciona um PostgreSQL descartavel porque producao usa banco externo, substitui nomes e portas para permitir isolamento e remove todos os recursos efemeros ao final.
+
+## DEC-007 - Validar Alteracoes No Workflow De CD
+
+Status: accepted
+
+Decision:
+Incluir `.github/workflows/backend-cd.yml` nos filtros de caminho da Backend CI.
+
+Reason:
+Os jobs da Backend CI sao checks obrigatorios da `main`. Uma PR que altera somente o CD precisa dispara-los para poder satisfazer a ruleset.
+
+Impact:
+Alteracoes no CD executam a suite completa do backend; mudancas somente em Markdown continuam ignoradas.

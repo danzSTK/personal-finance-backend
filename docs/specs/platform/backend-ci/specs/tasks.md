@@ -17,3 +17,4 @@
 - [x] 15. Validar o novo job na draft PR contra `develop`.
 - [ ] 16. Decidir quando e como os jobs se tornarao checks obrigatorios.
 - [ ] 17. Planejar a fase de publicacao de imagem e deploy em workflow separado.
+- [x] 18. Disparar os checks obrigatorios quando o workflow de CD for alterado.
