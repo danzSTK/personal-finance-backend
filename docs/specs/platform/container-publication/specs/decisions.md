@@ -90,3 +90,16 @@ Tags de actions sao referencias moveis. O incidente do Trivy em marco de 2026 de
 
 Impact:
 Atualizacoes das actions passam a exigir revisao e troca explicita dos SHAs.
+
+## DEC-008 - Fixar Uma Versao Corrigida Do npm Na Imagem De Producao
+
+Status: accepted
+
+Decision:
+Instalar explicitamente o npm 11.18.0 no estagio final da imagem, antes da troca para o usuario nao-root.
+
+Reason:
+O npm 10.9.8 fornecido pelo `node:22-alpine` contem dependencias com vulnerabilidades High e Critical corrigiveis. O runtime ainda precisa do npm para comandos operacionais existentes, incluindo migrations e verificacao de saude do worker.
+
+Impact:
+A versao do npm passa a ser independente da versao incluida na imagem base e deve ser atualizada de forma deliberada quando necessario.
