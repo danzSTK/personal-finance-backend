@@ -34,6 +34,7 @@ Nao existe tag `latest`.
 - Actions usadas no workflow de publicacao sao fixadas por SHA completo.
 - O Trivy e fixado em uma revisao segura posterior ao incidente de supply chain de marco de 2026.
 - O scan verifica pacotes do sistema operacional e bibliotecas, bloqueando vulnerabilidades High/Critical que possuam correcao.
+- O estagio final da imagem fixa uma versao corrigida do npm compativel com Node.js 22, pois o npm fornecido pela imagem base tambem faz parte da superficie analisada pelo Trivy e e necessario em operacoes de producao.
 - A tag oficial somente e criada depois que ambos os scans passam.
 
 ## Compose

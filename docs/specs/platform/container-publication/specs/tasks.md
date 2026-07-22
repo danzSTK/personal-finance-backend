@@ -12,3 +12,6 @@
 - [x] 10. Validar configuracoes Compose e formatacao.
 - [x] 11. Executar smoke test local de containers.
 - [ ] 12. Validar a primeira publicacao multi-arquitetura no GitHub.
+- [x] 13. Corrigir a selecao de plataforma do Trivy na matriz multi-arquitetura.
+- [x] 14. Atualizar o npm do estagio final para eliminar vulnerabilidades corrigiveis da imagem base.
+- [ ] 15. Validar a publicacao corrigida em uma nova GitHub Release.
