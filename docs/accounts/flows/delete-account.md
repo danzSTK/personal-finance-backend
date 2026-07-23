@@ -1,7 +1,7 @@
 ---
 area: accounts
 type: flow
-status: planned
+status: draft
 related:
   - ../decisions/delete-only-without-movement.md
   - ./archive-account.md

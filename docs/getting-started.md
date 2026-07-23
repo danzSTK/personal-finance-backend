@@ -2,6 +2,7 @@
 area: platform
 type: guide
 status: current
+last_reviewed: 2026-07-23
 related:
   - ./configuration.md
   - ./commands.md

@@ -13,7 +13,7 @@ Content-Type: application/json
 {
   "userName": "john_doe",
   "email": "joao.silva@email.com",
-  "password": "senhaSegura123",
+  "password": "<strong-password>",
   "firstName": "João",
   "lastName": "Silva"
 }

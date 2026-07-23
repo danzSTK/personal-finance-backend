@@ -2,7 +2,7 @@
 area: transactions
 feature: list-filters-summary
 type: spec-design
-status: approved
+status: current
 related:
   - ./requirements.md
   - ./decisions.md

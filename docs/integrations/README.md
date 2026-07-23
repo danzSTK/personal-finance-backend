@@ -1,9 +1,20 @@
-# 📘 Guia de Integração - Personal Finance API
+---
+area: integrations
+type: index
+status: current
+last_reviewed: 2026-07-23
+related:
+  - ../architecture.md
+  - ../auth/README.md
+  - ../platform/response-objects.md
+---
+
+# Guia de integração — Danfy API
 
 ## Base URL
 
 - Development: `http://localhost:3000`
-- Production: `https://api.your-domain.com`
+- Production: `https://api.danfy.app`
 
 ## Modelo de autenticação (cookie-based)
 
@@ -25,7 +36,7 @@ Use sempre:
 curl -X POST http://localhost:3000/auth/sign-in \
   -H "Content-Type: application/json" \
   -c cookies.txt \
-  -d '{"email":"user@example.com","password":"senha123"}'
+  -d '{"email":"user@example.com","password":"<strong-password>"}'
 
 # Rota autenticada usando cookie
 curl -X GET http://localhost:3000/users/me \

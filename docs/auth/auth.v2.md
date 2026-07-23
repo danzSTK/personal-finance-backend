@@ -1,7 +1,10 @@
 ---
 area: auth
 type: legacy
-status: migrated
+status: historical
+last_reviewed: 2026-07-23
+superseded_by:
+  - ./README.md
 ---
 
 # Auth v2

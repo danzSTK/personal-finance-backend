@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: flow
-status: planned
+status: draft
 related:
   - ../concepts/transaction-type.md
   - ../decisions/adjustments-are-technical-transactions.md

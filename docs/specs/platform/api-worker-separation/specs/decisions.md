@@ -2,7 +2,7 @@
 area: platform
 feature: api-worker-separation
 type: spec-decisions
-status: approved
+status: current
 related:
   - ./requirements.md
   - ./design.md

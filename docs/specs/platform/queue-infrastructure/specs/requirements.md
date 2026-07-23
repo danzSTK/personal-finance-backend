@@ -2,7 +2,7 @@
 area: platform
 feature: queue-infrastructure
 type: spec-requirements
-status: approved
+status: current
 related:
   - ../../../../platform/README.md
   - ../../../../events/README.md

@@ -1,7 +1,7 @@
 ---
 area: notifications
 type: email-template
-status: implemented
+status: current
 template_key: email-verification
 provider: brevo
 provider_template_id: "3"

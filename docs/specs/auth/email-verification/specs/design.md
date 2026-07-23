@@ -2,7 +2,7 @@
 area: auth
 feature: email-verification
 type: spec-design
-status: accepted
+status: current
 related:
   - ./requirements.md
   - ./decisions.md

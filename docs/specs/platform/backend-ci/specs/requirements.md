@@ -68,4 +68,3 @@ Criar a primeira fase da automacao associada a issue 38: uma pipeline de integra
 - Docker Compose e Dockerfile sao validados por um smoke test que sobe API e worker com dependencias reais.
 - As migrations executam pela imagem e os health checks de API e worker passam.
 - O workflow nao contem secrets nem permissoes de escrita.
-- A PR permanece em Draft durante a implementacao das proximas fases da issue 38 e a encerra somente quando o escopo completo estiver concluido.

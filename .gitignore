@@ -3,13 +3,17 @@
 .env.bitwarden.local
 .env.bws.runtime
 
+.gitleaks-output/
+gitleaks-report.*
+
 
 # Claude
 CLAUDE.md
 .claude/
 
-# Estado local do Obsidian
-docs/.obsidian/workspace*.json
+# Estado local e plugins do Obsidian
+docs/.obsidian/
+docs/.trash/
 
 # Docker
 postgres_data/

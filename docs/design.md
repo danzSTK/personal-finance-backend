@@ -1,7 +1,18 @@
+---
+area: auth
+type: design
+status: historical
+last_reviewed: 2026-07-23
+superseded_by:
+  - ./auth/README.md
+  - ./auth/decisions/use-http-only-cookies.md
+  - ./auth/concepts/csrf-origin-check.md
+  - ./integrations/auth/README.md
+---
+
 # Design Spec — Migração completa do Access Token para Cookie HttpOnly
 
-## Status
-Proposto
+> Documento histórico da migração já concluída. Para o comportamento vigente, use as referências indicadas em `superseded_by`.
 
 ## Objetivo
 Migrar o `accessToken` do transporte via header `Authorization: Bearer` para **cookie HttpOnly**, mantendo o `refreshToken` em cookie e fechando a superfície de CSRF com validação de origem.

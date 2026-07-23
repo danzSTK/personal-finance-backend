@@ -2,6 +2,7 @@
 area: platform
 type: reference
 status: current
+last_reviewed: 2026-07-23
 related:
   - ./getting-started.md
   - ./database/schema.md

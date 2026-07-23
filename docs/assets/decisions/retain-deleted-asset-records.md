@@ -1,7 +1,7 @@
 ---
 area: assets
 type: decision
-status: accepted
+status: current
 related:
   - ../concepts/asset-status.md
   - ../flows/delete-asset.md

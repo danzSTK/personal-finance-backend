@@ -1,7 +1,7 @@
 ---
 area: assets
 type: flow
-status: planned
+status: draft
 related:
   - ../concepts/asset-status.md
   - ../reference/open-questions.md

@@ -2,6 +2,7 @@
 area: assets
 type: index
 status: current
+last_reviewed: 2026-07-23
 ---
 
 # Assets
@@ -55,12 +56,12 @@ Implementado:
 - entidade de domínio e entidade ORM;
 - `StorageKey` value object e factories de criação/key;
 - `AssetMapper`, `IAssetRepository` e implementação TypeORM com suporte a transações;
-- binding do repository no `AssetsModule`;
-- registro do módulo no NestJS e TypeORM.
+- casos de uso de atualização e remoção de avatar integrados ao Object Storage;
+- processamento e validação de imagem antes do upload;
+- endpoints HTTP de atualização e remoção de avatar;
+- consumidores idempotentes para remover assets substituídos ou removidos.
 
 Pendente:
 
-- casos de uso de registro, confirmação e remoção;
-- integração HTTP e processamento de imagem do avatar;
-- consumidor idempotente para remover o avatar substituído;
-- reconciliação e limpeza.
+- reconciliação periódica de objetos órfãos e assets presos em estados intermediários;
+- expansão para outros tipos de asset além de `USER_AVATAR`.
