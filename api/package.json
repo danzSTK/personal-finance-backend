@@ -99,7 +99,7 @@
     "@testcontainers/redis": "^12.0.4",
     "@testcontainers/toxiproxy": "^12.0.4",
     "@types/bcryptjs": "^2.4.6",
-    "@types/cache-manager": "^4.0.6",
+    "@types/cache-manager": "^5.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/geoip-lite": "^1.4.4",
