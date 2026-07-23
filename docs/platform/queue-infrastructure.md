@@ -67,8 +67,13 @@ appendonly: yes
 Suba a infraestrutura local com:
 
 ```bash
-docker compose up -d postgres redis bullmq-redis
+docker compose --env-file .env \
+  -f docker-compose.yml \
+  -f docker-compose.dev.yml \
+  up -d postgres redis bullmq-redis
 ```
+
+O fluxo completo, incluindo configuração do ambiente, migrations, API e worker, está no [guia de desenvolvimento local](../getting-started.md).
 
 Para a API rodando localmente fora do Docker, use:
 
