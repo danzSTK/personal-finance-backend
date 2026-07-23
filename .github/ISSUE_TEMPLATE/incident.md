@@ -1,10 +1,12 @@
 ---
-name: Incidente
-about: Registrar impacto em produção, disponibilidade, segurança ou integridade de dados
+name: Incidente operacional
+about: Registrar indisponibilidade, degradação, falha de deploy ou outro impacto operacional
 title: "[INCIDENTE] "
 labels: ""
 assignees: ""
 ---
+
+> Suspected security vulnerabilities must not be reported through this template. Use the repository's private vulnerability reporting channel.
 
 ## Resumo
 

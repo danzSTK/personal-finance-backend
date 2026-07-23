@@ -50,7 +50,7 @@ O script `test:integration` executa build e Jest em modo sequencial. Testcontain
 
 ## Smoke Test De Containers
 
-O job `container-smoke` usa o `api/Dockerfile` e o `docker-compose.yml` de producao para API, worker, Redis de cache e Redis de BullMQ. O Compose base referencia somente a imagem publicada, portanto o overlay exclusivo da CI restaura a configuracao de build e usa uma tag descartavel. Como o PostgreSQL de producao e externo, o overlay tambem adiciona um PostgreSQL descartavel somente para o smoke test. O `docker-compose.override.yml`, exclusivo do desenvolvimento local, nao participa da CI.
+O job `container-smoke` usa o `api/Dockerfile` e o `docker-compose.yml` de producao para API, worker, Redis de cache e Redis de BullMQ. O Compose base referencia somente a imagem publicada, portanto o overlay exclusivo da CI restaura a configuracao de build e usa uma tag descartavel. Como o PostgreSQL de producao e externo, o overlay tambem adiciona um PostgreSQL descartavel somente para o smoke test. O `docker-compose.dev.yml`, exclusivo do desenvolvimento local, e validado pelo Compose, mas nao participa do smoke test.
 
 O fluxo valida o Compose, constroi a imagem, aguarda as dependencias, executa migrations pela imagem, inicia API e worker e verifica:
 
@@ -62,7 +62,7 @@ O overlay exclusivo da CI remove nomes fixos, remove publicacoes desnecessarias 
 
 ## Filtros De Caminho
 
-A execucao automatica observa `api/**`, o Compose de producao, a configuracao Compose da CI, `.env.exemple` e os workflows `backend-ci.yml` e `backend-cd.yml`, excluindo Markdown. O `docker-compose.override.yml` permanece fora por ser exclusivo do desenvolvimento local. Mudancas no CD executam a CI porque esses jobs sao checks obrigatorios da `main`; sem esse caminho, uma PR exclusiva do CD ficaria bloqueada aguardando checks que nunca foram disparados.
+A execucao automatica observa `api/**`, o Compose de producao, o Compose de desenvolvimento, a configuracao Compose da CI, `.env.exemple`, `.github/dependabot.yml` e `.github/workflows/*.yml`, excluindo Markdown. Isso garante que PRs do Dependabot para npm, Docker, Docker Compose ou qualquer GitHub Action executem os checks obrigatorios.
 
 ## Impactos
 

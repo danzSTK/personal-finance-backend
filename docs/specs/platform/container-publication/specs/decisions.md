@@ -103,3 +103,16 @@ O npm 10.9.8 fornecido pelo `node:22-alpine` contem dependencias com vulnerabili
 
 Impact:
 A versao do npm passa a ser independente da versao incluida na imagem base e deve ser atualizada de forma deliberada quando necessario.
+
+## DEC-009 - Versionar O Compose De Desenvolvimento Com Nome Explicito
+
+Status: accepted
+
+Decision:
+Substituir o fluxo documentado baseado no `docker-compose.override.yml` ignorado pelo Git por `docker-compose.dev.yml`, selecionado explicitamente com `-f`.
+
+Reason:
+O override automatico pode conter ajustes pessoais e nao e reproduzido por quem clona o repositorio. Um arquivo versionado fornece a mesma composicao a contribuidores e CI sem alterar o Compose de producao.
+
+Impact:
+Os comandos locais documentados passam a informar os dois arquivos Compose. Overrides pessoais podem continuar ignorados, mas nao participam do caminho oficial.
