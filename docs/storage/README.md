@@ -2,6 +2,7 @@
 area: storage
 type: architecture
 status: current
+last_reviewed: 2026-07-23
 related:
   - ../assets/README.md
   - ./Dados%20iniciais%20%28manuais%29.md
@@ -9,7 +10,7 @@ related:
 
 # Object Storage
 
-Object Storage é uma capacidade técnica compartilhada para armazenar e remover objetos binários fora do PostgreSQL. A primeira implementação usará o SDK S3 da AWS contra a API compatível com S3 da Cloudflare R2.
+Object Storage é uma capacidade técnica compartilhada para armazenar e remover objetos binários fora do PostgreSQL. A implementação atual usa o SDK S3 da AWS contra a API compatível com S3 da Cloudflare R2.
 
 Esta camada não é um domínio de negócio. Ela não sabe o que é usuário, avatar, comprovante ou anexo. Esses significados pertencem aos módulos consumidores e ao [módulo Assets](../assets/README.md).
 
@@ -37,24 +38,29 @@ Object Storage não deve:
 - decidir o ciclo de troca de avatar;
 - publicar eventos de domínio.
 
-## Estrutura Planejada
+## Estrutura atual
 
 ```text
 api/src/shared/object-storage/
 ├── object-storage.module.ts
-├── object-storage.interface.ts
 ├── object-storage.tokens.ts
-├── config/
-│   └── object-storage.config.ts
+├── adapters/
+│   └── s3-object-storage.adapter.ts
+├── contracts/
+│   ├── object-storage.interface.ts
+│   └── object-storage.types.ts
+├── errors/
+│   ├── object-storage-error.mapper.ts
+│   └── object-storage.error.ts
 └── providers/
-    └── s3-object-storage.provider.ts
+    └── s3-client.provider.ts
 ```
 
-`ObjectStorageModule` será infraestrutura compartilhada porque vários módulos poderão armazenar objetos, mas somente um adapter deve conhecer `@aws-sdk/client-s3`.
+`ObjectStorageModule` é infraestrutura compartilhada porque vários módulos podem armazenar objetos, mas somente o adapter conhece `@aws-sdk/client-s3`.
 
-## Contrato Planejado
+## Contrato atual
 
-O port deve trabalhar com conceitos técnicos e não com entidades de domínio:
+O port trabalha com conceitos técnicos e não com entidades de domínio:
 
 - colocar um objeto em `bucket + key`;
 - remover um objeto de forma idempotente;
@@ -106,7 +112,7 @@ Logs podem conter operação, bucket, key, request id e código técnico. Nunca 
 
 ## Consumidores
 
-Cada consumidor define seus próprios limites e processamento antes de chamar Object Storage. O primeiro fluxo planejado é [Update user avatar](../users/flows/update-user-avatar.md), que limita imagens a 5 MB e usa Sharp e `file-type`. Essas regras não pertencem ao adapter R2.
+Cada consumidor define seus próprios limites e processamento antes de chamar Object Storage. O fluxo atual de [Update user avatar](../users/flows/update-user-avatar.md) limita imagens a 5 MB e usa Sharp e `file-type`. Essas regras não pertencem ao adapter R2.
 
 ## Estado Atual
 
@@ -118,6 +124,6 @@ Já existem:
 - configuração validada do R2;
 - upload, head, delete e construção de URL pública;
 - tradução tipada de falhas S3 e de rede;
-- testes unitários do adapter e do mapper de erros.
-
-Ainda não existem casos de uso que coordenem assets e Object Storage.
+- testes unitários do adapter e do mapper de erros;
+- casos de uso de avatar que coordenam Assets e Object Storage;
+- limpeza assíncrona do asset substituído ou removido.

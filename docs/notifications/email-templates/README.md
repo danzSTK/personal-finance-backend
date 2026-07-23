@@ -1,7 +1,7 @@
 ---
 area: notifications
 type: email-template-index
-status: implemented
+status: current
 ---
 
 # Email Templates

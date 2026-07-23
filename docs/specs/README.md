@@ -2,6 +2,7 @@
 area: specifications
 type: index
 status: current
+last_reviewed: 2026-07-23
 ---
 
 # Especificações técnicas

@@ -2,7 +2,7 @@
 area: platform
 feature: email-provider
 type: spec-design
-status: approved
+status: current
 related:
   - ./requirements.md
   - ./decisions.md

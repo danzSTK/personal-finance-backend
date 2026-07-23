@@ -2,6 +2,7 @@
 area: platform
 type: index
 status: current
+last_reviewed: 2026-07-23
 ---
 
 # Platform

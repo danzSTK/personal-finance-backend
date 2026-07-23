@@ -2,7 +2,7 @@
 area: notifications
 feature: welcome-email
 type: spec-design
-status: implemented
+status: current
 related:
   - ./requirements.md
   - ./decisions.md

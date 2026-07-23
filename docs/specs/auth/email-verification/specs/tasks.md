@@ -2,7 +2,7 @@
 area: auth
 feature: email-verification
 type: spec-tasks
-status: accepted
+status: current
 related:
   - ./requirements.md
   - ./design.md

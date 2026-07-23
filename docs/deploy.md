@@ -1,3 +1,14 @@
+---
+area: operations
+type: runbook
+status: current
+last_reviewed: 2026-07-23
+related:
+  - ./platform/continuous-delivery.md
+  - ./platform/worker-operations.md
+  - ./configuration.md
+---
+
 # Guia de Deploy — VPS (Ubuntu 22.04)
 
 ## Visão Geral

@@ -1,7 +1,7 @@
 ---
 area: assets
 type: decision
-status: accepted
+status: current
 related:
   - ../concepts/storage-key.md
   - ../concepts/asset-purpose.md

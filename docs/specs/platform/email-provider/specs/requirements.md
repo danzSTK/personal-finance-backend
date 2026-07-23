@@ -2,7 +2,7 @@
 area: platform
 feature: email-provider
 type: spec-requirements
-status: approved
+status: current
 related:
   - ../../../../platform/README.md
   - ../../../../specs/platform/queue-infrastructure/specs/design.md

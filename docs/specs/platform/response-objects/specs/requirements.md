@@ -2,7 +2,7 @@
 area: platform
 feature: response-objects
 type: spec-requirements
-status: approved
+status: current
 related:
   - ../../../../platform/README.md
   - ../../../../integrations/README.md

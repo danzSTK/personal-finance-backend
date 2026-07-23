@@ -1,7 +1,7 @@
 ---
 area: notifications
 type: email-template
-status: implemented
+status: current
 template_key: welcome-email
 provider: brevo
 provider_template_id: "2"

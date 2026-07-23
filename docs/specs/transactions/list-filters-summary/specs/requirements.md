@@ -2,7 +2,7 @@
 area: transactions
 feature: list-filters-summary
 type: spec-requirements
-status: approved
+status: current
 related:
   - ../../../../transactions/README.md
   - ../../../../transactions/reference/invariants.md

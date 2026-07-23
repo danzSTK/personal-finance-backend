@@ -2,7 +2,7 @@
 area: notifications
 feature: welcome-email
 type: spec-requirements
-status: implemented
+status: current
 related:
   - ../../../../events/user-created.md
   - ../../../../platform/email-provider.md

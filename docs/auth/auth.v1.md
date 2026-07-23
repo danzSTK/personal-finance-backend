@@ -1,4 +1,15 @@
-Esta versão está desatualizada. A documentação atual começa em [Auth](./README.md).
+---
+area: auth
+type: legacy
+status: historical
+last_reviewed: 2026-07-23
+superseded_by:
+  - ./README.md
+  - ../integrations/auth/README.md
+---
+
+> Esta versão está desatualizada. A documentação atual começa em [Auth](./README.md).
+
 # Authentication & Session Management
 
 ## 1. Objetivo

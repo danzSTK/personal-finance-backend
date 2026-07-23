@@ -1,7 +1,7 @@
 ---
 area: accounts
 type: flow
-status: planned
+status: draft
 related:
   - ../decisions/transfers-are-neutral.md
   - ../concepts/account-balance.md

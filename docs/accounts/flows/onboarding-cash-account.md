@@ -1,7 +1,7 @@
 ---
 area: accounts
 type: flow
-status: planned
+status: draft
 related:
   - ../concepts/cash-account.md
   - ../decisions/cash-account-created-on-onboarding.md
