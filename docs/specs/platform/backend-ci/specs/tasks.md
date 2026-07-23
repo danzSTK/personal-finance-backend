@@ -18,3 +18,4 @@
 - [ ] 16. Decidir quando e como os jobs se tornarao checks obrigatorios.
 - [ ] 17. Planejar a fase de publicacao de imagem e deploy em workflow separado.
 - [x] 18. Disparar os checks obrigatorios quando o workflow de CD for alterado.
+- [x] 19. Cobrir todos os workflows e a configuracao do Dependabot nos filtros de caminho.

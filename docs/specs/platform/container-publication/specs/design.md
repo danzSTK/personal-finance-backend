@@ -49,7 +49,7 @@ A expressao usa a forma obrigatoria do Compose, produzindo erro se `APP_VERSION`
 
 Os overrides preservam os outros ambientes:
 
-- `docker-compose.override.yml`: imagem e build locais;
+- `docker-compose.dev.yml`: imagem, build e dependências locais, selecionado explicitamente com `-f`;
 - `.github/compose/backend-ci.override.yml`: imagem e build descartaveis do smoke test.
 
 `.env.exemple` documenta `APP_VERSION=local`; a fixture da CI declara `APP_VERSION=container-smoke`.

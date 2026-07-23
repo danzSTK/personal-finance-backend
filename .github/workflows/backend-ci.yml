@@ -8,10 +8,11 @@ on:
     paths:
       - "api/**"
       - "docker-compose.yml"
+      - "docker-compose.dev.yml"
       - ".env.exemple"
       - ".github/compose/backend-ci.override.yml"
-      - ".github/workflows/backend-ci.yml"
-      - ".github/workflows/backend-cd.yml"
+      - ".github/dependabot.yml"
+      - ".github/workflows/*.yml"
       - "!**/*.md"
   push:
     branches:
@@ -20,10 +21,11 @@ on:
     paths:
       - "api/**"
       - "docker-compose.yml"
+      - "docker-compose.dev.yml"
       - ".env.exemple"
       - ".github/compose/backend-ci.override.yml"
-      - ".github/workflows/backend-ci.yml"
-      - ".github/workflows/backend-cd.yml"
+      - ".github/dependabot.yml"
+      - ".github/workflows/*.yml"
       - "!**/*.md"
   workflow_dispatch:
 
@@ -178,6 +180,12 @@ jobs:
         run: >-
           docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
           -f docker-compose.yml -f "$CONTAINER_SMOKE_OVERRIDE"
+          config --quiet
+
+      - name: Validate development Docker Compose
+        run: >-
+          docker compose --env-file "$CONTAINER_SMOKE_ENV_FILE"
+          -f docker-compose.yml -f docker-compose.dev.yml
           config --quiet
 
       - name: Build application image
