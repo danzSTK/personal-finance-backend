@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: reference
-status: resolved
+status: historical
 related:
   - ../README.md
 ---

@@ -2,7 +2,7 @@
 area: platform
 feature: email-provider
 type: spec-tasks
-status: approved
+status: current
 related:
   - ./requirements.md
   - ./design.md

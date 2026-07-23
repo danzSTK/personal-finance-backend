@@ -1,14 +1,23 @@
 {
-  "name": "api",
+  "name": "@danfy/backend",
   "version": "0.1.3",
   "engines": {
     "node": "^22.0.0",
     "npm": ">=10.0.0"
   },
-  "description": "",
-  "author": "",
+  "description": "Backend da plataforma Danfy para organização e planejamento de finanças pessoais.",
+  "author": "Daniel Félix",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/danzSTK/personal-finance-backend#readme",
+  "bugs": {
+    "url": "https://github.com/danzSTK/personal-finance-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danzSTK/personal-finance-backend.git",
+    "directory": "api"
+  },
   "scripts": {
     "build": "nest build",
     "start": "nest start",

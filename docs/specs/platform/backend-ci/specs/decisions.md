@@ -90,3 +90,29 @@ Os jobs da Backend CI sao checks obrigatorios da `main`. Uma PR que altera somen
 
 Impact:
 Alteracoes no CD executam a suite completa do backend; mudancas somente em Markdown continuam ignoradas.
+
+## DEC-008 - Validar O Compose De Desenvolvimento Versionado
+
+Status: accepted
+
+Decision:
+Incluir `docker-compose.dev.yml` nos filtros de caminho da CI e validar seu merge com o Compose base antes do smoke test.
+
+Reason:
+O onboarding local deve ser reproduzivel a partir do repositorio. Uma configuracao Compose versionada pode divergir ou tornar-se invalida mesmo sem afetar o overlay exclusivo do smoke test.
+
+Impact:
+Mudancas no ambiente de desenvolvimento iniciam a Backend CI e falham cedo quando a composicao local nao puder ser resolvida.
+
+## DEC-009 - Cobrir Todas As Pull Requests Do Dependabot
+
+Status: accepted
+
+Decision:
+Observar `.github/workflows/*.yml` e `.github/dependabot.yml` nos filtros da Backend CI.
+
+Reason:
+O Dependabot pode atualizar qualquer Action versionada. A lista anterior cobria somente CI e CD e deixaria PRs de release ou conectividade sem os checks obrigatorios.
+
+Impact:
+Mudancas em qualquer workflow ou na politica do Dependabot executam a suite completa do backend.

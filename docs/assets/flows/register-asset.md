@@ -1,7 +1,7 @@
 ---
 area: assets
 type: flow
-status: planned
+status: draft
 related:
   - ../concepts/asset.md
   - ../concepts/storage-key.md

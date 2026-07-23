@@ -1,8 +1,19 @@
+---
+area: operations
+type: runbook
+status: current
+last_reviewed: 2026-07-23
+related:
+  - ./platform/continuous-delivery.md
+  - ./platform/worker-operations.md
+  - ./configuration.md
+---
+
 # Guia de Deploy — VPS (Ubuntu 22.04)
 
 ## Visão Geral
 
-Este guia descreve como subir a API em um ambiente Linux (Ubuntu 22.04) utilizando **Docker Compose** para orquestrar os containers e **NGINX** como proxy reverso com SSL.
+Este guia descreve a arquitetura e os requisitos operacionais do host de produção. A implantação da aplicação é automatizada pelo GitHub Actions e pelo executor restrito instalado na VPS; o fluxo completo está em [Releases e entrega contínua](./platform/continuous-delivery.md).
 
 > **⚠️ Pré-requisitos de conhecimento**
 >
@@ -23,7 +34,7 @@ A stack é composta por:
 | Banco de dados  | PostgreSQL 16 no RDS | Persistência de dados externa ao Compose             |
 | Cache e sessões | Redis 7              | Cache, sessões e rate limit                          |
 | Filas           | Redis 7              | Backend dedicado do BullMQ com política `noeviction` |
-| Proxy reverso   | NGINX (host)         | SSL/TLS + roteamento de tráfego                      |
+| Proxy reverso   | NGINX (host)         | TLS de origem + roteamento de tráfego                |
 
 ---
 
@@ -33,8 +44,12 @@ A stack é composta por:
 Internet
   │
   ▼
+Cloudflare — certificado público na borda
+  │
+  │ HTTPS
+  ▼
 NGINX (host) — porta 80 → redireciona para HTTPS
-              — porta 443 → proxy reverso com SSL (Let's Encrypt)
+              — porta 443 → certificado Cloudflare Origin CA
                   │
                   ▼
            Docker Compose                         AWS
@@ -46,9 +61,9 @@ NGINX (host) — porta 80 → redireciona para HTTPS
            └──────────────────────────────────────┘
 ```
 
-> **Nota:** O NGINX roda diretamente no host (não em container). API, worker e Redis rodam em containers na rede interna (`app-network`), enquanto PostgreSQL permanece no RDS e é acessado pelo endpoint definido em `POSTGRES_HOST`. A API só é acessível externamente via NGINX. O Redis de BullMQ deve ficar separado do Redis de cache/sessões para evitar eviction de chaves de jobs.
+> **Nota:** O NGINX roda diretamente no host (não em container). API, worker e Redis rodam em containers na rede interna (`app-network`), enquanto PostgreSQL permanece no RDS e é acessado pelo endpoint definido em `POSTGRES_HOST`. A API é publicada pelo proxy da Cloudflare e encaminhada ao NGINX com o modo SSL/TLS `Full (strict)`. O Redis de BullMQ deve ficar separado do Redis de cache/sessões para evitar eviction de chaves de jobs.
 
-> Em produção, execute Compose com `-f docker-compose.yml`. O arquivo `docker-compose.override.yml` é exclusivo do desenvolvimento local e adiciona um PostgreSQL em container.
+> Em produção, execute Compose somente com `-f docker-compose.yml`. O arquivo versionado `docker-compose.dev.yml` adiciona build local, PostgreSQL e portas de desenvolvimento e não deve participar do deploy.
 
 ---
 
@@ -68,7 +83,7 @@ NGINX (host) — porta 80 → redireciona para HTTPS
 - **Docker** (Engine 24+)
 - **Docker Compose** (plugin v2)
 - **NGINX**
-- **Certbot** (com plugin para NGINX)
+- **Certificado Cloudflare Origin CA** e sua chave privada instalados fora do repositório
 
 ---
 
@@ -101,35 +116,32 @@ docker compose version
 sudo apt install nginx -y
 ```
 
-### Instalar Certbot
-
-```bash
-sudo apt install certbot python3-certbot-nginx -y
-```
-
 ---
 
-## 2. Clonar o repositório
+## 2. Preparar o executor de deploy
 
-```bash
-git clone <url-do-repositorio> app
-cd app
+O fluxo normal de produção não clona o backend nem compila código na VPS. O host recebe imagens previamente construídas, analisadas e publicadas no GHCR.
+
+O executor versionado no repositório de infraestrutura deve estar instalado em:
+
+```text
+/usr/local/sbin/danfy-backend-deploy
 ```
 
-> Substitua `<url-do-repositorio>` pela URL do seu repositório Git (HTTPS ou SSH).
+O usuário remoto `deploy`:
+
+- não pertence ao grupo `docker`;
+- acessa o host somente pela rede Tailscale;
+- possui `sudo` sem senha restrito ao executor;
+- não pode executar comandos Docker arbitrários.
+
+O executor mantém os arquivos Compose, o estado da versão atual e anterior e os env files de API e worker. Provisionamento e atualização desse componente pertencem ao repositório `danfy-infra`.
 
 ---
 
 ## 3. Configurar variáveis de ambiente
 
-Na raiz do projeto, crie o arquivo `.env` a partir do exemplo disponível:
-
-```bash
-cp .env.exemple .env
-nano .env
-```
-
-Preencha **todas** as variáveis obrigatórias. As mais críticas são:
+Os env files são mantidos pelo executor fora do checkout da aplicação. Use `.env.exemple` como referência de valores seguros e consulte a [matriz de configuração por processo](./configuration.md) para separar variáveis compartilhadas, somente API e somente worker. As mais críticas são:
 
 ```env
 # PostgreSQL
@@ -163,6 +175,21 @@ WORKER_HEARTBEAT_TTL_MS=30000
 JWT_ACCESS_SECRET=...
 JWT_REFRESH_SECRET=...
 
+# Google OAuth
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_CALLBACK_URL=https://api.danfy.app/auth/google/callback
+GOOGLE_LINK_CALLBACK_URI=https://api.danfy.app/auth/providers/link/google/callback
+
+# Cloudflare R2
+R2_ENDPOINT=...
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_PUBLIC_BUCKET_NAME=...
+R2_PRIVATE_BUCKET_NAME=...
+R2_PUBLIC_BASE_URL=...
+
 # Aplicação
 NODE_ENV=production
 PORT=3000
@@ -178,42 +205,28 @@ openssl rand -base64 48
 
 ---
 
-## 4. Subir a aplicação com Docker Compose
+## 4. Implantar a aplicação
+
+O caminho oficial começa com uma GitHub Release estável. O Backend CD:
+
+1. constrói e analisa as imagens AMD64 e ARM64;
+2. publica um manifest multi-arquitetura;
+3. aguarda aprovação do Environment `production`;
+4. conecta ao host via Tailscale;
+5. chama o executor com imagem por digest, versão e commit;
+6. executa migrations e ativa API e worker;
+7. valida health checks internos e readiness pública;
+8. tenta rollback para `previous` quando apenas o check externo falha.
+
+Não use `git pull`, `docker compose up --build` ou uma tag mutável como mecanismo de atualização. O host executa o artefato aprovado pelo pipeline e identificado por digest.
+
+Para consultar o estado sem implantar:
 
 ```bash
-docker compose -f docker-compose.yml up -d --build
+sudo -n /usr/local/sbin/danfy-backend-deploy status
 ```
 
-Verifique se todos os containers estão rodando:
-
-```bash
-docker compose -f docker-compose.yml ps
-```
-
-Você deve ver os serviços principais com status `running`/`healthy`:
-
-```
-NAME                     STATUS
-personal-finance-api     Up
-personal-finance-worker  Up (healthy)
-personal-finance-db      Up
-personal-finance-redis   Up
-personal-finance-bullmq-redis Up
-```
-
-Acompanhe os logs da API em tempo real:
-
-```bash
-docker compose -f docker-compose.yml logs -f api
-```
-
-Acompanhe o processamento assíncrono:
-
-```bash
-docker compose -f docker-compose.yml logs -f worker
-```
-
-API e worker usam a mesma imagem, mas commands e `PROCESS_ROLE` distintos. Somente a API publica porta. Em produção, injete JWT/OAuth/CSRF apenas na API e credenciais de mail/Brevo apenas no worker; ambos ainda precisam das configurações compartilhadas de PostgreSQL, Redis, BullMQ, storage e URLs usadas pelas intenções.
+API e worker usam a mesma imagem, mas commands e `PROCESS_ROLE` distintos. Somente a API publica porta. JWT, OAuth e CSRF pertencem à API; mail e Brevo pertencem ao worker; ambos ainda precisam das configurações compartilhadas de PostgreSQL, Redis, BullMQ, storage e URLs usadas pelas intenções.
 
 ---
 
@@ -222,7 +235,7 @@ API e worker usam a mesma imagem, mas commands e `PROCESS_ROLE` distintos. Somen
 O NGINX deve ser configurado para:
 
 1. Escutar na porta **80** e redirecionar todo o tráfego para **HTTPS** (301).
-2. Escutar na porta **443** com o certificado SSL provido pelo Certbot.
+2. Escutar na porta **443** com o certificado de origem emitido pela Cloudflare.
 3. Fazer `proxy_pass` para `http://localhost:3000` (onde a API está exposta).
 
 ### Headers obrigatórios
@@ -254,25 +267,27 @@ sudo systemctl reload nginx
 
 ---
 
-## 6. Gerar certificado SSL com Certbot
+## 6. Configurar o certificado de origem da Cloudflare
 
-Com o NGINX configurado e o domínio apontando para o IP da VPS, rode:
+Crie o certificado no painel da Cloudflare em **SSL/TLS → Origin Server** e inclua os hostnames atendidos pelo NGINX.
 
-```bash
-sudo certbot --nginx -d seu-dominio.com
+Instale o certificado e sua chave privada no host, fora do repositório e com permissões restritas. A configuração do server block deve apontar para esses arquivos:
+
+```nginx
+ssl_certificate     /caminho/para/cloudflare-origin.pem;
+ssl_certificate_key /caminho/para/cloudflare-origin.key;
 ```
 
-O Certbot irá:
-
-- Validar o domínio via HTTP
-- Emitir o certificado Let's Encrypt
-- Ajustar automaticamente a configuração do NGINX para HTTPS
-
-Verifique a renovação automática:
+Depois de configurar:
 
 ```bash
-sudo certbot renew --dry-run
+sudo nginx -t
+sudo systemctl reload nginx
 ```
+
+No painel da Cloudflare, mantenha o modo SSL/TLS em **Full (strict)**. O certificado de origem protege a conexão Cloudflare → NGINX e não substitui o certificado público apresentado pela borda aos clientes.
+
+Nunca armazene a chave privada no Git. Acompanhe a validade do certificado e planeje sua rotação antes do vencimento.
 
 ---
 
@@ -349,14 +364,13 @@ Uma sobreposição curta com a versão anterior é tolerada por `SKIP LOCKED`, l
 
 ## Comandos úteis
 
-| Ação                       | Comando                                                                              |
-| -------------------------- | ------------------------------------------------------------------------------------ |
-| Ver logs da API            | `docker compose -f docker-compose.yml logs -f api`                                   |
-| Ver logs do worker         | `docker compose -f docker-compose.yml logs -f worker`                                |
-| Reiniciar a API            | `docker compose -f docker-compose.yml restart api`                                   |
-| Reiniciar o worker         | `docker compose -f docker-compose.yml restart worker`                                |
-| Parar tudo                 | `docker compose -f docker-compose.yml down`                                          |
-| Atualizar a aplicação      | `git pull && docker compose -f docker-compose.yml up -d --build`                     |
-| Acessar o banco            | `docker exec -it personal-finance-db psql -U <POSTGRES_USER> -d <POSTGRES_DB>`       |
-| Acessar o Redis CLI        | `docker exec -it personal-finance-redis redis-cli -a <REDIS_PASSWORD>`               |
-| Acessar o Redis BullMQ CLI | `docker exec -it personal-finance-bullmq-redis redis-cli -a <BULLMQ_REDIS_PASSWORD>` |
+| Ação                           | Caminho                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| Consultar o estado implantado  | `sudo -n /usr/local/sbin/danfy-backend-deploy status`                    |
+| Validar acesso do GitHub       | workflow manual `production-connectivity.yml`                            |
+| Consultar logs de uma release  | artifact `production-deploy-<versão>` no Backend CD                      |
+| Implantar uma versão           | publicar uma GitHub Release estável e aprovar o Environment `production` |
+| Restaurar a versão anterior    | executor `rollback previous`, seguindo o procedimento operacional        |
+| Investigar o PostgreSQL no RDS | ferramentas e credenciais operacionais do ambiente, fora do Compose      |
+
+Operações que alteram o runtime devem passar pelo executor. Não entregue acesso direto ao Docker para o usuário `deploy`.

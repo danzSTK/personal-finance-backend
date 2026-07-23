@@ -1,7 +1,8 @@
 ---
 area: notifications
 type: index
-status: implemented
+status: current
+last_reviewed: 2026-07-23
 ---
 
 # Notifications

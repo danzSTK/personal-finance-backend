@@ -2,7 +2,7 @@
 area: auth
 feature: email-verification
 type: spec-requirements
-status: accepted
+status: current
 related:
   - ../../../../auth/flows/sign-up.md
   - ../../../../auth/flows/sign-in.md

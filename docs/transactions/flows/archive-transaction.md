@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: flow
-status: unsupported
+status: deprecated
 related:
   - ../concepts/transaction-deletion.md
   - ../decisions/transactions-can-be-deleted.md

@@ -1,7 +1,7 @@
 ---
 area: accounts
 type: decision
-status: planned
+status: draft
 related:
   - ../flows/transfer-between-accounts.md
   - ../concepts/account-balance.md

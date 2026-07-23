@@ -1,7 +1,7 @@
 ---
 area: accounts
 type: decision
-status: planned
+status: draft
 related:
   - ../flows/delete-account.md
   - ../flows/archive-account.md

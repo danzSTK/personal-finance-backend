@@ -2,7 +2,7 @@
 area: platform
 feature: api-worker-separation
 type: spec-requirements
-status: approved
+status: current
 related:
   - ../../../../events/README.md
   - ../../../../platform/queue-infrastructure.md

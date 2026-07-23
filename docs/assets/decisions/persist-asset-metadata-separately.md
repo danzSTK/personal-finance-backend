@@ -1,7 +1,7 @@
 ---
 area: assets
 type: decision
-status: accepted
+status: current
 related:
   - ../concepts/asset.md
   - ../../storage/README.md

@@ -11,7 +11,7 @@ Vincula email/senha a uma conta já autenticada.
 ```json
 {
   "email": "joao.silva@email.com",
-  "password": "senhaSegura123"
+  "password": "<strong-password>"
 }
 ```
 
@@ -19,7 +19,7 @@ Vincula email/senha a uma conta já autenticada.
 curl -X POST http://localhost:3000/auth/providers/link/email \
   -H "Content-Type: application/json" \
   -b cookies.txt \
-  -d '{"email":"joao.silva@email.com","password":"senhaSegura123"}'
+  -d '{"email":"joao.silva@email.com","password":"<strong-password>"}'
 ```
 
 ## GET /auth/providers/link/google
