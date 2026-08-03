@@ -22,5 +22,6 @@ related:
 | `GET` | `/auth/sessions` | `JwtAuthGuard` | Lista sessões ativas |
 | `DELETE` | `/auth/sessions/:jti` | `JwtAuthGuard` | Revoga sessão específica |
 | `POST` | `/auth/providers/link/email` | `JwtAuthGuard` | Vincula provider EMAIL |
+| `POST` | `/auth/password/change` | `JwtAuthGuard + PasswordChangeCostGuard` | Confirma e altera a senha local, revogando todas as sessões |
 | `GET` | `/auth/providers/link/google` | `JwtAuthGuard + GoogleLinkInitAuthGuard` | Inicia vínculo Google |
 | `GET` | `/auth/providers/link/google/callback` | `GoogleLinkAuthGuard` | Callback do vínculo Google |

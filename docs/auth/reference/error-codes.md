@@ -22,6 +22,14 @@ related:
 | Token de verificação inválido | `400` |
 | Token de verificação expirado | `410` |
 | Cooldown/limite de reenvio de verificação | `429` |
+| Senha atual incorreta (`CURRENT_PASSWORD_INVALID`) | `403` |
+| Provider local ausente (`PASSWORD_CHANGE_EMAIL_PROVIDER_REQUIRED`) | `409` |
+| Nova senha igual (`NEW_PASSWORD_MUST_DIFFER`) | `400` |
+| Bloqueio/cooldown/limite diário/mutação concorrente/custo | `429` + `Retry-After` |
+| Estado Redis da alteração de senha indisponível | `503` |
+
+Respostas `429` da alteração de senha expõem o mesmo valor inteiro no header
+`Retry-After` e em `details.retryAfterSeconds`.
 
 ## Link Google
 
