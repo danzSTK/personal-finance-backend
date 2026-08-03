@@ -80,6 +80,7 @@ describe('CreateWelcomeEmailMessageUseCase', () => {
     userRepository = {
       findById: findUserById,
       findByIdForUpdate: jest.fn(),
+      findCredentialVersionById: jest.fn(),
       findByEmail: jest.fn(),
       findByUserName: jest.fn(),
       findByAuthProvider: jest.fn(),

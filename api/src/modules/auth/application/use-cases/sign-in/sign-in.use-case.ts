@@ -11,6 +11,7 @@ export class SignInUseCase {
       userId: data.userId,
       email: data.email,
       status: data.status,
+      credentialVersion: data.credentialVersion,
       sessionMetadata: data.sessionMetadata,
     });
     return { accessToken, refreshToken };

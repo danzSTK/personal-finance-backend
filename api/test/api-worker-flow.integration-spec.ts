@@ -128,7 +128,9 @@ describe('API and worker flow integration', () => {
 
     const { NestFactory } = jest.requireActual<typeof import('@nestjs/core')>('@nestjs/core');
     const { ApiModule } = jest.requireActual<typeof import('@/app/api/api.module')>('@/app/api/api.module');
-    apiContext = await NestFactory.createApplicationContext(ApiModule, { logger: false });
+    apiContext = await NestFactory.createApplicationContext(ApiModule, {
+      logger: false,
+    });
 
     const { SignUpUseCase } = jest.requireActual<
       typeof import('@/modules/auth/application/use-cases/sign-up/sign-up.use-case')
@@ -155,7 +157,9 @@ describe('API and worker flow integration', () => {
     process.env.PROCESS_ROLE = 'worker';
     const { WorkerModule } =
       jest.requireActual<typeof import('@/app/worker/worker.module')>('@/app/worker/worker.module');
-    workerContext = await NestFactory.createApplicationContext(WorkerModule, { logger: false });
+    workerContext = await NestFactory.createApplicationContext(WorkerModule, {
+      logger: false,
+    });
     const { OutboxProcessorService } = jest.requireActual<
       typeof import('@/shared/outbox/services/outbox-processor.service')
     >('@/shared/outbox/services/outbox-processor.service');

@@ -1,4 +1,4 @@
-import { ApplicationError } from '@/shared/application';
+import { ApplicationError, RetryAfterApplicationError } from '@/shared/application';
 import { DomainError } from '@/shared/domain';
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -84,6 +84,16 @@ const ERROR_STATUS_BY_CODE: Record<string, HttpStatus> = {
   POTENTIAL_SESSION_HIJACKING: HttpStatus.UNAUTHORIZED,
   SESSION_NOT_FOUND: HttpStatus.NOT_FOUND,
   UNSUPPORTED_AVATAR_FILE: HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+  CURRENT_PASSWORD_INVALID: HttpStatus.FORBIDDEN,
+  PASSWORD_CHANGE_EMAIL_PROVIDER_REQUIRED: HttpStatus.CONFLICT,
+  NEW_PASSWORD_MUST_DIFFER: HttpStatus.BAD_REQUEST,
+  PASSWORD_CHANGE_BLOCKED: HttpStatus.TOO_MANY_REQUESTS,
+  PASSWORD_CHANGE_COOLDOWN_ACTIVE: HttpStatus.TOO_MANY_REQUESTS,
+  PASSWORD_CHANGE_DAILY_LIMIT_EXCEEDED: HttpStatus.TOO_MANY_REQUESTS,
+  PASSWORD_CHANGE_OPERATION_PENDING: HttpStatus.TOO_MANY_REQUESTS,
+  PASSWORD_CHANGE_COST_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
+  PASSWORD_CHANGE_STATE_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
+  INVALID_PASSWORD_CHANGE_EVENT: HttpStatus.BAD_REQUEST,
 };
 
 @Catch()
@@ -101,6 +111,10 @@ export class AppExceptionFilter implements ExceptionFilter {
       this.logger.error(this.toLogMessage(exception, request));
     }
 
+    if (exception instanceof RetryAfterApplicationError) {
+      response.setHeader('Retry-After', String(exception.retryAfterSeconds));
+    }
+
     response.status(errorResponse.statusCode).json(errorResponse);
   }
 
@@ -110,6 +124,7 @@ export class AppExceptionFilter implements ExceptionFilter {
         statusCode: ERROR_STATUS_BY_CODE[exception.code] ?? HttpStatus.BAD_REQUEST,
         code: exception.code,
         message: exception.message,
+        details: exception instanceof RetryAfterApplicationError ? exception.details : null,
         request,
       });
     }

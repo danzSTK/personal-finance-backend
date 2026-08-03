@@ -106,6 +106,15 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
         REDIS_PORT: Joi.number().required(),
         REDIS_PASSWORD: Joi.string().required(),
         REDIS_TTL: Joi.number().default(3600),
+        PASSWORD_CHANGE_RATE_LIMIT_HMAC_SECRET: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.when('NODE_ENV', {
+            is: 'test',
+            then: Joi.string().min(32).default('test-password-change-hmac-secret-32-characters'),
+            otherwise: Joi.string().min(32).required(),
+          }),
+          otherwise: Joi.string().optional(),
+        }),
 
         // mail
         MAIL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),

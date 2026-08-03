@@ -27,6 +27,7 @@ export interface UserProps {
   status: UserStatus;
   avatarAssetId: string | null;
   authProviders: AuthProvider[];
+  credentialVersion?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +66,10 @@ export class User extends AggregateRoot {
 
   get authProviders(): ReadonlyArray<AuthProvider> {
     return this.props.authProviders;
+  }
+
+  get credentialVersion(): number {
+    return this.props.credentialVersion ?? 1;
   }
 
   get createdAt(): Date {
@@ -205,6 +210,11 @@ export class User extends AggregateRoot {
     this.addDomainEvent(UserAvatarRemovedEvent.create(this.id, previousAssetId));
 
     return previousAssetId;
+  }
+
+  incrementCredentialVersion(changedAt: Date): void {
+    this.props.credentialVersion = this.credentialVersion + 1;
+    this.props.updatedAt = new Date(changedAt);
   }
 
   get jsonObject() {

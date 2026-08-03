@@ -39,6 +39,7 @@ describe('UserRepository', () => {
       lastName: null,
       status: UserStatus.ACTIVE,
       avatarAssetId: null,
+      credentialVersion: 1,
       created_at: new Date(),
       updated_at: new Date(),
       accounts: [],

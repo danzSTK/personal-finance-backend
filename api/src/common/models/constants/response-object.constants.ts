@@ -6,6 +6,7 @@ export const RESPONSE_OBJECT_TYPES = {
   TRANSACTION_SUMMARY_OVERVIEW: 'transaction_summary.overview',
   EMAIL_VERIFICATION_CONFIRMATION: 'email_verification.confirmation',
   EMAIL_VERIFICATION_RESEND: 'email_verification.resend',
+  AUTH_PASSWORD_CHANGE: 'auth.password_change',
 } as const;
 
 export type ResponseObjectType = (typeof RESPONSE_OBJECT_TYPES)[keyof typeof RESPONSE_OBJECT_TYPES];

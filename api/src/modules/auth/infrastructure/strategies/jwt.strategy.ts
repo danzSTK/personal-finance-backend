@@ -1,19 +1,21 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-jwt';
-import { type ConfigType } from '@nestjs/config';
-import jwtConfig from '@/config/jwt.config';
 import { UserStatus } from '@/common/models/enums/user-status.enum';
-import { User } from '@/modules/users/domain/entities/user.entity';
-import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { AuthRequest } from '@/common/models/interfaces/auth-request.interface';
+import jwtConfig from '@/config/jwt.config';
 import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 import { type JwtPayloadDto } from '@/modules/auth/presentation/dto/jwt-payload.dto';
-import { AuthRequest } from '@/common/models/interfaces/auth-request.interface';
+import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { type ConfigType } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { Strategy } from 'passport-jwt';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly findUserByIdUseCase: FindUserByIdUseCase,
+    private readonly userRepository: IUserRepository,
     private readonly sessionRepository: ISessionRepository,
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
@@ -31,10 +33,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       ignoreExpiration: false,
       secretOrKey: jwtConfiguration.accessSecret,
       issuer: jwtConfiguration.issuer,
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: JwtPayloadDto): Promise<User> {
+  async validate(request: AuthRequest, payload: JwtPayloadDto): Promise<User> {
     if (!payload.jti) {
       throw new UnauthorizedException('Token identifier (jti) missing');
     }
@@ -42,6 +45,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const isBlacklisted = await this.sessionRepository.isAccessTokenBlacklisted(payload.jti);
 
     if (isBlacklisted) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+
+    const credentialVersion = await this.userRepository.findCredentialVersionById(payload.sub);
+
+    if (credentialVersion === null || (payload.credentialVersion ?? 1) !== credentialVersion) {
       throw new UnauthorizedException('Token has been revoked');
     }
 
@@ -55,6 +64,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('User is blocked');
     }
 
+    request.authToken = payload;
     return user;
   }
 }
