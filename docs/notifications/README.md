@@ -11,6 +11,10 @@ Documentação do contexto de notificações.
 
 O módulo de notifications é responsável por decidir quais mensagens transacionais devem existir, persistir a intenção idempotente de envio e delegar o envio real ao `MailService`.
 
+Templates são identificados por chave lógica e versão. O catálogo TypeScript,
+os schemas Zod e os HTMLs versionados pertencem ao backend; IDs externos são
+resolvidos somente pelo adapter do provider.
+
 ## Infraestrutura Atual
 
 - Intenções persistidas em `email_messages`.
@@ -21,12 +25,12 @@ O módulo de notifications é responsável por decidir quais mensagens transacio
 
 ## Separação De Processos
 
-| Módulo | Processo | Responsabilidade |
-|---|---|---|
-| `NotificationsPersistenceModule` | API e worker | repository de `email_messages` |
-| `NotificationsProducerModule` | API e worker | cria intenções e adiciona jobs |
-| `NotificationsEventHandlersModule` | worker | reage aos eventos de domínio |
-| `NotificationsWorkerModule` | worker | provider de e-mail, processor e reconciliação |
+| Módulo                             | Processo     | Responsabilidade                              |
+| ---------------------------------- | ------------ | --------------------------------------------- |
+| `NotificationsPersistenceModule`   | API e worker | repository de `email_messages`                |
+| `NotificationsProducerModule`      | API e worker | cria intenções e adiciona jobs                |
+| `NotificationsEventHandlersModule` | worker       | reage aos eventos de domínio                  |
+| `NotificationsWorkerModule`        | worker       | provider de e-mail, processor e reconciliação |
 
 A API não carrega `MailModule` nem `EmailMessageProcessor`. Ela pode persistir uma intenção e produzir um job, mas o envio ocorre somente no worker.
 
@@ -34,8 +38,10 @@ A API não carrega `MailModule` nem `EmailMessageProcessor`. Ela pode persistir 
 
 1. Um caso de uso ou handler persiste uma intenção idempotente em `email_messages`.
 2. O producer adiciona `send-email-message` em `notifications.email` com `jobId` derivado do id da intenção.
-3. O worker carrega a intenção, envia pelo `MailService` e atualiza seu estado.
-4. Se o commit no PostgreSQL ocorrer e `Queue.add` falhar, o reconciliador seleciona intenções antigas `PENDING`/`FAILED_RETRYABLE` e repete o enqueue.
+3. O worker carrega a intenção e revalida chave, versão e parâmetros.
+4. O `MailService` delega ao provider, que resolve seu identificador externo.
+5. O worker atualiza o estado e registra o provider que aceitou o envio.
+6. Se o commit no PostgreSQL ocorrer e `Queue.add` falhar, o reconciliador seleciona intenções antigas `PENDING`/`FAILED_RETRYABLE` e repete o enqueue.
 
 Estados terminais (`SENT`, `FAILED_PERMANENT`, `CANCELED`) não são reconciliados. Repetições do reconciliador são seguras porque o `jobId` é determinístico e a intenção possui chave de idempotência.
 
@@ -53,3 +59,5 @@ Detalhes de health, backlog e recuperação: [Worker operations](../platform/wor
 ## Mapa
 
 - [Templates de e-mail](./email-templates/README.md)
+- [Modelo e versionamento](./email-templates/template-model.md)
+- [Design system dos e-mails](./email-templates/design-system.md)

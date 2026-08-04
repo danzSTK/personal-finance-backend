@@ -150,7 +150,12 @@ MAIL_ENABLED=false
 MAIL_PROVIDER=noop
 ```
 
-Para testar o envio real, use `MAIL_ENABLED=true`, `MAIL_PROVIDER=brevo` e informe `BREVO_API_KEY` e um remetente verificado.
+Para testar o envio real, use `MAIL_ENABLED=true`, `MAIL_PROVIDER=brevo`, informe
+`BREVO_API_KEY`, um remetente verificado e os mappings
+`BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID` e
+`BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID`. Esses números ficam restritos à
+configuração do adapter Brevo; os consumidores usam as referências lógicas
+`welcome-email:v1` e `email-verification:v1`.
 
 ## 3. Instalar as dependências
 

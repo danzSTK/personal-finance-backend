@@ -458,21 +458,21 @@ Mais detalhes de domínio estão em [Assets](../assets/README.md).
 
 ## `email_messages`
 
-Representa uma intenção idempotente de envio de e-mail transacional. A tabela guarda o estado atual da mensagem, os parâmetros de template usados no provider e o diagnóstico da última falha, mas não funciona como log detalhado de tentativas.
+Representa uma intenção idempotente de envio de e-mail transacional. A tabela guarda o estado atual da mensagem, a referência lógica versionada, os parâmetros validados e o diagnóstico da última falha, mas não funciona como log detalhado de tentativas.
 
-O v1 usa essa tabela para o e-mail de boas-vindas disparado por `user.created`. A execução assíncrona fica na fila BullMQ `notifications.email`, e o `jobId` é derivado de `email_messages.id`, mas não é persistido.
+Os fluxos atuais usam a tabela para boas-vindas e verificação de e-mail. A execução assíncrona fica na fila BullMQ `notifications.email`, e o `jobId` é derivado de `email_messages.id`, mas não é persistido.
 
 ### Colunas
 
 | Coluna | Tipo | Nulo/default | Responsabilidade |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `default gen_random_uuid()` | Identificador interno da intenção de e-mail. Também é usado para derivar o job id da fila. |
-| `type` | `varchar(50)` | `not null` | Tipo lógico do e-mail, inicialmente `WELCOME`. |
+| `type` | `varchar(50)` | `not null` | Tipo lógico do e-mail: `WELCOME` ou `EMAIL_VERIFICATION`. |
 | `recipient_email` | `varchar(320)` | `not null` | Endereço de destino usado pelo provider de e-mail. |
 | `recipient_name` | `varchar(120)` | `nullable` | Nome exibível do destinatário quando disponível. |
-| `provider` | `varchar(50)` | `not null` | Provider de envio usado na intenção, como `brevo`. |
+| `provider` | `varchar(50)` | `nullable` | Provider que efetivamente aceitou o envio; permanece nulo enquanto existe apenas a intenção. |
 | `template_key` | `varchar(100)` | `not null` | Chave interna documentada do template, como `welcome-email`. |
-| `provider_template_id` | `varchar(100)` | `not null` | Identificador do template no provider externo, como `2` na Brevo. |
+| `template_version` | `integer` | `not null` | Versão positiva e imutável do contrato aplicado à intenção. |
 | `template_params` | `jsonb` | `not null default '{}'::jsonb` | Parâmetros enviados ao template. Deve ser objeto JSON. |
 | `idempotency_key` | `varchar(255)` | `not null` | Chave de negócio que impede duplicidade lógica. Para welcome: `email:welcome:user:<userId>`. |
 | `status` | `varchar(30)` | `not null default 'PENDING'` | Estado operacional: `PENDING`, `PROCESSING`, `SENT`, `FAILED_RETRYABLE`, `FAILED_PERMANENT` ou `CANCELED`. |
@@ -494,6 +494,7 @@ O v1 usa essa tabela para o e-mail de boas-vindas disparado por `user.created`. 
 | `CHK_email_messages_status` | check | `status IN ('PENDING', 'PROCESSING', 'SENT', 'FAILED_RETRYABLE', 'FAILED_PERMANENT', 'CANCELED')` | Impede estados fora do ciclo operacional de notifications. |
 | `CHK_email_messages_attempts_count` | check | `attempts_count >= 0` | Impede contador de tentativas negativo. |
 | `CHK_email_messages_template_params_object` | check | `jsonb_typeof(template_params) = 'object'` | Garante que os parâmetros de template sejam sempre objeto JSON. |
+| `CHK_email_messages_template_version` | check | `template_version >= 1` | Impede referências a versões inválidas. |
 
 ### Índices
 
@@ -522,6 +523,8 @@ O v1 usa essa tabela para o e-mail de boas-vindas disparado por `user.created`. 
 - A tabela não possui `job_id` nem `bullmq_job_id`; o job id é reconstruído como `email-message-<emailMessage.id>`.
 - A tabela não substitui `email_delivery_attempts`. Um log detalhado de tentativas deve ser criado em spec futura, se necessário.
 - Esta tabela contém e-mail de destinatário e parâmetros de template. Não exponha esses dados em endpoint de usuário sem uma spec que modele ownership, autorização e retenção.
+- IDs externos de template são resolvidos pelo adapter e não são persistidos.
+- `email-verification:v1` contém atualmente a URL com token de uso único em `template_params`; a proteção em repouso será estudada separadamente antes da produção.
 
 Mais detalhes de domínio estão em [Notifications](../notifications/README.md) e no catálogo de [templates de e-mail](../notifications/email-templates/README.md).
 

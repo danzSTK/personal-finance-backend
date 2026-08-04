@@ -33,7 +33,7 @@ Providers suportados nesta etapa:
 - `noop`: não chama serviço externo;
 - `brevo`: usa o SDK `@getbrevo/brevo`.
 
-A troca futura de provider deve acontecer por adapter/classe ligada à porta `MailProvider`. Consumidores devem continuar chamando `MailService`.
+A troca futura de provider deve acontecer por adapter/classe ligada à porta `MailProvider`. Consumidores devem continuar chamando `MailService` com referência lógica de template.
 
 ## Configuração
 
@@ -46,23 +46,32 @@ BREVO_API_KEY=your_brevo_api_key
 BREVO_API_BASE_URL=https://api.brevo.com/v3
 BREVO_API_TIMEOUT_MS=10000
 BREVO_API_MAX_RETRIES=2
+BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID=<inteiro-positivo>
+BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID=<inteiro-positivo>
 ```
 
-Quando `MAIL_ENABLED=true` e `MAIL_PROVIDER=brevo`, `BREVO_API_KEY` e `MAIL_DEFAULT_FROM_EMAIL` são obrigatórios.
+Quando o worker usa `MAIL_ENABLED=true` e `MAIL_PROVIDER=brevo`, a API key, o
+remetente e os mappings das versões ativas são obrigatórios. API HTTP e provider
+`noop` não exigem mappings Brevo.
 
-## Uso Futuro
+## Contrato De Template
 
-Módulos futuros devem injetar `MailService`:
+Consumers enviam chave, versão e parâmetros; não enviam `templateId`:
 
 ```ts
 await this.mailService.send({
   to: [{ email: userEmail }],
-  subject: 'Assunto',
-  html: '<p>Mensagem</p>',
+  template: { key: "welcome-email", version: 1 },
+  params,
 });
 ```
 
-O serviço aplica o remetente padrão quando `from` não é informado.
+O serviço aplica o remetente padrão. O `BrevoMailProvider` resolve a referência
+em `mail.config` imediatamente antes de chamar o SDK. O provider `noop` valida a
+referência sem exigir ID externo.
+
+HTML/texto livre continuam disponíveis para mensagens que não usam template
+hospedado.
 
 ## Segurança
 
@@ -81,9 +90,12 @@ MAIL_PROVIDER_UNAVAILABLE
 MAIL_PROVIDER_REJECTED
 MAIL_PROVIDER_TIMEOUT
 MAIL_PROVIDER_UNKNOWN
+MAIL_TEMPLATE_MAPPING_MISSING
 ```
 
 `MailError.retryable` indica se uma fila/worker futuro pode tentar novamente.
+Mapping ausente é configuração permanente para aquela tentativa e não deve gerar
+retry automático.
 
 ## Fora Do Escopo
 

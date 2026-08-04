@@ -64,8 +64,8 @@ docs/notifications/email-templates/welcome-email.md
 Cada template deve documentar:
 
 - `template_key`;
-- provider;
-- provider template id;
+- versão;
+- fonte HTML;
 - tipo de e-mail;
 - caso de uso;
 - trigger;
@@ -80,8 +80,7 @@ O template `welcome-email` terá:
 
 ```text
 template_key: welcome-email
-provider: brevo
-provider_template_id: 2
+template_version: 1
 type: WELCOME
 trigger: user.created
 idempotency_key: email:welcome:user:<userId>
@@ -96,9 +95,9 @@ id uuid primary key
 type varchar(50) not null
 recipient_email varchar(320) not null
 recipient_name varchar(120) null
-provider varchar(50) not null
+provider varchar(50) null
 template_key varchar(100) not null
-provider_template_id varchar(100) not null
+template_version integer not null
 template_params jsonb not null default '{}'::jsonb
 idempotency_key varchar(255) not null
 status varchar(30) not null
