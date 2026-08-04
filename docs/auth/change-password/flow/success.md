@@ -4,6 +4,7 @@ type: flow
 status: current
 related:
   - ./README.md
+  - ../notifications.md
   - ../decisions/credential-version-session-revocation.md
   - ../decisions/immediate-and-durable-reconciliation.md
 ---

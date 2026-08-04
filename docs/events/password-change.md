@@ -4,6 +4,7 @@ type: event-group
 status: current
 related:
   - ./README.md
+  - ../auth/change-password/notifications.md
   - ../specs/auth/change-password/specs/design.md
 ---
 
@@ -13,12 +14,12 @@ O fluxo de alteração de senha grava quatro contratos na transactional outbox.
 Eles só ficam visíveis ao worker depois do commit do hash, da versão da
 credencial e dos fatos em `password_change_events`.
 
-| Evento | Finalidade |
-| --- | --- |
-| `auth.password-change.state-refresh-requested` | reconstruir a projeção Redis a partir do PostgreSQL |
-| `auth.password-change.changed` | fato de segurança consumido pela futura notificação de senha alterada |
-| `auth.password-change.block-started` | fato consumido pela futura notificação de bloqueio |
-| `auth.sessions.revoke-all-requested` | repetir a limpeza física das refresh sessions |
+| Evento                                         | Finalidade                                                            |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| `auth.password-change.state-refresh-requested` | reconstruir a projeção Redis a partir do PostgreSQL                   |
+| `auth.password-change.changed`                 | fato de segurança consumido pela futura notificação de senha alterada |
+| `auth.password-change.block-started`           | fato consumido pela futura notificação de bloqueio                    |
+| `auth.sessions.revoke-all-requested`           | repetir a limpeza física das refresh sessions                         |
 
 Todos usam `aggregateType=User`, `aggregateId=userId`, versão `1` e
 deduplicação baseada no ID do fato de `password_change_events`.

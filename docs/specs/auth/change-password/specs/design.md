@@ -1,5 +1,12 @@
 # Design — alteração de senha autenticada
 
+## Referências
+
+- [Documentação arquitetural](../../../../auth/change-password/architecture.md)
+- [Fluxos detalhados](../../../../auth/change-password/flow/README.md)
+- [Decisões arquiteturais](../../../../auth/change-password/decisions/README.md)
+- [Desenho original](<../../../../Excalidraw/Drawing 2026-07-25 13.26.52.excalidraw.md>)
+
 ## Visão geral
 
 O fluxo usa PostgreSQL como registro auditável e fonte de reconstrução, Redis

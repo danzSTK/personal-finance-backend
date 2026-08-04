@@ -16,6 +16,8 @@ de senha. A documentação de consumo HTTP permanece em
 
 ## Documentos
 
+- [Arquitetura](./architecture.md): componentes, autoridades dos dados e
+  integrações.
 - [Fluxo detalhado](./flow/README.md): caminhos de sucesso, falha da senha
   atual, bloqueios e erros.
 - [Decisões arquiteturais](./decisions/README.md): autoridade dos dados,
@@ -23,6 +25,8 @@ de senha. A documentação de consumo HTTP permanece em
 - [Chaves Redis](./redis-keys.md): conteúdo, TTL e finalidade de cada chave.
 - [Scripts Lua](./lua-scripts.md): contratos atômicos de leitura, barreira e
   substituição da projeção.
+- [Notificações](./notifications.md): eventos existentes e escopo ainda
+  pendente.
 
 Para uma leitura curta, consulte o
 [resumo do fluxo](../flows/change-password.md).

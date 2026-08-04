@@ -48,10 +48,12 @@ Para documentação de consumo HTTP, use [Integração Auth](../integrations/aut
 ### Alteração de senha
 
 - [Índice](./change-password/index.md)
+- [Arquitetura](./change-password/architecture.md)
 - [Fluxo detalhado](./change-password/flow/README.md)
 - [Decisões](./change-password/decisions/README.md)
 - [Chaves Redis](./change-password/redis-keys.md)
 - [Scripts Lua](./change-password/lua-scripts.md)
+- [Notificações](./change-password/notifications.md)
 
 ### Referência
 
