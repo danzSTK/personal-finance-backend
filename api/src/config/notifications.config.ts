@@ -4,7 +4,6 @@ export interface NotificationsConfig {
   dashboardPath: string;
   emailPreferencesPath: string;
   emailVerificationPath: string;
-  emailVerificationProviderTemplateId: string;
   emailVerificationTokenTtlMinutes: number;
   emailVerificationResendCooldownMinutes: number;
   emailVerificationDailyLimit: number;
@@ -30,7 +29,6 @@ export default registerAs(
       process.env.NOTIFICATIONS_EMAIL_PREFERENCES_PATH ?? '/settings/email-preferences',
     ),
     emailVerificationPath: normalizePath(process.env.NOTIFICATIONS_EMAIL_VERIFICATION_PATH ?? '/verification-email'),
-    emailVerificationProviderTemplateId: process.env.NOTIFICATIONS_EMAIL_VERIFICATION_PROVIDER_TEMPLATE_ID ?? '3',
     emailVerificationTokenTtlMinutes: Number(process.env.EMAIL_VERIFICATION_TOKEN_TTL_MINUTES ?? 15),
     emailVerificationResendCooldownMinutes: Number(process.env.EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES ?? 60),
     emailVerificationDailyLimit: Number(process.env.EMAIL_VERIFICATION_DAILY_LIMIT ?? 5),

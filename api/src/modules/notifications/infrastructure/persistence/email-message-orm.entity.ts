@@ -2,9 +2,8 @@ import {
   EmailMessageLimits,
   EmailMessageStatus,
   EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
 } from '@/modules/notifications/domain/constants/email-message.constants';
+import { EmailTemplateKey } from '@/modules/notifications/domain/templates/email-template.contract';
 import { Check, Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('email_messages')
@@ -17,6 +16,7 @@ import { Check, Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn,
   `"status" IN ('PENDING', 'PROCESSING', 'SENT', 'FAILED_RETRYABLE', 'FAILED_PERMANENT', 'CANCELED')`,
 )
 @Check('CHK_email_messages_attempts_count', `"attempts_count" >= 0`)
+@Check('CHK_email_messages_template_version', `"template_version" >= 1`)
 @Check('CHK_email_messages_template_params_object', `jsonb_typeof("template_params") = 'object'`)
 export class EmailMessageOrmEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -31,14 +31,14 @@ export class EmailMessageOrmEntity {
   @Column({ type: 'varchar', length: EmailMessageLimits.recipientNameMaxLength, nullable: true })
   recipient_name: string | null;
 
-  @Column({ type: 'varchar', length: EmailMessageLimits.providerMaxLength })
-  provider: EmailProviderKey;
+  @Column({ type: 'varchar', length: EmailMessageLimits.providerMaxLength, nullable: true })
+  provider: string | null;
 
   @Column({ type: 'varchar', length: EmailMessageLimits.templateKeyMaxLength })
   template_key: EmailTemplateKey;
 
-  @Column({ type: 'varchar', length: EmailMessageLimits.providerTemplateIdMaxLength })
-  provider_template_id: string;
+  @Column({ type: 'integer' })
+  template_version: number;
 
   @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
   template_params: Record<string, unknown>;

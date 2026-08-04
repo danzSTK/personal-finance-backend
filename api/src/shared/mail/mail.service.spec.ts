@@ -24,6 +24,10 @@ describe('MailService', () => {
       baseUrl: 'https://api.brevo.com/v3',
       timeoutMs: 10000,
       maxRetries: 2,
+      templateIds: {
+        'welcome-email:v1': 2,
+        'email-verification:v1': 3,
+      },
     },
   };
 
@@ -57,13 +61,13 @@ describe('MailService', () => {
     it('allows template emails without subject or body', async () => {
       await service.send({
         to: [{ email: 'user@example.com' }],
-        templateId: 123,
+        template: { key: 'welcome-email', version: 1 },
         params: { firstName: 'Ada' },
       });
 
       expect(provider.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          templateId: 123,
+          template: { key: 'welcome-email', version: 1 },
           params: { firstName: 'Ada' },
         }),
       );
@@ -75,6 +79,19 @@ describe('MailService', () => {
           to: [],
           subject: 'Hello',
           html: '<p>Hello</p>',
+        }),
+      ).rejects.toMatchObject<Partial<MailError>>({
+        code: MailErrorCode.INVALID_PAYLOAD,
+        retryable: false,
+      });
+      expect(provider.send).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid logical template reference', async () => {
+      await expect(
+        service.send({
+          to: [{ email: 'user@example.com' }],
+          template: { key: '', version: 0 },
         }),
       ).rejects.toMatchObject<Partial<MailError>>({
         code: MailErrorCode.INVALID_PAYLOAD,

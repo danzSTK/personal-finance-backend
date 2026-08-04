@@ -5,13 +5,11 @@ import { OutboxMessageStatus } from '@/common/models/enums';
 import { OutboxMessageOrmEntity } from '@/shared/outbox/persistence/outbox-message-orm.entity';
 import { OutboxMessageRepository } from '@/shared/outbox/persistence/outbox-message.repository';
 import { EmailMessageOrmEntity } from '@/modules/notifications/infrastructure/persistence/email-message-orm.entity';
+import { EmailMessageStatus, EmailMessageType } from '@/modules/notifications/domain/constants/email-message.constants';
 import {
-  BrevoTemplateId,
-  EmailMessageStatus,
-  EmailMessageType,
-  EmailProviderKey,
   EmailTemplateKey,
-} from '@/modules/notifications/domain/constants/email-message.constants';
+  EmailTemplateVersion,
+} from '@/modules/notifications/domain/templates/email-template.contract';
 
 type ExplainRow = { 'QUERY PLAN': string };
 
@@ -184,38 +182,36 @@ describe('Outbox PostgreSQL integration', () => {
     await dataSource.query(
       `
         INSERT INTO email_messages (
-          type, recipient_email, recipient_name, provider, template_key,
-          provider_template_id, template_params, idempotency_key, status, created_at, updated_at
+          type, recipient_email, recipient_name, template_key,
+          template_version, template_params, idempotency_key, status, created_at, updated_at
         )
         SELECT
-          $1, 'terminal-' || sequence || '@example.com', NULL, $2, $3,
-          $4, '{}'::jsonb, 'terminal:' || sequence, $5, NOW() - INTERVAL '1 day', NOW()
+          $1, 'terminal-' || sequence || '@example.com', NULL, $2,
+          $3, '{}'::jsonb, 'terminal:' || sequence, $4, NOW() - INTERVAL '1 day', NOW()
         FROM generate_series(1, 5000) AS sequence
       `,
       [
         EmailMessageType.EMAIL_VERIFICATION,
-        EmailProviderKey.BREVO,
         EmailTemplateKey.EMAIL_VERIFICATION,
-        BrevoTemplateId.EMAIL_VERIFICATION,
+        EmailTemplateVersion.V1,
         EmailMessageStatus.SENT,
       ],
     );
     await dataSource.query(
       `
         INSERT INTO email_messages (
-          type, recipient_email, recipient_name, provider, template_key,
-          provider_template_id, template_params, idempotency_key, status, created_at, updated_at
+          type, recipient_email, recipient_name, template_key,
+          template_version, template_params, idempotency_key, status, created_at, updated_at
         )
         SELECT
-          $1, 'pending-' || sequence || '@example.com', NULL, $2, $3,
-          $4, '{}'::jsonb, 'pending:' || sequence, $5, NOW() - INTERVAL '1 minute', NOW()
+          $1, 'pending-' || sequence || '@example.com', NULL, $2,
+          $3, '{}'::jsonb, 'pending:' || sequence, $4, NOW() - INTERVAL '1 minute', NOW()
         FROM generate_series(1, 25) AS sequence
       `,
       [
         EmailMessageType.EMAIL_VERIFICATION,
-        EmailProviderKey.BREVO,
         EmailTemplateKey.EMAIL_VERIFICATION,
-        BrevoTemplateId.EMAIL_VERIFICATION,
+        EmailTemplateVersion.V1,
         EmailMessageStatus.PENDING,
       ],
     );

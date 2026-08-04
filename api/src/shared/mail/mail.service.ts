@@ -28,11 +28,15 @@ export class MailService {
       throw MailError.invalidPayload('Mail sender is required.');
     }
 
-    if (!input.templateId && !this.hasText(input.subject)) {
+    if (input.template) {
+      this.validateTemplate(input.template);
+    }
+
+    if (!input.template && !this.hasText(input.subject)) {
       throw MailError.invalidPayload('Mail subject is required when no template is provided.');
     }
 
-    if (!input.templateId && !this.hasText(input.html) && !this.hasText(input.text)) {
+    if (!input.template && !this.hasText(input.html) && !this.hasText(input.text)) {
       throw MailError.invalidPayload('Mail content is required when no template is provided.');
     }
 
@@ -40,6 +44,16 @@ export class MailService {
       ...input,
       from,
     };
+  }
+
+  private validateTemplate(template: SendMailInput['template']): void {
+    if (!template || !this.hasText(template.key)) {
+      throw MailError.invalidPayload('Mail template key is required.');
+    }
+
+    if (!Number.isSafeInteger(template.version) || template.version < 1) {
+      throw MailError.invalidPayload('Mail template version must be a positive safe integer.');
+    }
   }
 
   private validateRecipients(recipients: MailAddress[]): void {
