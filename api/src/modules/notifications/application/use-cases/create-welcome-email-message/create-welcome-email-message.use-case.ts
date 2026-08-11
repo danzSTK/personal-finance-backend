@@ -7,15 +7,17 @@ import {
   CreateWelcomeEmailMessageUseCaseOutput,
 } from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.dto';
 import {
-  BrevoTemplateId,
   EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
   WelcomeEmailIdempotencyKeys,
-  WelcomeEmailParams,
 } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
+import {
+  ActiveEmailTemplateVersion,
+  EmailTemplateKey,
+  WelcomeEmailV1Params,
+} from '@/modules/notifications/domain/templates/email-template.contract';
+import { EmailTemplateContractRegistry } from '@/modules/notifications/application/templates/email-template-contract.registry';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { Inject, Injectable } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
@@ -54,16 +56,22 @@ export class CreateWelcomeEmailMessageUseCase {
 
     const recipientEmail = user.email.value;
     const recipientName = user.firstName ?? null;
-    const params = this.buildTemplateParams(recipientName, recipientEmail);
+    const templateKey = EmailTemplateKey.WELCOME;
+    const templateVersion = ActiveEmailTemplateVersion[templateKey];
+    const params = EmailTemplateContractRegistry.validate(
+      templateKey,
+      templateVersion,
+      this.buildTemplateParams(recipientName, recipientEmail),
+    );
 
     const emailMessage = EmailMessage.create(
       {
         type: EmailMessageType.WELCOME,
         recipientEmail,
         recipientName,
-        provider: EmailProviderKey.BREVO,
-        templateKey: EmailTemplateKey.WELCOME,
-        providerTemplateId: BrevoTemplateId.WELCOME,
+        provider: null,
+        templateKey,
+        templateVersion,
         templateParams: params,
         idempotencyKey,
         providerMessageId: null,
@@ -103,7 +111,7 @@ export class CreateWelcomeEmailMessageUseCase {
     }
   }
 
-  private buildTemplateParams(firstName: string | null, email: string): WelcomeEmailParams {
+  private buildTemplateParams(firstName: string | null, email: string): WelcomeEmailV1Params {
     return {
       first_name: this.resolveFirstName(firstName, email),
       dashboard_url: this.buildFrontendUrl(this.notifications.dashboardPath),

@@ -21,6 +21,8 @@ describe('mailConfig', () => {
       delete process.env.BREVO_API_BASE_URL;
       delete process.env.BREVO_API_TIMEOUT_MS;
       delete process.env.BREVO_API_MAX_RETRIES;
+      delete process.env.BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID;
+      delete process.env.BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID;
 
       const config = mailConfig();
 
@@ -36,6 +38,10 @@ describe('mailConfig', () => {
           baseUrl: 'https://api.brevo.com/v3',
           timeoutMs: 10000,
           maxRetries: 2,
+          templateIds: {
+            'welcome-email:v1': undefined,
+            'email-verification:v1': undefined,
+          },
         },
       });
     });
@@ -51,6 +57,8 @@ describe('mailConfig', () => {
       process.env.BREVO_API_BASE_URL = 'https://api.example.com';
       process.env.BREVO_API_TIMEOUT_MS = '5000';
       process.env.BREVO_API_MAX_RETRIES = '1';
+      process.env.BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID = '42';
+      process.env.BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID = '57';
 
       const config = mailConfig();
 
@@ -66,6 +74,10 @@ describe('mailConfig', () => {
           baseUrl: 'https://api.example.com',
           timeoutMs: 5000,
           maxRetries: 1,
+          templateIds: {
+            'welcome-email:v1': 42,
+            'email-verification:v1': 57,
+          },
         },
       });
     });

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Construtor de Templates de E-mail"
+  short_description: "Cria e valida templates de e-mail Danfy"
+  default_prompt: "Use $email-template-constructor para criar ou versionar um template de e-mail transacional da Danfy."

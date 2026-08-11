@@ -33,14 +33,14 @@ consumidores forem implementados.
 
 A entrega de notificações deverá:
 
-1. declarar tipos e template keys para senha alterada e bloqueio iniciado;
-2. definir IDs de template por configuração e validá-los como inteiros
-   positivos;
-3. criar intenções idempotentes em `email_messages`;
-4. registrar handlers para os dois eventos;
-5. enfileirar somente o `emailMessageId` em `notifications.email`;
-6. documentar templates, parâmetros e origem de cada campo;
-7. testar retry, idempotência e ausência de dados sensíveis.
+1. declarar tipos, template keys e versões para senha alterada e bloqueio iniciado;
+2. declarar contratos tipados e schemas runtime dos parâmetros;
+3. configurar os mappings do provider somente na infraestrutura;
+4. criar intenções idempotentes em `email_messages`;
+5. registrar handlers para os dois eventos;
+6. enfileirar somente o `emailMessageId` em `notifications.email`;
+7. documentar templates, versões, parâmetros e origem de cada campo;
+8. testar retry, idempotência e ausência de dados sensíveis.
 
 ## Fluxo esperado
 
@@ -54,8 +54,8 @@ evento da outbox
   -> provider configurado
 ```
 
-O ID do template e os parâmetros devem ser persistidos na intenção. O job não
-deve duplicar esse payload.
+A chave, a versão e os parâmetros devem ser persistidos na intenção. O ID do
+provider é resolvido pelo adapter e o job não duplica esse payload.
 
 ## Eventos e e-mails
 

@@ -10,6 +10,8 @@ import { EmailMessage } from '@/modules/notifications/domain/entities/email-mess
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
 import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { EmailTemplateContractRegistry } from '@/modules/notifications/application/templates/email-template-contract.registry';
+import { EmailTemplateContractError } from '@/modules/notifications/application/errors/email-template-contract.error';
 
 interface MailFailure {
   code: string;
@@ -37,6 +39,11 @@ export class SendEmailMessageUseCase {
     }
 
     try {
+      const templateParams = EmailTemplateContractRegistry.parse(
+        emailMessage.templateKey,
+        emailMessage.templateVersion,
+        emailMessage.templateParams,
+      );
       const result = await this.mailService.send({
         to: [
           {
@@ -44,16 +51,19 @@ export class SendEmailMessageUseCase {
             name: emailMessage.recipientName ?? undefined,
           },
         ],
-        templateId: Number(emailMessage.providerTemplateId),
-        params: emailMessage.templateParams,
-        tags: [emailMessage.templateKey, emailMessage.type],
+        template: {
+          key: emailMessage.templateKey,
+          version: emailMessage.templateVersion,
+        },
+        params: templateParams,
+        tags: [emailMessage.templateKey, emailMessage.type, `v${emailMessage.templateVersion}`],
         metadata: {
           'X-Danfy-Email-Message-Id': emailMessage.id,
         },
       });
 
       const providerMessageId = result.messageId ?? result.messageIds?.[0] ?? null;
-      const sentMessage = await this.markSent(input.emailMessageId, providerMessageId);
+      const sentMessage = await this.markSent(input.emailMessageId, result.provider, providerMessageId);
 
       return {
         status: sentMessage.status,
@@ -88,10 +98,14 @@ export class SendEmailMessageUseCase {
     });
   }
 
-  private async markSent(emailMessageId: string, providerMessageId: string | null): Promise<EmailMessage> {
+  private async markSent(
+    emailMessageId: string,
+    provider: string,
+    providerMessageId: string | null,
+  ): Promise<EmailMessage> {
     return await this.dataSource.transaction(async manager => {
       const emailMessage = await this.findMessageForUpdate(emailMessageId, manager);
-      emailMessage.markSent(providerMessageId);
+      emailMessage.markSent(provider, providerMessageId);
 
       return await this.emailMessageRepository.save(emailMessage, { manager });
     });
@@ -117,6 +131,15 @@ export class SendEmailMessageUseCase {
   }
 
   private toFailure(error: unknown): MailFailure {
+    if (error instanceof EmailTemplateContractError) {
+      return {
+        code: error.code,
+        message: error.message,
+        retryable: false,
+        cause: error,
+      };
+    }
+
     if (error instanceof MailError) {
       return {
         code: error.code,
@@ -126,20 +149,13 @@ export class SendEmailMessageUseCase {
       };
     }
 
-    if (error instanceof Error) {
-      return {
-        code: MailErrorCode.PROVIDER_UNKNOWN,
-        message: error.message,
-        retryable: true,
-        cause: error,
-      };
-    }
+    const safeError = MailError.providerUnknown();
 
     return {
       code: MailErrorCode.PROVIDER_UNKNOWN,
-      message: 'Mail provider failed unexpectedly.',
+      message: safeError.message,
       retryable: true,
-      cause: MailError.providerUnknown(),
+      cause: safeError,
     };
   }
 }

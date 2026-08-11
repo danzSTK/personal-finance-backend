@@ -58,7 +58,11 @@ Esta spec não cobre:
 - Use cases e handlers futuros devem depender de `MailService` ou de uma porta própria, nunca do adapter Brevo diretamente.
 - O adapter Brevo deve ficar na infraestrutura compartilhada.
 - Dados sensíveis, como API key, devem vir de configuração e nunca aparecer em logs.
-- Payloads de envio devem aceitar destinatários, assunto, remetente opcional, template opcional, HTML opcional, texto opcional e variáveis de template.
+- Payloads de envio devem aceitar destinatários, assunto, remetente opcional,
+  referência lógica e versionada de template, HTML opcional, texto opcional e
+  variáveis de template.
+- IDs numéricos de template pertencem exclusivamente ao adapter do provider e
+  devem ser resolvidos por configuração do ambiente.
 - O contrato interno deve ser genérico o suficiente para suportar Brevo SDK/API e outros adapters futuros.
 - O serviço deve validar que existe conteúdo mínimo para envio: template, HTML ou texto.
 - Falhas do provedor devem ser traduzidas para erro próprio de plataforma, sem expor resposta bruta do provedor para camadas superiores.
@@ -109,22 +113,22 @@ THE SYSTEM SHALL NOT criar fila, worker, processor, subscriber de evento ou cons
 ## Edge Cases
 
 - IF `MAIL_PROVIDER=brevo` e `BREVO_API_KEY` estiver ausente
-THEN o boot deve falhar com erro claro de configuração.
+  THEN o boot deve falhar com erro claro de configuração.
 
 - IF `MAIL_ENABLED=false`
-THEN o serviço deve operar em modo no-op controlado, retornando resultado seguro sem chamar provedor externo.
+  THEN o serviço deve operar em modo no-op controlado, retornando resultado seguro sem chamar provedor externo.
 
 - IF o provider retornar erro temporário
-THEN o adapter deve sinalizar erro retentável para que um worker futuro possa decidir retry.
+  THEN o adapter deve sinalizar erro retentável para que um worker futuro possa decidir retry.
 
 - IF o provider retornar erro permanente de payload
-THEN o adapter deve sinalizar erro não retentável.
+  THEN o adapter deve sinalizar erro não retentável.
 
 - IF múltiplos destinatários forem enviados
-THEN o contrato deve preservar a lista, sem duplicar chamadas por padrão.
+  THEN o contrato deve preservar a lista, sem duplicar chamadas por padrão.
 
 - IF template e HTML forem enviados juntos
-THEN a regra de precedência deve ser documentada no design.
+  THEN a regra de precedência deve ser documentada no design.
 
 ## Critérios De Aceite
 

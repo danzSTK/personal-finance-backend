@@ -9,13 +9,11 @@ import type { Queue } from 'bullmq';
 import { getQueueToken } from '@nestjs/bullmq';
 import { ENTITIES } from '@/config/entities';
 import { OutboxMessageStatus } from '@/common/models/enums';
+import { EmailMessageStatus, EmailMessageType } from '@/modules/notifications/domain/constants/email-message.constants';
 import {
-  BrevoTemplateId,
-  EmailMessageStatus,
-  EmailMessageType,
-  EmailProviderKey,
   EmailTemplateKey,
-} from '@/modules/notifications/domain/constants/email-message.constants';
+  EmailTemplateVersion,
+} from '@/modules/notifications/domain/templates/email-template.contract';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
 import { EmailJobQueueProducer } from '@/modules/notifications/application/queues/email-job-queue-producer.port';
 import {
@@ -286,19 +284,19 @@ describe('API and worker flow integration', () => {
       await verificationDataSource.query(
         `
           INSERT INTO email_messages (
-            id, type, recipient_email, recipient_name, provider, template_key,
-            provider_template_id, template_params, idempotency_key, status, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW() - INTERVAL '1 minute', NOW())
+            id, type, recipient_email, recipient_name, template_key,
+            template_version, template_params, idempotency_key, status, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW() - INTERVAL '1 minute', NOW())
         `,
         [
           id,
           EmailMessageType.EMAIL_VERIFICATION,
           `enqueue-gap-${index}@example.com`,
           'Integration',
-          EmailProviderKey.BREVO,
           EmailTemplateKey.EMAIL_VERIFICATION,
-          BrevoTemplateId.EMAIL_VERIFICATION,
+          EmailTemplateVersion.V1,
           {
+            first_name: 'Integration',
             verification_url: 'https://example.com/verify',
             expires_in_minutes: 15,
             support_url: 'https://example.com',

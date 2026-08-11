@@ -430,7 +430,7 @@ Obrigatório para API conforme capacidades atuais:
 - app URL/frontend/CSRF;
 - throttling;
 - Object Storage/avatar;
-- notification URLs/template IDs usados para criar intenções.
+- URLs e parâmetros de notification usados para criar intenções lógicas.
 
 API não exige:
 
@@ -446,7 +446,7 @@ Obrigatório para worker combinado:
 - Redis cache;
 - Redis BullMQ;
 - mail/Brevo quando `MAIL_ENABLED=true`;
-- notification URLs/template IDs;
+- URLs de notification e mappings de template próprios do provider;
 - Object Storage;
 - outbox interval, batch, concurrency e lease;
 - worker shutdown/health.

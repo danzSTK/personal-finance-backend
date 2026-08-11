@@ -145,12 +145,37 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
         BREVO_API_BASE_URL: Joi.string().uri().default('https://api.brevo.com/v3'),
         BREVO_API_TIMEOUT_MS: Joi.number().integer().min(1).default(10000),
         BREVO_API_MAX_RETRIES: Joi.number().integer().min(0).default(2),
+        BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.number().integer().positive().required(),
+              otherwise: Joi.number().integer().positive().optional(),
+            }),
+            otherwise: Joi.number().integer().positive().optional(),
+          }),
+          otherwise: Joi.number().integer().positive().optional(),
+        }),
+        BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.number().integer().positive().required(),
+              otherwise: Joi.number().integer().positive().optional(),
+            }),
+            otherwise: Joi.number().integer().positive().optional(),
+          }),
+          otherwise: Joi.number().integer().positive().optional(),
+        }),
 
         // notifications
         NOTIFICATIONS_DASHBOARD_PATH: Joi.string().trim().pattern(/^\//).default('/dashboard'),
         NOTIFICATIONS_EMAIL_PREFERENCES_PATH: Joi.string().trim().pattern(/^\//).default('/settings/email-preferences'),
         NOTIFICATIONS_EMAIL_VERIFICATION_PATH: Joi.string().trim().pattern(/^\//).default('/verification-email'),
-        NOTIFICATIONS_EMAIL_VERIFICATION_PROVIDER_TEMPLATE_ID: Joi.string().trim().min(1).default('3'),
         EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: Joi.number().integer().min(1).default(15),
         EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES: Joi.number().integer().min(1).default(60),
         EMAIL_VERIFICATION_DAILY_LIMIT: Joi.number().integer().min(1).default(5),

@@ -1,16 +1,14 @@
 import { MailError } from '@/shared/mail/errors/mail-error';
 import { MailService } from '@/shared/mail/mail.service';
-import {
-  BrevoTemplateId,
-  EmailMessageStatus,
-  EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
-} from '@/modules/notifications/domain/constants/email-message.constants';
+import { EmailMessageStatus, EmailMessageType } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
 import { SendEmailMessageUseCase } from '@/modules/notifications/application/use-cases/send-email-message/send-email-message.use-case';
 import { DataSource, EntityManager } from 'typeorm';
+import {
+  EmailTemplateKey,
+  EmailTemplateVersion,
+} from '@/modules/notifications/domain/templates/email-template.contract';
 
 const makeEmailMessage = (): EmailMessage =>
   EmailMessage.reconstitute(
@@ -18,9 +16,9 @@ const makeEmailMessage = (): EmailMessage =>
       type: EmailMessageType.WELCOME,
       recipientEmail: 'daniel@example.com',
       recipientName: 'Daniel',
-      provider: EmailProviderKey.BREVO,
+      provider: null,
       templateKey: EmailTemplateKey.WELCOME,
-      providerTemplateId: BrevoTemplateId.WELCOME,
+      templateVersion: EmailTemplateVersion.V1,
       templateParams: {
         first_name: 'Daniel',
         dashboard_url: 'https://app.danfy.com/dashboard',
@@ -90,9 +88,12 @@ describe('SendEmailMessageUseCase', () => {
 
       expect(sendMail).toHaveBeenCalledWith({
         to: [{ email: 'daniel@example.com', name: 'Daniel' }],
-        templateId: 2,
+        template: {
+          key: 'welcome-email',
+          version: 1,
+        },
         params: emailMessage.templateParams,
-        tags: ['welcome-email', 'WELCOME'],
+        tags: ['welcome-email', 'WELCOME', 'v1'],
         metadata: {
           'X-Danfy-Email-Message-Id': 'email-message-1',
         },
@@ -100,6 +101,7 @@ describe('SendEmailMessageUseCase', () => {
       expect(result).toEqual({ status: EmailMessageStatus.SENT, sent: true });
       expect(emailMessage.status).toBe(EmailMessageStatus.SENT);
       expect(emailMessage.providerMessageId).toBe('brevo-message-1');
+      expect(emailMessage.provider).toBe('brevo');
     });
 
     it('marks retryable failures and rethrows so BullMQ can retry', async () => {
@@ -130,10 +132,59 @@ describe('SendEmailMessageUseCase', () => {
       expect(emailMessage.lastErrorCode).toBe('MAIL_INVALID_PAYLOAD');
     });
 
+    it('marks invalid persisted template params as permanent without calling MailService', async () => {
+      const validMessage = makeEmailMessage();
+      const emailMessage = EmailMessage.reconstitute(
+        {
+          type: validMessage.type,
+          recipientEmail: validMessage.recipientEmail,
+          recipientName: validMessage.recipientName,
+          provider: null,
+          templateKey: validMessage.templateKey,
+          templateVersion: validMessage.templateVersion,
+          templateParams: { first_name: 'Daniel' },
+          idempotencyKey: validMessage.idempotencyKey,
+          status: EmailMessageStatus.PENDING,
+          providerMessageId: null,
+          attemptsCount: 0,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+          processingAt: null,
+          sentAt: null,
+          failedAt: null,
+          createdAt: validMessage.createdAt,
+          updatedAt: validMessage.updatedAt,
+        },
+        validMessage.id,
+      );
+      findByIdForUpdate.mockResolvedValue(emailMessage);
+      saveEmailMessage.mockImplementation(message => Promise.resolve(message));
+
+      const result = await useCase.execute({ emailMessageId: emailMessage.id });
+
+      expect(result).toEqual({ status: EmailMessageStatus.FAILED_PERMANENT, sent: false });
+      expect(emailMessage.lastErrorCode).toBe('EMAIL_TEMPLATE_PARAMS_INVALID');
+      expect(sendMail).not.toHaveBeenCalled();
+    });
+
+    it('sanitizes unexpected errors before persistence and retry logging', async () => {
+      const emailMessage = makeEmailMessage();
+      findByIdForUpdate.mockResolvedValue(emailMessage);
+      saveEmailMessage.mockImplementation(message => Promise.resolve(message));
+      sendMail.mockRejectedValue(new Error('verification_url=https://example.com?token=must-not-leak'));
+
+      const execution = useCase.execute({ emailMessageId: 'email-message-1' });
+
+      await expect(execution).rejects.toMatchObject({ code: 'MAIL_PROVIDER_UNKNOWN' });
+      expect(emailMessage.status).toBe(EmailMessageStatus.FAILED_RETRYABLE);
+      expect(emailMessage.lastErrorMessage).toBe('Mail provider failed unexpectedly.');
+      expect(emailMessage.lastErrorMessage).not.toContain('must-not-leak');
+    });
+
     it('does not send terminal messages again', async () => {
       const emailMessage = makeEmailMessage();
       emailMessage.markProcessing();
-      emailMessage.markSent('brevo-message-1');
+      emailMessage.markSent('brevo', 'brevo-message-1');
       findByIdForUpdate.mockResolvedValue(emailMessage);
 
       const result = await useCase.execute({ emailMessageId: 'email-message-1' });

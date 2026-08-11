@@ -24,7 +24,7 @@ related:
 - [x] 6. Criar documentação inicial do template `welcome-email`.
 - [x] 7. Revisar documentação do template após implementação.
 - [x] 8. Atualizar `docs/notifications/README.md`.
-- [x] 9. Garantir que cada template futuro tenha key, provider, provider id, parâmetros e caso de uso documentados.
+- [x] 9. Garantir que cada template futuro tenha chave, versão, fonte HTML, parâmetros e caso de uso documentados.
 
 ## Domínio
 
@@ -54,7 +54,7 @@ related:
 - [x] 24. Criar `CreateWelcomeEmailMessageUseCase`.
 - [x] 25. Tratar unique violation como sucesso idempotente.
 - [x] 26. Criar `SendEmailMessageUseCase`.
-- [x] 27. Mapear params do template Brevo `2`.
+- [x] 27. Mapear params do contrato `welcome-email:v1`.
 - [x] 28. Atualizar status em sucesso/falha.
 - [x] 29. Testar use cases.
 

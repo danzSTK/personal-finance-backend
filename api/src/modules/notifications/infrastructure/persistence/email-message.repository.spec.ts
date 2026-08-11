@@ -1,23 +1,21 @@
-import {
-  BrevoTemplateId,
-  EmailMessageStatus,
-  EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
-} from '@/modules/notifications/domain/constants/email-message.constants';
+import { EmailMessageStatus, EmailMessageType } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { EmailMessageRepository } from '@/modules/notifications/infrastructure/persistence/email-message.repository';
 import { EmailMessageOrmEntity } from '@/modules/notifications/infrastructure/persistence/email-message-orm.entity';
 import { Repository } from 'typeorm';
+import {
+  EmailTemplateKey,
+  EmailTemplateVersion,
+} from '@/modules/notifications/domain/templates/email-template.contract';
 
 const makeOrmEntity = (): EmailMessageOrmEntity => ({
   id: 'email-message-1',
   type: EmailMessageType.WELCOME,
   recipient_email: 'daniel@example.com',
   recipient_name: 'Daniel',
-  provider: EmailProviderKey.BREVO,
+  provider: null,
   template_key: EmailTemplateKey.WELCOME,
-  provider_template_id: BrevoTemplateId.WELCOME,
+  template_version: EmailTemplateVersion.V1,
   template_params: { first_name: 'Daniel' },
   idempotency_key: 'email:welcome:user:user-1',
   status: EmailMessageStatus.PENDING,
@@ -95,7 +93,7 @@ describe('EmailMessageRepository', () => {
           recipientName: ormEntity.recipient_name,
           provider: ormEntity.provider,
           templateKey: ormEntity.template_key,
-          providerTemplateId: ormEntity.provider_template_id,
+          templateVersion: ormEntity.template_version,
           templateParams: ormEntity.template_params,
           idempotencyKey: ormEntity.idempotency_key,
           status: ormEntity.status,
@@ -121,6 +119,7 @@ describe('EmailMessageRepository', () => {
           id: 'email-message-1',
           idempotency_key: 'email:welcome:user:user-1',
           template_key: 'welcome-email',
+          template_version: 1,
         }),
       );
       expect(result.id).toBe('email-message-1');

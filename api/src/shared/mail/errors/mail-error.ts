@@ -6,6 +6,7 @@ export const MailErrorCode = {
   PROVIDER_REJECTED: 'MAIL_PROVIDER_REJECTED',
   PROVIDER_TIMEOUT: 'MAIL_PROVIDER_TIMEOUT',
   PROVIDER_UNKNOWN: 'MAIL_PROVIDER_UNKNOWN',
+  TEMPLATE_MAPPING_MISSING: 'MAIL_TEMPLATE_MAPPING_MISSING',
 } as const;
 
 export type MailErrorCode = (typeof MailErrorCode)[keyof typeof MailErrorCode];
@@ -37,5 +38,13 @@ export class MailError extends ApplicationError {
 
   static providerUnknown(message = 'Mail provider failed unexpectedly.'): MailError {
     return new MailError(MailErrorCode.PROVIDER_UNKNOWN, message, true);
+  }
+
+  static templateMappingMissing(templateKey: string, templateVersion: number): MailError {
+    return new MailError(
+      MailErrorCode.TEMPLATE_MAPPING_MISSING,
+      `Mail template mapping is not configured for "${templateKey}" version ${templateVersion}.`,
+      false,
+    );
   }
 }

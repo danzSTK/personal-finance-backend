@@ -103,16 +103,15 @@ Use credenciais com privilégio mínimo e acesso somente aos buckets necessário
 
 ### Aplicação e notificações
 
-| Variável                                                | Regra       | Default                          | Uso                                             |
-| ------------------------------------------------------- | ----------- | -------------------------------- | ----------------------------------------------- |
-| `FRONTEND_URL`                                          | Obrigatória | —                                | base de redirecionamentos e links transacionais |
-| `NODE_ENV`                                              | Default     | `development`                    | ambiente `development`, `production` ou `test`  |
-| `NOTIFICATIONS_EMAIL_VERIFICATION_PATH`                 | Default     | `/verification-email`            | rota do frontend usada no link de verificação   |
-| `NOTIFICATIONS_EMAIL_VERIFICATION_PROVIDER_TEMPLATE_ID` | Default     | `3`                              | template do provider para verificação de e-mail |
-| `EMAIL_VERIFICATION_TOKEN_TTL_MINUTES`                  | Default     | `15`                             | validade do token de verificação                |
-| `EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES`            | Default     | `60`                             | cooldown entre desafios de verificação          |
-| `EMAIL_VERIFICATION_DAILY_LIMIT`                        | Default     | `5`                              | limite diário de desafios por e-mail            |
-| `SUPPORT_URL`                                           | Condicional | `http://localhost:5173/support`¹ | link de suporte incluído nas mensagens          |
+| Variável                                     | Regra       | Default                          | Uso                                             |
+| -------------------------------------------- | ----------- | -------------------------------- | ----------------------------------------------- |
+| `FRONTEND_URL`                               | Obrigatória | —                                | base de redirecionamentos e links transacionais |
+| `NODE_ENV`                                   | Default     | `development`                    | ambiente `development`, `production` ou `test`  |
+| `NOTIFICATIONS_EMAIL_VERIFICATION_PATH`      | Default     | `/verification-email`            | rota do frontend usada no link de verificação   |
+| `EMAIL_VERIFICATION_TOKEN_TTL_MINUTES`       | Default     | `15`                             | validade do token de verificação                |
+| `EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES` | Default     | `60`                             | cooldown entre desafios de verificação          |
+| `EMAIL_VERIFICATION_DAILY_LIMIT`             | Default     | `5`                              | limite diário de desafios por e-mail            |
+| `SUPPORT_URL`                                | Condicional | `http://localhost:5173/support`¹ | link de suporte incluído nas mensagens          |
 
 ¹ `SUPPORT_URL` é obrigatória quando `MAIL_ENABLED=true`. O default só é aplicado quando o envio está desabilitado.
 
@@ -181,18 +180,24 @@ O bootstrap rejeita configurações que violem estas relações:
 
 ### E-mail transacional
 
-| Variável                  | Regra       | Default                    | Uso                                                  |
-| ------------------------- | ----------- | -------------------------- | ---------------------------------------------------- |
-| `MAIL_ENABLED`            | Default     | `false`                    | habilita chamadas ao provider externo                |
-| `MAIL_PROVIDER`           | Default     | `noop`                     | provider `noop` ou `brevo`                           |
-| `MAIL_DEFAULT_FROM_EMAIL` | Condicional | —                          | remetente; obrigatório no worker com mail habilitado |
-| `MAIL_DEFAULT_FROM_NAME`  | Opcional    | —                          | nome do remetente                                    |
-| `BREVO_API_KEY`           | Condicional | —                          | obrigatória com worker, mail habilitado e Brevo      |
-| `BREVO_API_BASE_URL`      | Default     | `https://api.brevo.com/v3` | endpoint do provider                                 |
-| `BREVO_API_TIMEOUT_MS`    | Default     | `10000`                    | timeout das chamadas                                 |
-| `BREVO_API_MAX_RETRIES`   | Default     | `2`                        | retries do cliente antes de falhar                   |
+| Variável                                  | Regra       | Default                    | Uso                                                  |
+| ----------------------------------------- | ----------- | -------------------------- | ---------------------------------------------------- |
+| `MAIL_ENABLED`                            | Default     | `false`                    | habilita chamadas ao provider externo                |
+| `MAIL_PROVIDER`                           | Default     | `noop`                     | provider `noop` ou `brevo`                           |
+| `MAIL_DEFAULT_FROM_EMAIL`                 | Condicional | —                          | remetente; obrigatório no worker com mail habilitado |
+| `MAIL_DEFAULT_FROM_NAME`                  | Opcional    | —                          | nome do remetente                                    |
+| `BREVO_API_KEY`                           | Condicional | —                          | obrigatória com worker, mail habilitado e Brevo      |
+| `BREVO_API_BASE_URL`                      | Default     | `https://api.brevo.com/v3` | endpoint do provider                                 |
+| `BREVO_API_TIMEOUT_MS`                    | Default     | `10000`                    | timeout das chamadas                                 |
+| `BREVO_API_MAX_RETRIES`                   | Default     | `2`                        | retries do cliente antes de falhar                   |
+| `BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID`      | Condicional | —                          | mapping Brevo de `welcome-email:v1`                  |
+| `BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID` | Condicional | —                          | mapping Brevo de `email-verification:v1`             |
 
 Para desenvolvimento e testes, mantenha `MAIL_ENABLED=false` e `MAIL_PROVIDER=noop`.
+
+Os mappings devem ser inteiros positivos e são obrigatórios somente no worker
+com mail real e provider Brevo. Eles variam por ambiente e nunca são persistidos
+em `email_messages`.
 
 ### Welcome e-mail
 
@@ -206,8 +211,8 @@ Para desenvolvimento e testes, mantenha `MAIL_ENABLED=false` e `MAIL_PROVIDER=no
 
 Na revisão desta referência:
 
-- o schema Joi declarou 77 variáveis;
-- as 77 variáveis aparecem em `.env.exemple`;
+- o schema Joi declarou 79 variáveis;
+- as 79 variáveis aparecem em `.env.exemple`;
 - `.env.exemple` contém ainda `APP_VERSION` e `WORKER_INSTANCE_ID`, consumidas fora do schema;
 - nenhuma variável exigida pelo Joi ficou ausente;
 - os sete campos obrigatórios do Cloudflare R2 estão presentes;

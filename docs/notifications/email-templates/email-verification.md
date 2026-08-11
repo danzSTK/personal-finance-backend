@@ -3,51 +3,56 @@ area: notifications
 type: email-template
 status: current
 template_key: email-verification
-provider: brevo
-provider_template_id: "3"
+template_version: 1
 email_type: EMAIL_VERIFICATION
+source: api/email-templates/email-verification/v1/template.html
 ---
 
 # Email Verification
 
 ## Identidade
 
-| Campo | Valor |
-| --- | --- |
-| Key interna | `email-verification` |
-| Provider | `brevo` |
-| Provider template id | `3` |
-| Tipo | `EMAIL_VERIFICATION` |
-| Categoria | transacional |
-| Trigger | `user.created` para credentials pendente e resend autenticado |
-| Fila | `notifications.email` |
-| Job | `send-email-message` |
+| Campo         | Valor                                                     |
+| ------------- | --------------------------------------------------------- |
+| Chave         | `email-verification`                                      |
+| Versão ativa  | `1`                                                       |
+| Tipo          | `EMAIL_VERIFICATION`                                      |
+| Categoria     | transacional                                              |
+| Trigger       | `user.created` pendente ou reenvio autenticado            |
+| Fila/job      | `notifications.email` / `send-email-message`              |
+| Fonte HTML    | `api/email-templates/email-verification/v1/template.html` |
+| Mapping Brevo | `BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID`                 |
 
-## Caso De Uso
+O valor do mapping pertence ao ambiente e não faz parte deste contrato.
 
-Enviar link de confirmação de e-mail para usuários criados por credenciais.
+## Finalidade
+
+Enviar o link de uso único que confirma o endereço de e-mail de uma conta por
+credenciais.
 
 ## Idempotência
-
-Chave persistida:
 
 ```text
 email:verification:challenge:<challengeId>
 ```
 
-Cada challenge pode gerar no máximo uma intenção de e-mail. Reenvios criam novos challenges.
+Cada challenge gera no máximo uma intenção. Um reenvio cria outro challenge.
 
-## Parâmetros
+## Parâmetros V1
 
-| Param | Obrigatório | Origem |
-| --- | --- | --- |
-| `first_name` | sim | usuário, com fallback pelo e-mail |
-| `verification_url` | sim | `FRONTEND_URL` + `/verification-email?token=<token>` |
-| `expires_in_minutes` | sim | config de verification |
-| `support_url` | sim | config de suporte |
+| Parâmetro            | Tipo             | Origem                            | Sensível |
+| -------------------- | ---------------- | --------------------------------- | -------- |
+| `first_name`         | string não vazia | usuário, com fallback pelo e-mail | não      |
+| `verification_url`   | URL absoluta     | frontend + token de uso único     | sim      |
+| `expires_in_minutes` | inteiro positivo | TTL do challenge                  | não      |
+| `support_url`        | URL absoluta     | configuração de suporte           | não      |
 
 ## Segurança
 
-- O token completo aparece apenas no link enviado ao usuário.
-- O banco armazena somente `token_hash`.
-- Não registrar token em logs ou metadata.
+- O token completo aparece na URL enviada e não pode ser registrado em logs.
+- O challenge guarda `token_hash`, mas a intenção atualmente persiste a URL
+  completa em `template_params` para o worker assíncrono.
+- A proteção desse valor em repouso será decidida em estudo de criptografia
+  separado antes da produção.
+- Erros e observabilidade podem registrar chave, versão e `emailMessageId`, mas
+  nunca os parâmetros.

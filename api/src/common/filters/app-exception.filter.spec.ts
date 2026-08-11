@@ -5,6 +5,7 @@ import {
   PasswordChangeStateUnavailableError,
 } from '@/modules/auth/application/errors';
 import { ArgumentsHost } from '@nestjs/common';
+import { MailError } from '@/shared/mail';
 
 describe('AppExceptionFilter', () => {
   const request = {
@@ -69,6 +70,19 @@ describe('AppExceptionFilter', () => {
       filter.catch(new PasswordChangeStateUnavailableError(), host);
 
       expect(response.status).toHaveBeenCalledWith(503);
+    });
+
+    it('maps missing provider template configuration to an internal error', () => {
+      const filter = new AppExceptionFilter();
+
+      filter.catch(MailError.templateMappingMissing('welcome-email', 1), host);
+
+      expect(response.status).toHaveBeenCalledWith(500);
+      expect(response.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'MAIL_TEMPLATE_MAPPING_MISSING',
+        }),
+      );
     });
   });
 });

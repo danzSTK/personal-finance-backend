@@ -1,17 +1,15 @@
 import { EmailJobQueueProducer } from '@/modules/notifications/application/queues/email-job-queue-producer.port';
 import { EnqueueWelcomeEmailOnUserCreatedHandler } from '@/modules/notifications/application/handlers/enqueue-welcome-email-on-user-created.handler';
 import { CreateWelcomeEmailMessageUseCase } from '@/modules/notifications/application/use-cases/create-welcome-email-message/create-welcome-email-message.use-case';
-import {
-  BrevoTemplateId,
-  EmailMessageStatus,
-  EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
-} from '@/modules/notifications/domain/constants/email-message.constants';
+import { EmailMessageStatus, EmailMessageType } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { UserCreatedEvent } from '@/modules/users/domain/events/user-created.event';
 import { Email } from '@/common/domain/value-objects/email.value-object';
 import { UserStatus } from '@/common/models/enums';
+import {
+  EmailTemplateKey,
+  EmailTemplateVersion,
+} from '@/modules/notifications/domain/templates/email-template.contract';
 
 const makeEmailMessage = (): EmailMessage =>
   EmailMessage.reconstitute(
@@ -19,9 +17,9 @@ const makeEmailMessage = (): EmailMessage =>
       type: EmailMessageType.WELCOME,
       recipientEmail: 'daniel@example.com',
       recipientName: 'Daniel',
-      provider: EmailProviderKey.BREVO,
+      provider: null,
       templateKey: EmailTemplateKey.WELCOME,
-      providerTemplateId: BrevoTemplateId.WELCOME,
+      templateVersion: EmailTemplateVersion.V1,
       templateParams: {},
       idempotencyKey: 'email:welcome:user:user-1',
       status: EmailMessageStatus.PENDING,
