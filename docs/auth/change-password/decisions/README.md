@@ -38,6 +38,7 @@ constantes do domínio.
 - [Reconciliação imediata e durável](./immediate-and-durable-reconciliation.md)
 - [`credentialVersion` e revogação de sessões](./credential-version-session-revocation.md)
 - [Eventos de outbox separados por responsabilidade](./separated-outbox-events.md)
+- [Intenções lógicas e idempotentes de e-mail](./logical-versioned-email-intents.md)
 
 ## Segurança operacional
 

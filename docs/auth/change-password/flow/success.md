@@ -18,6 +18,7 @@ sequenceDiagram
   participant Redis as Redis state store
   participant PG as PostgreSQL
   participant Worker as Outbox worker
+  participant Email as Notifications/BullMQ
 
   HTTP->>UC: execute(userId, senhas, contexto)
   UC->>Redis: load + beginMutation
@@ -33,6 +34,7 @@ sequenceDiagram
   HTTP-->>HTTP: limpa cookies
   Worker->>PG: consome outbox
   Worker->>Redis: reconcilia estado e repete revogação
+  Worker->>Email: cria intenção e agenda e-mail de segurança
 ```
 
 ## Passos
@@ -52,8 +54,8 @@ sequenceDiagram
 
 - `auth.password-change.state-refresh-requested`: reconciliação durável do
   Redis.
-- `auth.password-change.changed`: fato destinado à futura notificação de
-  segurança.
+- `auth.password-change.changed`: cria a intenção idempotente do e-mail
+  `password-changed:v1`.
 - `auth.sessions.revoke-all-requested`: retry da remoção física das sessões.
 
 `credentialVersion` é a garantia imediata de revogação: access e refresh tokens
@@ -63,4 +65,6 @@ com versão anterior são rejeitados mesmo se a remoção no Redis falhar.
 
 - Se o `finally` falhar ou o processo encerrar, a outbox reconstrói o estado.
 - Se a limpeza de sessões falhar, o evento de revogação permite retry.
+- Se a criação da intenção ou o enqueue falhar, outbox e reconciliador permitem
+  retry sem alterar novamente a senha.
 - Esses erros não desfazem a senha porque o commit já estabeleceu o novo fato.

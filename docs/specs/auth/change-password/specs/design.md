@@ -35,7 +35,13 @@ worker
   -> outbox
        -> reconcilia projeção Redis
        -> repete limpeza física de sessões
-       -> publica fatos consumidos pela futura spec de e-mail
+       -> handlers de notifications
+            -> cria email_message idempotente
+            -> adiciona job BullMQ
+  -> EmailMessageProcessor
+       -> valida contrato lógico novamente
+       -> MailService
+       -> provider resolve template_key + versão para ID externo
 ```
 
 ## Componentes e caminhos
@@ -98,6 +104,32 @@ worker
   identidade/contexto, chama o use case, limpa cookies e serializa.
 - `api/src/common/filters/app-exception.filter.ts` converte os erros e escreve
   `Retry-After`.
+
+### Notificações
+
+- `api/src/modules/notifications/application/handlers/enqueue-password-changed-email.handler.ts`
+  consome `PasswordChangedEvent` pelo seu `eventName` canônico.
+- `api/src/modules/notifications/application/handlers/enqueue-password-change-blocked-email.handler.ts`
+  consome `PasswordChangeBlockStartedEvent`.
+- `api/src/modules/notifications/application/use-cases/create-password-changed-email-message/`
+  cria a intenção idempotente `PASSWORD_CHANGED`.
+- `api/src/modules/notifications/application/use-cases/create-password-change-blocked-email-message/`
+  cria a intenção idempotente `PASSWORD_CHANGE_BLOCKED`.
+- `api/src/modules/notifications/domain/templates/email-template.contract.ts`
+  declara as chaves, versões e parâmetros tipados.
+- `api/src/modules/notifications/application/templates/email-template-contract.registry.ts`
+  valida os parâmetros em runtime e expõe o catálogo ao validador de fontes.
+- `api/src/modules/notifications/application/templates/brasilia-date-time.formatter.ts`
+  converte instantes para `DD/MM/AAAA às HH:mm` usando explicitamente
+  `America/Sao_Paulo`, sem depender do timezone do processo.
+- `api/email-templates/password-changed/v1/template.html` e
+  `api/email-templates/password-change-blocked/v1/template.html` mantêm os HTMLs
+  imutáveis da versão 1.
+- `api/src/config/mail.config.ts` é o único ponto que traduz a referência lógica
+  para os IDs externos da Brevo.
+- `api/src/shared/mail/mail.service.ts` mantém `from` ausente nos envios por
+  template para que a Brevo aplique o remetente da versão hospedada. O remetente
+  padrão continua sendo aplicado a envios HTML/texto sem `templateId`.
 
 ## Modelo PostgreSQL
 
@@ -198,6 +230,41 @@ O evento de mudança e o evento de bloqueio carregam apenas contexto já
 sanitizado. O evento de refresh inclui o `mutationToken` apenas para coordenação
 da projeção; o token é aleatório, curto e não é um JWT/JTI.
 
+## Fluxo de notificação
+
+Os dois fatos de segurança chegam ao worker por meio do publicador da outbox. O
+handler usa o `eventName` estático do evento, traduz o payload para o DTO do caso
+de uso de notifications e persiste uma intenção em `email_messages` antes de
+adicionar o job à fila.
+
+```text
+outbox event
+  -> handler @OnEvent(<Event>.eventName)
+  -> busca usuário atual
+  -> monta e valida params de template
+  -> INSERT email_messages com idempotency_key
+  -> enqueue send-email-message:<emailMessageId>
+  -> worker valida params novamente
+  -> provider traduz chave + versão para templateId sem sobrescrever o sender
+  -> Brevo usa sender, assunto, preheader e HTML da versão hospedada
+```
+
+A busca inicial por `idempotency_key` evita trabalho repetido. A constraint
+única no PostgreSQL resolve a corrida entre consumidores: em violação única, o
+caso de uso relê a intenção vencedora. Mensagens terminais não voltam à fila;
+mensagens novas ou reenfileiráveis usam um `jobId` determinístico.
+
+As referências lógicas são `password-changed:v1` e
+`password-change-blocked:v1`. O domínio e os handlers não conhecem números da
+Brevo. Como `type`, `template_key` e `template_version` já são `varchar`/inteiro,
+essa extensão não exige migration.
+
+`changed_at` e `blocked_until` são valores de apresentação persistidos na
+intenção já convertidos para `America/Sao_Paulo`. O fato fonte continua sendo um
+`Instant`; somente o contrato do template usa `DD/MM/AAAA às HH:mm`. As versões
+v1 foram revisadas inativas e ativadas somente após aprovação do preview. Ambas
+usam `security@danfy.app` como remetente e preheaders de até 35 caracteres.
+
 ## Revogação durável
 
 O `credentialVersion` entra nos access e refresh tokens. `JwtStrategy` e
@@ -240,8 +307,10 @@ O CORS expõe somente o header adicional `Retry-After`.
 - Sincronização imediata falha após commit: a alteração permanece concluída,
   `credentialVersion` mantém tokens revogados e a outbox reconcilia o estado.
 - Limpeza física falha: a outbox repete a revogação.
-- Futuro provider de e-mail falha: não afeta esta transação; o consumidor será
-  idempotente na spec de notificações.
+- Provider de e-mail falha: não afeta a transação de senha; a intenção permanece
+  persistida e segue a política de retry da fila.
+- Enqueue falha depois do `INSERT`: o reconciliador de `email_messages` reenfileira
+  intenções elegíveis.
 
 ## Observabilidade segura
 

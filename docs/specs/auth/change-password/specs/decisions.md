@@ -73,20 +73,18 @@ de outbox consumido pelo worker.
 **Motivo:** limpeza Redis melhora higiene e listagem, mas não pode fazer rollback
 da senha. A segurança imediata vem de `credentialVersion`.
 
-## D9 — eventos de notificação sem envio nesta feature
+## D9 — eventos desacoplados do envio
 
 **Decisão:** persistir e publicar `auth.password-change.changed` e
-`auth.password-change.block-started`; templates, `email_messages`, BullMQ e
-provider pertencem a outra spec.
+`auth.password-change.block-started`; handlers de notifications transformam
+esses fatos em intenções persistidas e jobs somente depois do commit da senha.
 
 **Motivo:** mantém a transação de segurança independente do provider de e-mail
-e estabelece o contrato necessário entre API, worker e notificações.
+e permite retry sem reexecutar a alteração ou o bloqueio.
 
-**Processamento local:** enquanto não houver handlers, o publicador assíncrono
-rejeita esses eventos, a outbox executa suas tentativas e os move para `DEAD`.
-Como a feature ainda não possui dados fora do ambiente local, a futura spec de
-e-mail não fará backfill nem replay retroativo desses registros; eventos locais
-anteriores poderão ser descartados com o estado de desenvolvimento.
+**Processamento local:** não haverá backfill ou replay retroativo dos eventos que
+tenham chegado a `DEAD` antes da existência dos handlers, pois a feature ainda
+não possui dados de produção.
 
 ## D10 — proteção técnica não substitui policy
 
@@ -137,3 +135,60 @@ canal secundário de vazamento.
 
 **Motivo:** scripts multi-key continuam compatíveis com Redis Cluster sem mudar
 o contrato de storage no futuro.
+
+## D16 — catálogo lógico e versionado para os e-mails de segurança
+
+**Decisão:** usar `password-changed:v1` e `password-change-blocked:v1` no domínio
+de notifications. Somente `mail.config.ts` traduz essas referências para IDs da
+Brevo.
+
+**Motivo:** handlers, casos de uso, persistência e jobs não devem conhecer o
+provider externo. A versão preserva o contrato e o conteúdo usados pela intenção
+original durante retries futuros.
+
+**Consequência:** contrato TypeScript, schema Zod, HTML, mapping e documentação
+precisam evoluir juntos; uma versão publicada não pode ser alterada.
+
+## D17 — uma intenção idempotente por fato fonte
+
+**Decisão:** derivar a `idempotency_key` do `sourceEventId` do fato de senha e
+resolver concorrência pela constraint única de `email_messages`.
+
+**Motivo:** a outbox possui entrega pelo menos uma vez. Persistir a intenção antes
+do enqueue, reler o vencedor de uma violação única e usar job determinístico
+impede e-mails duplicados sem depender da memória do processo.
+
+**Consequência:** eventos repetidos podem reenfileirar somente mensagens
+elegíveis; mensagens em estado terminal são ignoradas.
+
+## D18 — conteúdo dos templates definido antes do HTML
+
+**Decisão:** registrar contratos e fluxo antes dos HTMLs, mas construir os dois
+templates somente após definir título, tom, ação principal e instruções de
+segurança com o responsável pelo produto.
+
+**Motivo:** o design visual já é rígido, porém o conteúdo é parte do contrato da
+versão publicada e não deve ser inventado durante a implementação técnica.
+
+**Consequência:** os HTMLs v1 seguem o conteúdo de segurança aprovado para
+preview, usam exatamente os parâmetros declarados e passam pelo validador de
+fontes. Depois de ativados para envio, mudanças perceptíveis exigem uma nova
+versão.
+
+## D19 — timezone e remetente pertencem ao contrato de apresentação
+
+**Decisão:** formatar datas dos e-mails em `America/Sao_Paulo` como
+`DD/MM/AAAA às HH:mm` e deixar que cada template hospedado defina o remetente.
+Os templates de alteração de senha usam `security@danfy.app`; o worker envia
+`templateId` sem `sender`, salvo quando um consumidor solicitar uma
+sobrescrita explícita.
+
+**Motivo:** o destinatário deve receber um horário brasileiro inequívoco, sem
+depender do timezone do container. O remetente é uma propriedade operacional do
+template e não deve virar uma constante do domínio nem ser sobrescrito pelo
+remetente genérico da plataforma.
+
+**Consequência:** o formato persistido em `email_messages.template_params` é de
+apresentação, enquanto os eventos continuam carregando instantes. Templates
+hospedados precisam ter sender válido; envios HTML/texto sem template continuam
+usando `MAIL_DEFAULT_FROM_EMAIL`.

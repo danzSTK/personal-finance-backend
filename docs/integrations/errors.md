@@ -67,20 +67,29 @@ Erros de DTO usam `VALIDATION_ERROR`.
 
 ## Auth And Sessions
 
-| Code                                   | Status | Quando                                                                  |
-| -------------------------------------- | -----: | ----------------------------------------------------------------------- |
-| `AUTH_PROVIDER_ALREADY_LINKED`         |  `409` | Usuário já possui provider de auth daquele tipo                         |
-| `AUTH_PROVIDER_LINKED_TO_ANOTHER_USER` |  `409` | Provider externo já pertence a outro usuário                            |
-| `INVALID_ACCESS_TOKEN`                 |  `401` | Access token ausente, inválido ou inconsistente                         |
-| `INVALID_REFRESH_TOKEN`                |  `401` | Refresh token ausente, inválido, expirado ou inconsistente              |
-| `POTENTIAL_SESSION_HIJACKING`          |  `401` | Refresh token aponta para sessão inexistente e o backend revoga sessões |
-| `SESSION_NOT_FOUND`                    |  `404` | Sessão solicitada não existe para o usuário                             |
-| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE`   |  `429` | Reenvio de verificação solicitado antes de 60 minutos                   |
-| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` | `429` | Limite de 5 e-mails de verificação em 24 horas foi excedido             |
-| `EMAIL_VERIFICATION_REQUIRED`          |  `403` | Usuário autenticado ainda precisa confirmar e-mail                      |
-| `EMAIL_VERIFICATION_TOKEN_EXPIRED`     |  `410` | Token de confirmação de e-mail expirou                                  |
-| `EMAIL_VERIFICATION_TOKEN_INVALID`     |  `400` | Token de confirmação de e-mail inválido                                 |
-| `EMAIL_VERIFICATION_USER_BLOCKED`      |  `409` | Usuário bloqueado tentou confirmar e-mail                               |
+| Code                                      | Status | Quando                                                                  |
+| ----------------------------------------- | -----: | ----------------------------------------------------------------------- |
+| `AUTH_PROVIDER_ALREADY_LINKED`            |  `409` | Usuário já possui provider de auth daquele tipo                         |
+| `AUTH_PROVIDER_LINKED_TO_ANOTHER_USER`    |  `409` | Provider externo já pertence a outro usuário                            |
+| `INVALID_ACCESS_TOKEN`                    |  `401` | Access token ausente, inválido ou inconsistente                         |
+| `INVALID_REFRESH_TOKEN`                   |  `401` | Refresh token ausente, inválido, expirado ou inconsistente              |
+| `POTENTIAL_SESSION_HIJACKING`             |  `401` | Refresh token aponta para sessão inexistente e o backend revoga sessões |
+| `SESSION_NOT_FOUND`                       |  `404` | Sessão solicitada não existe para o usuário                             |
+| `CURRENT_PASSWORD_INVALID`                |  `403` | Senha atual informada na alteração não confere                          |
+| `NEW_PASSWORD_MUST_DIFFER`                |  `400` | Nova senha é igual à senha atual                                        |
+| `PASSWORD_CHANGE_EMAIL_PROVIDER_REQUIRED` |  `409` | Conta não possui provider local de e-mail/senha                         |
+| `PASSWORD_CHANGE_BLOCKED`                 |  `429` | Falhas de senha atual iniciaram ou mantêm bloqueio ativo                |
+| `PASSWORD_CHANGE_COOLDOWN_ACTIVE`         |  `429` | Nova alteração foi solicitada durante o cooldown                        |
+| `PASSWORD_CHANGE_DAILY_LIMIT_EXCEEDED`    |  `429` | Limite de alterações concluídas na janela foi atingido                  |
+| `PASSWORD_CHANGE_OPERATION_PENDING`       |  `429` | Outra mutação de senha está em andamento                                |
+| `PASSWORD_CHANGE_COST_LIMITED`            |  `429` | Limite técnico por sessão ou IP foi excedido                            |
+| `PASSWORD_CHANGE_STATE_UNAVAILABLE`       |  `503` | Estado operacional de segurança não pôde ser carregado                  |
+| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE`      |  `429` | Reenvio de verificação solicitado antes de 60 minutos                   |
+| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` |  `429` | Limite de 5 e-mails de verificação em 24 horas foi excedido             |
+| `EMAIL_VERIFICATION_REQUIRED`             |  `403` | Usuário autenticado ainda precisa confirmar e-mail                      |
+| `EMAIL_VERIFICATION_TOKEN_EXPIRED`        |  `410` | Token de confirmação de e-mail expirou                                  |
+| `EMAIL_VERIFICATION_TOKEN_INVALID`        |  `400` | Token de confirmação de e-mail inválido                                 |
+| `EMAIL_VERIFICATION_USER_BLOCKED`         |  `409` | Usuário bloqueado tentou confirmar e-mail                               |
 
 ## Users
 
@@ -149,3 +158,5 @@ Erros de DTO usam `VALIDATION_ERROR`.
 - Não dependa de texto exato em `message`.
 - Para `401`, tente refresh/session flow quando aplicável.
 - Para `409`, trate como conflito de regra de negócio, não como falha técnica.
+- Para erros `429` da alteração de senha, respeite o header `Retry-After` ou
+  `details.retryAfterSeconds`; ambos usam segundos inteiros.

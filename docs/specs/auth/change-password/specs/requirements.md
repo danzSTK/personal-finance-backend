@@ -5,10 +5,8 @@
 Permitir que um usuário autenticado altere a senha do provider local `EMAIL`
 com confirmação da senha atual, proteção contra abuso, controle de concorrência,
 revogação de todas as sessões e publicação resiliente dos fatos de segurança.
-
-O envio dos e-mails será especificado separadamente. Esta feature deve persistir
-na outbox os eventos necessários para que o worker e o módulo de notificações
-possam processá-los.
+Os fatos de senha alterada e bloqueio iniciado também devem produzir intenções
+idempotentes de e-mail transacional, processadas de forma assíncrona pelo worker.
 
 ## Escopo funcional
 
@@ -156,19 +154,52 @@ conter senhas, hashes, JWTs, JTIs, cookies ou headers completos.
 - A rota deve permanecer protegida pelos guards globais de origem, JWT, status
   de verificação de e-mail e throttling.
 
+### R12 — notificações transacionais de segurança
+
+- `auth.password-change.changed` deve criar uma intenção de e-mail do tipo
+  `PASSWORD_CHANGED`, usando `password-changed:v1`.
+- `auth.password-change.block-started` deve criar uma intenção de e-mail do tipo
+  `PASSWORD_CHANGE_BLOCKED`, usando `password-change-blocked:v1`.
+- Cada intenção deve ser idempotente pelo `sourceEventId`; o reprocessamento da
+  outbox não pode criar mensagens duplicadas.
+- O handler deve enfileirar mensagens novas ou reenfileiráveis e ignorar
+  mensagens em estado terminal.
+- A intenção deve usar o e-mail atual do usuário persistido, sem confiar em um
+  destinatário vindo do payload da outbox.
+- Nome ausente deve usar a parte local do e-mail e, se ela também estiver
+  indisponível, `cliente`.
+- Contexto ausente deve ser exibido como `Não identificado`.
+- Datas exibidas nos e-mails devem ser persistidas nos parâmetros no formato
+  `DD/MM/AAAA às HH:mm`, convertidas para `America/Sao_Paulo` e identificadas no
+  template como horário de Brasília.
+- Os templates devem usar `security@danfy.app` como remetente configurado na
+  Brevo; o worker não deve sobrescrever o remetente de e-mails que usam
+  `templateId`.
+- Cada template deve possuir preheader oculto, útil e com no máximo 35
+  caracteres.
+- Os parâmetros devem ser validados em runtime pelo contrato Zod antes da
+  persistência e novamente pelo worker antes do provider.
+- Os IDs da Brevo devem existir somente na configuração da infraestrutura e ser
+  resolvidos a partir de `template_key + template_version`.
+- Falhas no fluxo de notificação não podem desfazer a alteração de senha ou o
+  bloqueio já confirmados no PostgreSQL; devem seguir as tentativas da outbox e
+  da fila.
+- Nenhum template ou parâmetro pode conter senha, hash, JWT, JTI, cookie ou
+  segredo.
+
 ## Contrato de erros
 
-| Código | HTTP | Situação |
-| --- | ---: | --- |
-| `CURRENT_PASSWORD_INVALID` | 403 | senha atual não confere |
-| `PASSWORD_CHANGE_EMAIL_PROVIDER_REQUIRED` | 409 | conta não possui senha local |
-| `NEW_PASSWORD_MUST_DIFFER` | 400 | nova senha igual à atual confirmada |
-| `PASSWORD_CHANGE_BLOCKED` | 429 | bloqueio por falhas ativo ou iniciado |
-| `PASSWORD_CHANGE_COOLDOWN_ACTIVE` | 429 | cooldown de 10 minutos |
-| `PASSWORD_CHANGE_DAILY_LIMIT_EXCEEDED` | 429 | três alterações em 24 horas |
-| `PASSWORD_CHANGE_OPERATION_PENDING` | 429 | mutação concorrente em andamento |
-| `PASSWORD_CHANGE_COST_LIMITED` | 429 | limite técnico por IP ou sessão |
-| `PASSWORD_CHANGE_STATE_UNAVAILABLE` | 503 | estado operacional não pode ser garantido |
+| Código                                    | HTTP | Situação                                  |
+| ----------------------------------------- | ---: | ----------------------------------------- |
+| `CURRENT_PASSWORD_INVALID`                |  403 | senha atual não confere                   |
+| `PASSWORD_CHANGE_EMAIL_PROVIDER_REQUIRED` |  409 | conta não possui senha local              |
+| `NEW_PASSWORD_MUST_DIFFER`                |  400 | nova senha igual à atual confirmada       |
+| `PASSWORD_CHANGE_BLOCKED`                 |  429 | bloqueio por falhas ativo ou iniciado     |
+| `PASSWORD_CHANGE_COOLDOWN_ACTIVE`         |  429 | cooldown de 10 minutos                    |
+| `PASSWORD_CHANGE_DAILY_LIMIT_EXCEEDED`    |  429 | três alterações em 24 horas               |
+| `PASSWORD_CHANGE_OPERATION_PENDING`       |  429 | mutação concorrente em andamento          |
+| `PASSWORD_CHANGE_COST_LIMITED`            |  429 | limite técnico por IP ou sessão           |
+| `PASSWORD_CHANGE_STATE_UNAVAILABLE`       |  503 | estado operacional não pode ser garantido |
 
 ## Requisitos de segurança
 
@@ -189,6 +220,10 @@ conter senhas, hashes, JWTs, JTIs, cookies ou headers completos.
 - Bloqueio, cooldown e limite diário rejeitam antes de bcrypt.
 - No máximo uma requisição concorrente conclui.
 - Perda das chaves operacionais permite reconstrução pelo PostgreSQL.
+- Cada evento de senha alterada ou bloqueio iniciado cria no máximo uma intenção
+  de e-mail e pode ser reprocessado com segurança.
+- Os dois templates possuem contrato TypeScript, schema Zod, HTML versionado,
+  mapping de provider e documentação sincronizados.
 - Todos os códigos, headers e payloads seguem o contrato central da plataforma.
 - Testes de domínio, aplicação, infraestrutura, integração e E2E cobrem os
   cenários e invariantes definidos nesta spec.
@@ -198,6 +233,6 @@ conter senhas, hashes, JWTs, JTIs, cookies ou headers completos.
 - Recuperação de senha sem sessão.
 - Criação do primeiro provider local para conta OAuth.
 - MFA, histórico de senhas e dispositivos confiáveis.
-- Template, persistência de `email_messages`, fila BullMQ e envio dos e-mails de
-  alteração ou bloqueio. Os eventos de entrada desse fluxo fazem parte desta
-  feature.
+- Preferências para desativar e-mails de segurança obrigatórios.
+- Backfill ou replay de eventos locais anteriores à existência dos handlers de
+  notificação.

@@ -25,8 +25,8 @@ de senha. A documentação de consumo HTTP permanece em
 - [Chaves Redis](./redis-keys.md): conteúdo, TTL e finalidade de cada chave.
 - [Scripts Lua](./lua-scripts.md): contratos atômicos de leitura, barreira e
   substituição da projeção.
-- [Notificações](./notifications.md): eventos existentes e escopo ainda
-  pendente.
+- [Notificações](./notifications.md): eventos, intenções idempotentes, fila e
+  templates de segurança.
 
 Para uma leitura curta, consulte o
 [resumo do fluxo](../flows/change-password.md).

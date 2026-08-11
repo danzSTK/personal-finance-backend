@@ -119,3 +119,59 @@
 - [x] Revisar DI da API e do worker.
 - [x] Revisar SQL, índices, constraints e rollback das migrations.
 - [x] Revisar segurança de proxy, cookies, CORS, HMAC e dados sensíveis.
+
+## 13. Catálogo e configuração das notificações
+
+- [x] Declarar os tipos `PASSWORD_CHANGED` e `PASSWORD_CHANGE_BLOCKED`.
+- [x] Declarar `password-changed:v1` e `password-change-blocked:v1` com parâmetros
+      TypeScript e schemas Zod estritos.
+- [x] Adicionar chaves de idempotência baseadas no evento fonte.
+- [x] Adicionar mappings Brevo e validação condicional das variáveis de ambiente.
+- [x] Atualizar os testes do catálogo, da configuração de mail e do bootstrap do
+      worker.
+
+## 14. Intenções e handlers de e-mail
+
+- [x] Criar os DTOs e casos de uso idempotentes das duas intenções.
+- [x] Criar o erro de usuário ausente no fluxo de notificação.
+- [x] Criar e registrar os dois handlers no worker.
+- [x] Corrigir o listener de senha alterada para usar o `eventName` canônico.
+- [x] Remover código/comentário temporário sem função no processor.
+- [x] Cobrir os dois casos de uso, inclusive concorrência, fallback de contexto e
+      estados terminais.
+- [x] Cobrir os dois handlers, inclusive o não reenfileiramento.
+
+## 15. Documentação
+
+- [x] Documentar o fluxo completo entre outbox, intenção, fila, worker e provider.
+- [x] Documentar as duas chaves de template, parâmetros, origem, idempotência e
+      cuidados de segurança.
+- [x] Atualizar o índice de templates, configuração e provider de e-mail.
+- [x] Validar os exemplos e caminhos documentados contra o código.
+
+## 16. Templates HTML — executar por último
+
+- [x] Definir com o responsável pelo produto o conteúdo textual de
+      `password-changed:v1`.
+- [x] Definir com o responsável pelo produto o conteúdo textual de
+      `password-change-blocked:v1`.
+- [x] Criar `api/email-templates/password-changed/v1/template.html` seguindo o
+      design system oficial.
+- [x] Criar `api/email-templates/password-change-blocked/v1/template.html`
+      seguindo o design system oficial.
+- [x] Executar `npm run email-templates:validate` e os testes do registro e do
+      validador de fontes.
+- [x] Executar `lint:check`, `typecheck`, testes e build finais.
+
+## 17. Revisão dos templates antes da ativação
+
+- [x] Formatar `changed_at` e `blocked_until` em horário de Brasília sem depender
+      do timezone do processo.
+- [x] Ajustar contratos, testes, HTML e documentação para os valores formatados.
+- [x] Adicionar preheaders explícitos de até 35 caracteres nos dois templates.
+- [x] Impedir que o worker sobrescreva o remetente do template hospedado.
+- [x] Atualizar as versões v1 inativas na Brevo com `security@danfy.app`.
+- [x] Conferir manualmente os dois previews renderizados no painel da Brevo e
+      ativar as versões após aprovação.
+- [x] Executar validação dos templates, testes, lint, typecheck e build.
+- [x] Publicar o contrato de integração frontend do endpoint e seus erros.

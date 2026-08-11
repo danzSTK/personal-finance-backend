@@ -23,8 +23,8 @@ mudança ou bloqueio.
 
 ## Consequências
 
-- Eventos sem handler falham e chegam a `DEAD` após o limite da outbox.
-- Como a feature ainda está somente em ambiente local, a futura spec de e-mail
-  não fará backfill ou replay retroativo desses registros.
-- Mudança de senha e bloqueio já publicam os fatos necessários aos futuros
-  handlers de notificação.
+- Mudança de senha e bloqueio possuem handlers próprios em notifications.
+- Cada handler cria uma intenção idempotente e propaga falhas para retry da
+  outbox.
+- Eventos locais que chegaram a `DEAD` antes da existência desses handlers não
+  recebem backfill ou replay retroativo.

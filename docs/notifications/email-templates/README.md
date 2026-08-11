@@ -27,10 +27,12 @@ resolve `template_key + template_version` usando configuração do ambiente.
 
 ## Templates
 
-| Key                                             | Versão ativa | Tipo         | Fonte HTML                                                | Status      |
-| ----------------------------------------------- | ------------ | ------------ | --------------------------------------------------------- | ----------- |
-| [`email-verification`](./email-verification.md) | `1`          | Transacional | `api/email-templates/email-verification/v1/template.html` | implemented |
-| [`welcome-email`](./welcome-email.md)           | `1`          | Transacional | `api/email-templates/welcome-email/v1/template.html`      | implemented |
+| Key                                                       | Versão ativa | Tipo         | Fonte HTML                                                     | Status      |
+| --------------------------------------------------------- | ------------ | ------------ | -------------------------------------------------------------- | ----------- |
+| [`email-verification`](./email-verification.md)           | `1`          | Transacional | `api/email-templates/email-verification/v1/template.html`      | implemented |
+| [`password-change-blocked`](./password-change-blocked.md) | `1`          | Segurança    | `api/email-templates/password-change-blocked/v1/template.html` | implemented |
+| [`password-changed`](./password-changed.md)               | `1`          | Segurança    | `api/email-templates/password-changed/v1/template.html`        | implemented |
+| [`welcome-email`](./welcome-email.md)                     | `1`          | Transacional | `api/email-templates/welcome-email/v1/template.html`           | implemented |
 
 ## Referências
 

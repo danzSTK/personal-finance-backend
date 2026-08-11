@@ -29,7 +29,10 @@ flowchart LR
   Outbox --> Worker[Outbox worker]
   Worker --> Redis
   Worker --> Sessions[Sessões Redis]
-  Outbox -. eventos futuros .-> Notifications[Notifications]
+  Outbox --> Notifications[Handlers de notifications]
+  Notifications --> EmailMessages[(email_messages)]
+  EmailMessages --> Queue[Fila BullMQ]
+  Queue --> Mail[MailService e provider]
 ```
 
 - PostgreSQL guarda os fatos e a versão durável da credencial.
@@ -46,7 +49,7 @@ flowchart LR
 | Application    | `ChangeUserPasswordUseCase`, loader, assembler e synchronizer | Orquestrar o fluxo e transformar fatos em estado         |
 | Domain         | `PasswordChangeEvent`, `ChangePasswordPolicy`, eventos        | Representar fatos, invariantes e regras temporais        |
 | Infrastructure | repository PostgreSQL, store Redis, Lua e rehydrators         | Persistir, projetar e transportar eventos                |
-| Worker         | handlers de refresh e revogação                               | Repetir efeitos técnicos depois do commit                |
+| Worker         | handlers de auth e notifications                              | Repetir efeitos e produzir e-mails depois do commit      |
 
 ## Fontes de estado
 

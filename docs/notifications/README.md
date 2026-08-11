@@ -45,6 +45,16 @@ A API não carrega `MailModule` nem `EmailMessageProcessor`. Ela pode persistir 
 
 Estados terminais (`SENT`, `FAILED_PERMANENT`, `CANCELED`) não são reconciliados. Repetições do reconciliador são seguras porque o `jobId` é determinístico e a intenção possui chave de idempotência.
 
+## Eventos de alteração de senha
+
+O worker transforma os eventos `auth.password-change.changed` e
+`auth.password-change.block-started` nas intenções `PASSWORD_CHANGED` e
+`PASSWORD_CHANGE_BLOCKED`. Os handlers usam o usuário persistido como fonte do
+destinatário e propagam falhas para que a outbox aplique retry.
+
+Detalhes do fluxo e dos fallbacks estão em
+[Notificações da alteração de senha](../auth/change-password/notifications.md).
+
 ## Configuração Operacional
 
 ```text

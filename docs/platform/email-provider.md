@@ -48,11 +48,14 @@ BREVO_API_TIMEOUT_MS=10000
 BREVO_API_MAX_RETRIES=2
 BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID=<inteiro-positivo>
 BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID=<inteiro-positivo>
+BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID=<inteiro-positivo>
+BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID=<inteiro-positivo>
 ```
 
 Quando o worker usa `MAIL_ENABLED=true` e `MAIL_PROVIDER=brevo`, a API key, o
-remetente e os mappings das versões ativas são obrigatórios. API HTTP e provider
-`noop` não exigem mappings Brevo.
+remetente padrão e os mappings das versões ativas são obrigatórios. API HTTP e
+provider `noop` não exigem mappings Brevo. O remetente padrão atende mensagens
+HTML/texto sem template; templates hospedados mantêm seu próprio remetente.
 
 ## Contrato De Template
 
@@ -66,12 +69,14 @@ await this.mailService.send({
 });
 ```
 
-O serviço aplica o remetente padrão. O `BrevoMailProvider` resolve a referência
-em `mail.config` imediatamente antes de chamar o SDK. O provider `noop` valida a
+O `BrevoMailProvider` resolve a referência em `mail.config` imediatamente antes
+de chamar o SDK. Quando existe `templateId` e o consumidor não definiu uma
+sobrescrita explícita, o serviço omite `sender`; assim a Brevo usa o remetente e
+o assunto configurados na versão hospedada. O provider `noop` valida a
 referência sem exigir ID externo.
 
 HTML/texto livre continuam disponíveis para mensagens que não usam template
-hospedado.
+hospedado e recebem `MAIL_DEFAULT_FROM_EMAIL` quando `from` não é informado.
 
 ## Segurança
 
