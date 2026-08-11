@@ -1,6 +1,8 @@
 export const EmailTemplateKey = {
   WELCOME: 'welcome-email',
   EMAIL_VERIFICATION: 'email-verification',
+  PASSWORD_CHANGED: 'password-changed',
+  PASSWORD_CHANGE_BLOCKED: 'password-change-blocked',
 } as const;
 
 export type EmailTemplateKey = (typeof EmailTemplateKey)[keyof typeof EmailTemplateKey];
@@ -24,12 +26,40 @@ export interface EmailVerificationV1Params extends Record<string, unknown> {
   support_url: string;
 }
 
+export interface PasswordChangedV1Params extends Record<string, unknown> {
+  first_name: string;
+  changed_at: string;
+  ip_address: string;
+  location: string;
+  browser: string;
+  operating_system: string;
+  device: string;
+  support_url: string;
+}
+
+export interface PasswordChangeBlockedV1Params extends Record<string, unknown> {
+  first_name: string;
+  blocked_until: string;
+  ip_address: string;
+  location: string;
+  browser: string;
+  operating_system: string;
+  device: string;
+  support_url: string;
+}
+
 export interface EmailTemplateParamsMap {
   [EmailTemplateKey.WELCOME]: {
     1: WelcomeEmailV1Params;
   };
   [EmailTemplateKey.EMAIL_VERIFICATION]: {
     1: EmailVerificationV1Params;
+  };
+  [EmailTemplateKey.PASSWORD_CHANGED]: {
+    1: PasswordChangedV1Params;
+  };
+  [EmailTemplateKey.PASSWORD_CHANGE_BLOCKED]: {
+    1: PasswordChangeBlockedV1Params;
   };
 }
 
@@ -54,6 +84,8 @@ export interface EmailTemplateReference<
 export const ActiveEmailTemplateVersion = {
   [EmailTemplateKey.WELCOME]: EmailTemplateVersion.V1,
   [EmailTemplateKey.EMAIL_VERIFICATION]: EmailTemplateVersion.V1,
+  [EmailTemplateKey.PASSWORD_CHANGED]: EmailTemplateVersion.V1,
+  [EmailTemplateKey.PASSWORD_CHANGE_BLOCKED]: EmailTemplateVersion.V1,
 } as const satisfies {
   [TKey in EmailTemplateKey]: EmailTemplateVersionFor<TKey>;
 };

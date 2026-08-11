@@ -5,6 +5,8 @@ import {
   EmailTemplateVersion,
   EmailTemplateVersionFor,
   EmailVerificationV1Params,
+  PasswordChangeBlockedV1Params,
+  PasswordChangedV1Params,
   WelcomeEmailV1Params,
 } from '@/modules/notifications/domain/templates/email-template.contract';
 import { z } from 'zod';
@@ -13,11 +15,14 @@ const nonBlankString = z
   .string()
   .min(1)
   .refine(value => value.trim().length > 0);
+
 const webUrl = z.url().refine(value => {
   const protocol = new URL(value).protocol;
 
   return protocol === 'https:' || protocol === 'http:';
 });
+
+const brasiliaDateTime = z.string().regex(/^\d{2}\/\d{2}\/\d{4} às \d{2}:\d{2}$/);
 
 const welcomeEmailV1Schema: z.ZodType<WelcomeEmailV1Params> = z.strictObject({
   first_name: nonBlankString,
@@ -31,6 +36,28 @@ const emailVerificationV1Schema: z.ZodType<EmailVerificationV1Params> = z.strict
   first_name: nonBlankString,
   verification_url: webUrl,
   expires_in_minutes: z.number().int().positive(),
+  support_url: webUrl,
+});
+
+const passwordChangedV1Schema: z.ZodType<PasswordChangedV1Params> = z.strictObject({
+  first_name: nonBlankString,
+  changed_at: brasiliaDateTime,
+  ip_address: nonBlankString,
+  location: nonBlankString,
+  browser: nonBlankString,
+  operating_system: nonBlankString,
+  device: nonBlankString,
+  support_url: webUrl,
+});
+
+const passwordChangeBlockedV1Schema: z.ZodType<PasswordChangeBlockedV1Params> = z.strictObject({
+  first_name: nonBlankString,
+  blocked_until: brasiliaDateTime,
+  ip_address: nonBlankString,
+  location: nonBlankString,
+  browser: nonBlankString,
+  operating_system: nonBlankString,
+  device: nonBlankString,
   support_url: webUrl,
 });
 
@@ -52,6 +79,37 @@ const contractsByTemplate: Readonly<Record<string, RuntimeTemplateVersions>> = {
     [EmailTemplateVersion.V1]: {
       schema: emailVerificationV1Schema,
       parameterNames: ['first_name', 'verification_url', 'expires_in_minutes', 'support_url'],
+    },
+  },
+  [EmailTemplateKey.PASSWORD_CHANGED]: {
+    [EmailTemplateVersion.V1]: {
+      schema: passwordChangedV1Schema,
+      parameterNames: [
+        'first_name',
+        'changed_at',
+        'ip_address',
+        'location',
+        'browser',
+        'operating_system',
+        'device',
+        'support_url',
+      ],
+    },
+  },
+
+  [EmailTemplateKey.PASSWORD_CHANGE_BLOCKED]: {
+    [EmailTemplateVersion.V1]: {
+      schema: passwordChangeBlockedV1Schema,
+      parameterNames: [
+        'first_name',
+        'blocked_until',
+        'ip_address',
+        'location',
+        'browser',
+        'operating_system',
+        'device',
+        'support_url',
+      ],
     },
   },
 };

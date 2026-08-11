@@ -68,6 +68,8 @@ export default registerAs(
       templateIds: {
         'welcome-email:v1': readOptionalNumber('BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID'),
         'email-verification:v1': readOptionalNumber('BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID'),
+        'password-changed:v1': readOptionalNumber('BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID'),
+        'password-change-blocked:v1': readOptionalNumber('BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID'),
       },
     },
   }),

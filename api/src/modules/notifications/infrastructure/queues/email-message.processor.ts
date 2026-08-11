@@ -32,7 +32,6 @@ export class EmailMessageProcessor extends WorkerHost implements OnApplicationBo
     if (job.name !== EmailJobNames.SEND_EMAIL_MESSAGE) {
       throw new Error(`Unsupported notifications email job: ${job.name}`);
     }
-
     const result = await this.sendEmailMessageUseCase.execute({ emailMessageId: job.data.emailMessageId });
 
     if (!result.sent) {

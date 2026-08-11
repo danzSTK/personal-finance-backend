@@ -23,6 +23,8 @@ describe('mailConfig', () => {
       delete process.env.BREVO_API_MAX_RETRIES;
       delete process.env.BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID;
       delete process.env.BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID;
+      delete process.env.BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID;
+      delete process.env.BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID;
 
       const config = mailConfig();
 
@@ -41,6 +43,8 @@ describe('mailConfig', () => {
           templateIds: {
             'welcome-email:v1': undefined,
             'email-verification:v1': undefined,
+            'password-changed:v1': undefined,
+            'password-change-blocked:v1': undefined,
           },
         },
       });
@@ -59,6 +63,8 @@ describe('mailConfig', () => {
       process.env.BREVO_API_MAX_RETRIES = '1';
       process.env.BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID = '42';
       process.env.BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID = '57';
+      process.env.BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID = '58';
+      process.env.BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID = '59';
 
       const config = mailConfig();
 
@@ -77,6 +83,8 @@ describe('mailConfig', () => {
           templateIds: {
             'welcome-email:v1': 42,
             'email-verification:v1': 57,
+            'password-changed:v1': 58,
+            'password-change-blocked:v1': 59,
           },
         },
       });

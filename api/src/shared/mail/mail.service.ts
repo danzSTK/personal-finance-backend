@@ -22,9 +22,9 @@ export class MailService {
   private normalizeInput(input: SendMailInput): SendMailInput {
     this.validateRecipients(input.to);
 
-    const from = input.from ?? this.getDefaultSender();
+    const from = input.from ?? (input.template ? undefined : this.getDefaultSender());
 
-    if (!from) {
+    if (!input.template && !from) {
       throw MailError.invalidPayload('Mail sender is required.');
     }
 
@@ -40,10 +40,7 @@ export class MailService {
       throw MailError.invalidPayload('Mail content is required when no template is provided.');
     }
 
-    return {
-      ...input,
-      from,
-    };
+    return from ? { ...input, from } : input;
   }
 
   private validateTemplate(template: SendMailInput['template']): void {

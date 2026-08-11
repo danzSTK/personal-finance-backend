@@ -65,10 +65,23 @@ describe('MailService', () => {
         params: { firstName: 'Ada' },
       });
 
+      expect(provider.send).toHaveBeenCalledWith({
+        to: [{ email: 'user@example.com' }],
+        template: { key: 'welcome-email', version: 1 },
+        params: { firstName: 'Ada' },
+      });
+    });
+
+    it('preserves an explicit sender override for template emails', async () => {
+      await service.send({
+        to: [{ email: 'user@example.com' }],
+        from: { email: 'security@example.com', name: 'Security' },
+        template: { key: 'welcome-email', version: 1 },
+      });
+
       expect(provider.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          template: { key: 'welcome-email', version: 1 },
-          params: { firstName: 'Ada' },
+          from: { email: 'security@example.com', name: 'Security' },
         }),
       );
     });

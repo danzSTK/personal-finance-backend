@@ -1,9 +1,9 @@
-import objectStorageConfig from '@/config/object-storage.config';
+import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import mailConfig from '@/config/mail.config';
 import notificationsConfig from '@/config/notifications.config';
+import objectStorageConfig from '@/config/object-storage.config';
 import queueConfig from '@/config/queue.config';
 import workerConfig from '@/config/worker.config';
-import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import Joi from 'joi';
@@ -159,6 +159,32 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
           otherwise: Joi.number().integer().positive().optional(),
         }),
         BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.number().integer().positive().required(),
+              otherwise: Joi.number().integer().positive().optional(),
+            }),
+            otherwise: Joi.number().integer().positive().optional(),
+          }),
+          otherwise: Joi.number().integer().positive().optional(),
+        }),
+        BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.number().integer().positive().required(),
+              otherwise: Joi.number().integer().positive().optional(),
+            }),
+            otherwise: Joi.number().integer().positive().optional(),
+          }),
+          otherwise: Joi.number().integer().positive().optional(),
+        }),
+        BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID: Joi.when('PROCESS_ROLE', {
           is: ProcessRoles.WORKER,
           then: Joi.when('MAIL_ENABLED', {
             is: true,

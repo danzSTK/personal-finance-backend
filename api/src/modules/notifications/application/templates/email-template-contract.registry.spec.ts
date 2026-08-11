@@ -58,6 +58,44 @@ describe('EmailTemplateContractRegistry', () => {
 
       expect(result).toEqual(params);
     });
+
+    it('accepts the exact password changed v1 contract', () => {
+      const params = {
+        first_name: 'Daniel',
+        changed_at: '11/08/2026 às 09:00',
+        ip_address: '203.0.113.10',
+        location: 'Fortaleza, CE',
+        browser: 'Firefox',
+        operating_system: 'Linux',
+        device: 'Desktop',
+        support_url: 'https://danfy.com/suporte',
+      };
+
+      expect(
+        EmailTemplateContractRegistry.validate(EmailTemplateKey.PASSWORD_CHANGED, EmailTemplateVersion.V1, params),
+      ).toEqual(params);
+    });
+
+    it('accepts the exact password change blocked v1 contract', () => {
+      const params = {
+        first_name: 'Daniel',
+        blocked_until: '11/08/2026 às 10:00',
+        ip_address: '203.0.113.10',
+        location: 'Fortaleza, CE',
+        browser: 'Firefox',
+        operating_system: 'Linux',
+        device: 'Desktop',
+        support_url: 'https://danfy.com/suporte',
+      };
+
+      expect(
+        EmailTemplateContractRegistry.validate(
+          EmailTemplateKey.PASSWORD_CHANGE_BLOCKED,
+          EmailTemplateVersion.V1,
+          params,
+        ),
+      ).toEqual(params);
+    });
   });
 
   describe('parse', () => {
@@ -102,6 +140,23 @@ describe('EmailTemplateContractRegistry', () => {
       expect(error.code).toBe(EmailTemplateContractErrorCode.PARAMS_INVALID);
       expect(error.message).not.toContain('javascript:');
     });
+
+    it('rejects a password change date outside the Brasilia display contract', () => {
+      const error = captureContractError(() =>
+        EmailTemplateContractRegistry.parse(EmailTemplateKey.PASSWORD_CHANGED, EmailTemplateVersion.V1, {
+          first_name: 'Daniel',
+          changed_at: '2026-08-11T12:00:00.000Z',
+          ip_address: '203.0.113.10',
+          location: 'Fortaleza, CE',
+          browser: 'Firefox',
+          operating_system: 'Linux',
+          device: 'Desktop',
+          support_url: 'https://danfy.com/suporte',
+        }),
+      );
+
+      expect(error.code).toBe(EmailTemplateContractErrorCode.PARAMS_INVALID);
+    });
   });
 
   describe('list', () => {
@@ -116,6 +171,34 @@ describe('EmailTemplateContractRegistry', () => {
           key: EmailTemplateKey.EMAIL_VERIFICATION,
           version: 1,
           parameterNames: ['first_name', 'verification_url', 'expires_in_minutes', 'support_url'],
+        },
+        {
+          key: EmailTemplateKey.PASSWORD_CHANGED,
+          version: 1,
+          parameterNames: [
+            'first_name',
+            'changed_at',
+            'ip_address',
+            'location',
+            'browser',
+            'operating_system',
+            'device',
+            'support_url',
+          ],
+        },
+        {
+          key: EmailTemplateKey.PASSWORD_CHANGE_BLOCKED,
+          version: 1,
+          parameterNames: [
+            'first_name',
+            'blocked_until',
+            'ip_address',
+            'location',
+            'browser',
+            'operating_system',
+            'device',
+            'support_url',
+          ],
         },
       ]);
     });

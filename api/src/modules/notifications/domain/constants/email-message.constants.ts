@@ -12,6 +12,8 @@ export type EmailMessageStatus = (typeof EmailMessageStatus)[keyof typeof EmailM
 export const EmailMessageType = {
   WELCOME: 'WELCOME',
   EMAIL_VERIFICATION: 'EMAIL_VERIFICATION',
+  PASSWORD_CHANGED: 'PASSWORD_CHANGED',
+  PASSWORD_CHANGE_BLOCKED: 'PASSWORD_CHANGE_BLOCKED',
 } as const;
 
 export type EmailMessageType = (typeof EmailMessageType)[keyof typeof EmailMessageType];
@@ -34,4 +36,12 @@ export const WelcomeEmailIdempotencyKeys = {
 
 export const EmailVerificationIdempotencyKeys = {
   challenge: (challengeId: string): string => `email:verification:challenge:${challengeId}`,
+} as const;
+
+export const PasswordChangedEmailIdempotencyKeys = {
+  event: (sourceEventId: string): string => `email:password-change:event:${sourceEventId}`,
+} as const;
+
+export const PasswordChangeBlockedEmailIdempotencyKeys = {
+  event: (sourceEventId: string): string => `email:password-change:event:${sourceEventId}`,
 } as const;

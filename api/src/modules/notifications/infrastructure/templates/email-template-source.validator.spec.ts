@@ -19,9 +19,14 @@ describe('EmailTemplateSourceValidator', () => {
     it('validates every registered source in the canonical backend directory', () => {
       const result = EmailTemplateSourceValidator.validateAll();
 
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(4);
       expect(result.map(template => `${template.key}:v${template.version}`)).toEqual(
-        expect.arrayContaining(['welcome-email:v1', 'email-verification:v1']),
+        expect.arrayContaining([
+          'welcome-email:v1',
+          'email-verification:v1',
+          'password-changed:v1',
+          'password-change-blocked:v1',
+        ]),
       );
     });
   });

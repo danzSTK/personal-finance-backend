@@ -81,7 +81,6 @@ describe('BrevoMailProvider', () => {
 
       await provider.send({
         to: [{ email: 'user@example.com' }],
-        from: { email: 'no-reply@example.com' },
         template: { key: 'welcome-email', version: 1 },
         html: '<p>Ignored</p>',
         text: 'Ignored',
@@ -90,6 +89,7 @@ describe('BrevoMailProvider', () => {
       expect(sendTransacEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           templateId: 123,
+          sender: undefined,
           htmlContent: undefined,
           textContent: undefined,
         }),

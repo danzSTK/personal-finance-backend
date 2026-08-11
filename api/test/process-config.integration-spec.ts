@@ -101,6 +101,8 @@ describe('Process bootstrap and secret contracts integration', () => {
       BREVO_API_KEY: 'integration-brevo-key',
       BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID: '1001',
       BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID: '1002',
+      BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID: '1003',
+      BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID: '1004',
     });
 
     expect(result.status).toBe(0);
