@@ -27,6 +27,7 @@ import { RefreshTokenValidationService } from './application/services/refresh-to
 import { ConfirmEmailVerificationUseCase } from './application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
 import { ResendEmailVerificationUseCase } from './application/use-cases/resend-email-verification/resend-email-verification.use-case';
 import { ChangeUserPasswordUseCase } from './application/use-cases/change-user-password/change-user-password.use-case';
+import { GetPasswordChangeStatusUseCase } from './application/use-cases/get-password-change-status/get-password-change-status.use-case';
 
 // Infrastructure — Strategies
 import { LocalStrategy } from './infrastructure/strategies/local.strategy';
@@ -85,6 +86,7 @@ import { PasswordChangeCostGuard } from './presentation/guards/password-change-c
     LinkGoogleProviderUseCase,
     RefreshTokenValidationService,
     ChangeUserPasswordUseCase,
+    GetPasswordChangeStatusUseCase,
 
     // Strategies
     LocalStrategy,

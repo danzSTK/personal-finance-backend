@@ -22,6 +22,7 @@ import { RevokeSessionUseCase } from '@/modules/auth/application/use-cases/revok
 import { SignInUseCase } from '@/modules/auth/application/use-cases/sign-in/sign-in.use-case';
 import { SignUpUseCase } from '@/modules/auth/application/use-cases/sign-up/sign-up.use-case';
 import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
+import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
 import { GoogleAuthGuard } from '@/modules/auth/infrastructure/guards/google-auth.guard';
 import { GoogleLinkAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-auth.guard';
 import { GoogleLinkInitAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-init-auth.guard';
@@ -64,6 +65,7 @@ import { EmailVerificationConfirmationResponseDto } from '../dto/email-verificat
 import { EmailVerificationResendResponseDto } from '../dto/email-verification-resend.response.dto';
 import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
+import { PasswordChangeStatusResponseDto } from '../dto/password-change-status.response.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { ChangeUserPasswordDto } from '../dto/change-user-password.dto';
 import { ChangeUserPasswordResponseDto } from '../dto/change-user-password.response.dto';
@@ -84,6 +86,7 @@ export class AuthController {
     private readonly linkEmailProviderUseCase: LinkEmailProviderUseCase,
     private readonly refreshTokenValidationService: RefreshTokenValidationService,
     private readonly changeUserPasswordUseCase: ChangeUserPasswordUseCase,
+    private readonly getPasswordChangeStatusUseCase: GetPasswordChangeStatusUseCase,
 
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
@@ -619,6 +622,40 @@ export class AuthController {
     this.clearRefreshTokenCookie(response);
 
     return new ChangeUserPasswordResponseDto();
+  }
+
+  @Get('password/change/status')
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({
+    summary: 'Consultar disponibilidade da alteração de senha',
+    description:
+      'Informa se o usuário autenticado pode iniciar uma alteração de senha agora, sem revelar o motivo de uma restrição temporária.',
+  })
+  @ApiResponse({
+    status: 200,
+    type: PasswordChangeStatusResponseDto,
+    headers: {
+      'Retry-After': {
+        description: 'Segundos restantes até uma nova tentativa, presente somente quando status é false.',
+        schema: { type: 'integer', minimum: 1, example: 600 },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 403, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 429, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 503, type: PlatformErrorResponseDto })
+  async getPasswordChangeStatus(
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<PasswordChangeStatusResponseDto> {
+    const result = await this.getPasswordChangeStatusUseCase.execute({ userId: user.id });
+
+    if (!result.status) {
+      response.setHeader('Retry-After', String(result.retryAfterSeconds));
+    }
+
+    return PasswordChangeStatusResponseDto.fromStatus(result.status);
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {

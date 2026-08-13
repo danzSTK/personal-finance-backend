@@ -6,6 +6,7 @@ import appConfig from '@/config/app.config';
 import jwtConfig from '@/config/jwt.config';
 import { RefreshTokenValidationService } from '@/modules/auth/application/services/refresh-token-validation.service';
 import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
+import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
 import { ConfirmEmailVerificationUseCase } from '@/modules/auth/application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
 import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
@@ -25,11 +26,15 @@ import { randomUUID } from 'node:crypto';
 describe('AuthController', () => {
   let controller: AuthController;
   let changeUserPasswordUseCase: jest.Mocked<ChangeUserPasswordUseCase>;
+  let getPasswordChangeStatusUseCase: jest.Mocked<GetPasswordChangeStatusUseCase>;
 
   beforeEach(async () => {
     changeUserPasswordUseCase = {
       execute: jest.fn().mockResolvedValue({ status: 'CHANGED' }),
     } as unknown as jest.Mocked<ChangeUserPasswordUseCase>;
+    getPasswordChangeStatusUseCase = {
+      execute: jest.fn().mockResolvedValue({ status: true }),
+    } as unknown as jest.Mocked<GetPasswordChangeStatusUseCase>;
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
@@ -44,6 +49,7 @@ describe('AuthController', () => {
         { provide: LinkEmailProviderUseCase, useValue: {} },
         { provide: RefreshTokenValidationService, useValue: {} },
         { provide: ChangeUserPasswordUseCase, useValue: changeUserPasswordUseCase },
+        { provide: GetPasswordChangeStatusUseCase, useValue: getPasswordChangeStatusUseCase },
         {
           provide: jwtConfig.KEY,
           useValue: {
@@ -134,6 +140,41 @@ describe('AuthController', () => {
         }),
       );
       expect(response.clearCookie).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('getPasswordChangeStatus', () => {
+    it('uses the authenticated user and writes Retry-After only when unavailable', async () => {
+      const userId = randomUUID();
+      const user = User.reconstitute(
+        {
+          userName: null,
+          firstName: null,
+          lastName: null,
+          email: Email.reconstitute('status@example.com'),
+          status: UserStatus.ACTIVE,
+          avatarAssetId: null,
+          authProviders: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        userId,
+      );
+      const response = {
+        setHeader: jest.fn(),
+      } as unknown as Response;
+      getPasswordChangeStatusUseCase.execute.mockResolvedValue({
+        status: false,
+        retryAfterSeconds: 91,
+      });
+
+      await expect(controller.getPasswordChangeStatus(user, response)).resolves.toMatchObject({
+        object: 'auth.password_change_status',
+        status: false,
+      });
+
+      expect(getPasswordChangeStatusUseCase.execute).toHaveBeenCalledWith({ userId });
+      expect(response.setHeader).toHaveBeenCalledWith('Retry-After', '91');
     });
   });
 });

@@ -10,6 +10,7 @@ import { PasswordChangeStateLoader } from '@/modules/auth/application/services/p
 import { PasswordChangeStateSynchronizer } from '@/modules/auth/application/services/password-change-state-synchronizer';
 import { PasswordChangeStateAssembler } from '@/modules/auth/application/services/password-change-state.assembler';
 import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
+import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
 import { ValidateCredentialsUseCase } from '@/modules/auth/application/use-cases/validate-credentials/validate-credentials.use-case';
 import {
   PasswordChangeEventType,
@@ -87,6 +88,7 @@ describe('Password change real flow integration', () => {
   let stateStore: RedisPasswordChangeStateStore;
   let sessionRepository: RedisSessionRepository;
   let changePassword: ChangeUserPasswordUseCase;
+  let getPasswordChangeStatus: GetPasswordChangeStatusUseCase;
   let validateCredentials: ValidateCredentialsUseCase;
   let jwtStrategy: JwtStrategy;
   let jwtRefreshStrategy: JwtRefreshStrategy;
@@ -128,6 +130,7 @@ describe('Password change real flow integration', () => {
     const outboxRepository = new OutboxMessageRepository(dataSource.getRepository(OutboxMessageOrmEntity));
     const outboxWriteService = new OutboxWriteService(outboxRepository);
 
+    const changePasswordPolicy = new ChangePasswordPolicy();
     changePassword = new ChangeUserPasswordUseCase(
       dataSource,
       userRepository,
@@ -135,11 +138,12 @@ describe('Password change real flow integration', () => {
       stateStore,
       stateLoader,
       stateSynchronizer,
-      new ChangePasswordPolicy(),
+      changePasswordPolicy,
       hashService,
       sessionRepository,
       outboxWriteService,
     );
+    getPasswordChangeStatus = new GetPasswordChangeStatusUseCase(stateLoader, changePasswordPolicy);
 
     const findUserByEmail = new FindUserByEmailUseCase(userRepository);
     const findUserById = new FindUserByIdUseCase(userRepository);
@@ -166,6 +170,8 @@ describe('Password change real flow integration', () => {
 
   it('persists the new credential and authenticates only the new password', async () => {
     const fixture = await createFixture();
+
+    await expect(getPasswordChangeStatus.execute({ userId: fixture.userId })).resolves.toEqual({ status: true });
 
     const userBeforeChange = await validateCredentials.execute({
       email: fixture.email,
@@ -229,6 +235,14 @@ describe('Password change real flow integration', () => {
     }
     expect(state.state.completedChangesAt).toHaveLength(1);
     await expect(redisClient.exists(CacheKeys.auth.passwordChange.pending(fixture.userId))).resolves.toBe(0);
+
+    const statusAfterChange = await getPasswordChangeStatus.execute({ userId: fixture.userId });
+    expect(statusAfterChange.status).toBe(false);
+    if (statusAfterChange.status) {
+      throw new Error('Expected password change to be unavailable during cooldown.');
+    }
+    expect(statusAfterChange.retryAfterSeconds).toBeGreaterThan(0);
+    expect(statusAfterChange.retryAfterSeconds).toBeLessThanOrEqual(600);
   });
 
   it('removes previous sessions and rejects access and refresh payloads with the old credential version', async () => {

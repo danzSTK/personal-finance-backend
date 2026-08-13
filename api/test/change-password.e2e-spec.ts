@@ -9,6 +9,7 @@ import jwtConfig from '@/config/jwt.config';
 import { PasswordChangeBlockedError } from '@/modules/auth/application/errors';
 import { RefreshTokenValidationService } from '@/modules/auth/application/services/refresh-token-validation.service';
 import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
+import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
 import { ConfirmEmailVerificationUseCase } from '@/modules/auth/application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
 import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
@@ -30,6 +31,7 @@ import request from 'supertest';
 describe('Change password HTTP contract (e2e)', () => {
   let app: INestApplication;
   let changeUserPasswordUseCase: jest.Mocked<ChangeUserPasswordUseCase>;
+  let getPasswordChangeStatusUseCase: jest.Mocked<GetPasswordChangeStatusUseCase>;
   const userId = randomUUID();
   const sessionId = randomUUID();
   const user = User.reconstitute(
@@ -51,6 +53,9 @@ describe('Change password HTTP contract (e2e)', () => {
     changeUserPasswordUseCase = {
       execute: jest.fn().mockResolvedValue({ status: 'CHANGED' }),
     } as unknown as jest.Mocked<ChangeUserPasswordUseCase>;
+    getPasswordChangeStatusUseCase = {
+      execute: jest.fn().mockResolvedValue({ status: true }),
+    } as unknown as jest.Mocked<GetPasswordChangeStatusUseCase>;
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
@@ -65,6 +70,7 @@ describe('Change password HTTP contract (e2e)', () => {
         { provide: LinkEmailProviderUseCase, useValue: {} },
         { provide: RefreshTokenValidationService, useValue: {} },
         { provide: ChangeUserPasswordUseCase, useValue: changeUserPasswordUseCase },
+        { provide: GetPasswordChangeStatusUseCase, useValue: getPasswordChangeStatusUseCase },
         {
           provide: jwtConfig.KEY,
           useValue: {
@@ -165,5 +171,36 @@ describe('Change password HTTP contract (e2e)', () => {
       .expect(400);
 
     expect(changeUserPasswordUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  it('returns true without Retry-After when password change is available', async () => {
+    const response = await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/auth/password/change/status')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      object: 'auth.password_change_status',
+      status: true,
+    });
+    expect(response.headers['retry-after']).toBeUndefined();
+    expect(getPasswordChangeStatusUseCase.execute).toHaveBeenCalledWith({ userId });
+  });
+
+  it('returns false and Retry-After without revealing the restriction reason', async () => {
+    getPasswordChangeStatusUseCase.execute.mockResolvedValue({
+      status: false,
+      retryAfterSeconds: 527,
+    });
+
+    const response = await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/auth/password/change/status')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      object: 'auth.password_change_status',
+      status: false,
+    });
+    expect(response.headers['retry-after']).toBe('527');
+    expect(JSON.stringify(response.body)).not.toContain('reason');
   });
 });
