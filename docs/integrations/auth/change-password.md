@@ -8,7 +8,7 @@ related:
   - ../../auth/change-password/index.md
 ---
 
-# 🔑 POST /auth/password/change
+# 🔑 Disponibilidade e alteração de senha
 
 Altera a senha local do usuário autenticado. Em caso de sucesso, todas as
 sessões são revogadas e os cookies de autenticação são expirados; o frontend
@@ -19,6 +19,58 @@ deve encerrar o estado autenticado e pedir um novo login.
 - Cookie HttpOnly `accessToken`.
 - Enviar a requisição com `credentials: 'include'` ou `withCredentials: true`.
 - Não enviar `userId`, token ou identificador de sessão no body.
+
+## Consulta de disponibilidade
+
+```http
+GET /auth/password/change/status
+```
+
+A consulta retorna `200` e não possui body de entrada.
+
+Disponível:
+
+```json
+{
+  "object": "auth.password_change_status",
+  "status": true
+}
+```
+
+Temporariamente indisponível:
+
+```http
+HTTP/1.1 200 OK
+Retry-After: 527
+```
+
+```json
+{
+  "object": "auth.password_change_status",
+  "status": false
+}
+```
+
+`Retry-After` contém segundos inteiros e aparece somente quando `status` é
+`false`. O backend não informa se a causa é bloqueio, cooldown, limite diário ou
+outra alteração em andamento. Se o Redis não puder fornecer ou reconstruir um
+estado confiável, a consulta retorna `503 PASSWORD_CHANGE_STATE_UNAVAILABLE`.
+
+A consulta é informativa. O `POST` reavalia o estado porque outra requisição pode
+criar uma restrição depois do `GET`. A rota usa o throttling global, mas não
+consome o limite técnico específico do `POST` por IP e sessão.
+
+```ts
+const response = await fetch(`${apiUrl}/auth/password/change/status`, {
+  method: "GET",
+  credentials: "include",
+});
+
+const payload = await response.json();
+const retryAfterSeconds = payload.status
+  ? null
+  : Number(response.headers.get("Retry-After"));
+```
 
 ## Request
 

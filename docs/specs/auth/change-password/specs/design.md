@@ -67,6 +67,9 @@ worker
 
 - `api/src/modules/auth/application/use-cases/change-user-password/`
   orquestra o caso de uso e expõe DTO TypeScript simples.
+- `api/src/modules/auth/application/use-cases/get-password-change-status/`
+  reutiliza loader e policy para traduzir o estado operacional em disponibilidade
+  booleana, sem alterar a projeção além da hidratação já prevista para `MISSING`.
 - `api/src/modules/auth/application/ports/password-change-state-store.interface.ts`
   abstrai a projeção e a barreira Redis.
 - `api/src/modules/auth/application/services/password-change-state-loader.ts`
@@ -98,10 +101,14 @@ worker
   body.
 - `api/src/modules/auth/presentation/dto/change-user-password.response.dto.ts`
   serializa o sucesso.
+- `api/src/modules/auth/presentation/dto/password-change-status.response.dto.ts`
+  expõe somente `object` e `status`; o tempo restante fica exclusivamente no
+  header `Retry-After`.
 - `api/src/modules/auth/presentation/guards/password-change-cost.guard.ts`
   aplica a proteção técnica.
 - `api/src/modules/auth/presentation/http/auth.controller.ts` apenas extrai
-  identidade/contexto, chama o use case, limpa cookies e serializa.
+  identidade/contexto, chama os use cases, escreve o header opcional, limpa
+  cookies no fluxo de alteração e serializa.
 - `api/src/common/filters/app-exception.filter.ts` converte os erros e escreve
   `Retry-After`.
 
@@ -215,6 +222,22 @@ Erros dentro da transação que exijam rollback são propagados. No `finally`, a
 projeção é reconstruída a partir do banco para liberar a barreira com segurança;
 se Redis estiver indisponível, o TTL da barreira garante recuperação.
 
+## Fluxo da consulta de status
+
+1. O controller obtém o `userId` do usuário autenticado.
+2. `GetPasswordChangeStatusUseCase` chama `PasswordChangeStateLoader`.
+3. Um estado `MISSING` é reconstruído do PostgreSQL pelo fluxo já existente.
+4. Um estado `PENDING` é convertido em `status: false` com seu PTTL normalizado.
+5. Para um estado pronto, `ChangePasswordPolicy.evaluateRestrictions()` decide
+   se existe bloqueio, cooldown ou limite diário e mantém o maior tempo de retry.
+6. O controller retorna `200`; quando indisponível, escreve `Retry-After` e não
+   expõe a razão no body.
+
+A consulta não adquire a barreira de mutação, não executa bcrypt, não persiste
+eventos e não usa `PasswordChangeCostGuard`. O throttling global e os guards
+globais de autenticação permanecem ativos. O resultado é informativo e não
+substitui a reavaliação realizada pelo `POST`.
+
 ## Transação e outbox
 
 Os eventos usam deduplication keys baseadas no fato fonte:
@@ -300,6 +323,10 @@ explícita antes do deploy.
 
 O CORS expõe somente o header adicional `Retry-After`.
 
+Na consulta de status, restrições temporais e `PENDING` são resultados `200`, não
+erros de plataforma. Somente a impossibilidade de obter estado confiável continua
+como `503 PASSWORD_CHANGE_STATE_UNAVAILABLE`.
+
 ## Disponibilidade
 
 - Redis operacional indisponível: alteração bloqueada com `503`.
@@ -329,3 +356,8 @@ tokens/sessões anteriores são rejeitados.
 As dependências e limites operacionais estão documentados em
 `docs/tests/integration/password-change-flow.md`. A suíte participa do comando
 agregado `npm run test:integration` junto de todas as demais integrações.
+
+O cenário existente também consulta a disponibilidade antes e depois da troca
+real, comprovando que o novo caso de uso lê a projeção compartilhada sem adicionar
+containers, credenciais, portas ou alterações na pipeline. O contrato HTTP e o
+header opcional permanecem cobertos em `api/test/change-password.e2e-spec.ts`.

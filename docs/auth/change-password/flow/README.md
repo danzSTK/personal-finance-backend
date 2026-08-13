@@ -16,6 +16,10 @@ related:
 O usuário e o JTI do access token vêm do contexto autenticado; IP e dispositivo
 são derivados da requisição e sanitizados.
 
+`GET /auth/password/change/status` permite ao frontend consultar antecipadamente
+se existe alguma restrição temporal. A resposta contém somente `status` booleano;
+quando falso, `Retry-After` informa os segundos restantes sem revelar a causa.
+
 ## Cenários
 
 - [Sucesso](./success.md): transação, reconstrução Redis e revogação de sessões.
@@ -56,9 +60,31 @@ flowchart TD
   X --> Y[Limpa cookies e retorna 200]
 ```
 
+## Consulta de status
+
+```mermaid
+flowchart TD
+  A[GET /auth/password/change/status] --> B[Guards globais e usuário autenticado]
+  B --> C[StateLoader consulta Redis]
+  C -->|MISSING| D[Reconstrói pelo PostgreSQL]
+  D --> E[Policy avalia restrições]
+  C -->|READY| E
+  C -->|PENDING| F[status false + Retry-After]
+  C -->|indisponível| G[503 STATE_UNAVAILABLE]
+  E -->|permitido| H[status true]
+  E -->|restrição ativa| F
+```
+
+A consulta usa somente o throttling global. Ela não passa pelo
+`PasswordChangeCostGuard`, não cria barreira e não altera o orçamento técnico do
+`POST`. Como o resultado não reserva a operação, o `POST` sempre reavalia o
+estado antes do bcrypt.
+
 ## Fronteiras de responsabilidade
 
 - Guards autenticam e limitam o custo técnico antes do bcrypt.
+- A rota de status autentica e consulta, mas não consome o limite técnico do
+  fluxo de mutação.
 - O loader entrega à policy um estado operacional confiável.
 - A policy decide regras usando apenas estado e horário.
 - O use case coordena barreira, transação, domínio, outbox e efeitos pós-commit.

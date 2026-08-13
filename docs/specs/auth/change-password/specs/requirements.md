@@ -187,6 +187,25 @@ conter senhas, hashes, JWTs, JTIs, cookies ou headers completos.
 - Nenhum template ou parâmetro pode conter senha, hash, JWT, JTI, cookie ou
   segredo.
 
+### R13 — consulta antecipada de disponibilidade
+
+- Endpoint: `GET /auth/password/change/status`.
+- A rota deve exigir usuário autenticado e permanecer sob o throttling global da
+  aplicação.
+- A rota não deve usar o limitador técnico de custo específico do `POST`, pois a
+  consulta não executa bcrypt nem deve consumir o orçamento por IP ou sessão.
+- A resposta confiável deve usar `200` com `status: true` quando nenhuma
+  restrição temporal impedir a alteração.
+- Bloqueio por falhas, cooldown, limite diário ou mutação pendente devem retornar
+  `200` com `status: false` e header `Retry-After` em segundos inteiros.
+- A resposta não deve informar motivo, contadores, histórico ou o instante
+  absoluto da restrição.
+- Estado Redis ausente deve seguir a reconstrução já existente pelo PostgreSQL.
+- Se o estado operacional não puder ser garantido, a rota deve preservar o erro
+  `503 PASSWORD_CHANGE_STATE_UNAVAILABLE`, sem responder `status: true`.
+- A consulta é apenas informativa: o `POST` deve continuar reavaliando todas as
+  restrições no momento da mutação.
+
 ## Contrato de erros
 
 | Código                                    | HTTP | Situação                                  |
@@ -225,6 +244,8 @@ conter senhas, hashes, JWTs, JTIs, cookies ou headers completos.
 - Os dois templates possuem contrato TypeScript, schema Zod, HTML versionado,
   mapping de provider e documentação sincronizados.
 - Todos os códigos, headers e payloads seguem o contrato central da plataforma.
+- A consulta autenticada de status retorna somente a disponibilidade booleana e
+  inclui `Retry-After` quando a alteração estiver temporariamente indisponível.
 - Testes de domínio, aplicação, infraestrutura, integração e E2E cobrem os
   cenários e invariantes definidos nesta spec.
 
@@ -236,3 +257,4 @@ conter senhas, hashes, JWTs, JTIs, cookies ou headers completos.
 - Preferências para desativar e-mails de segurança obrigatórios.
 - Backfill ou replay de eventos locais anteriores à existência dos handlers de
   notificação.
+- Antecipação do limite técnico de custo por IP ou sessão na rota de status.

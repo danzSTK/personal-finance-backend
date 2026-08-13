@@ -192,3 +192,18 @@ remetente genérico da plataforma.
 apresentação, enquanto os eventos continuam carregando instantes. Templates
 hospedados precisam ter sender válido; envios HTML/texto sem template continuam
 usando `MAIL_DEFAULT_FROM_EMAIL`.
+
+## D20 — status booleano reutiliza o estado operacional
+
+**Decisão:** expor `GET /auth/password/change/status` como consulta autenticada
+que reutiliza `PasswordChangeStateLoader` e `ChangePasswordPolicy`. A resposta é
+`200` com `status: true|false`; quando falsa, o tempo restante aparece somente em
+`Retry-After`.
+
+**Motivo:** o frontend precisa antecipar indisponibilidade temporal sem conhecer
+causa, contadores ou detalhes internos. Reutilizar a projeção preserva exatamente
+as mesmas janelas do `POST` e evita nova infraestrutura.
+
+**Consequência:** a rota não usa o limitador técnico por IP/JTI, não reserva a
+operação e não substitui a avaliação do `POST`. `PENDING` vira indisponibilidade
+booleana, enquanto falha ao obter estado confiável permanece `503`.

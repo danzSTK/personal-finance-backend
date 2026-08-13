@@ -185,3 +185,15 @@
 - [x] Comprovar remoção de sessões e rejeição das versões antigas pelas duas
       strategies JWT.
 - [x] Executar a suíte no comando agregado `npm run test:integration`.
+
+## 19. Consulta antecipada de disponibilidade
+
+- [x] Ampliar a spec com o contrato booleano e o `Retry-After` opcional.
+- [x] Criar DTO e caso de uso reutilizando loader e policy existentes.
+- [x] Adicionar a rota autenticada e documentá-la no Swagger.
+- [x] Cobrir disponibilidade, restrição, operação pendente e indisponibilidade em
+      testes unitários.
+- [x] Ampliar o E2E de change-password com o body booleano e o header opcional.
+- [x] Ampliar `password-change-flow.integration-spec.ts` sem dependência nova.
+- [x] Atualizar documentação de fluxo, integração frontend e testes.
+- [x] Executar testes direcionados, categorias agregadas, lint, typecheck e build.

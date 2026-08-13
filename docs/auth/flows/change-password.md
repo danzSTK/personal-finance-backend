@@ -36,5 +36,11 @@ concluídas possuem cooldown de 10 minutos e limite de três em 24 horas.
 O PostgreSQL é o histórico auditável. Redis é a projeção operacional e usa
 `noeviction`; indisponibilidade impede temporariamente esta ação crítica.
 
+Antes de abrir a tela, o frontend pode chamar
+`GET /auth/password/change/status`. A rota autenticada reutiliza a mesma projeção
+e policy, retorna `status: true|false` e inclui `Retry-After` somente quando o
+status é falso. Ela não revela a causa, não consome o limite técnico específico
+do `POST` e não substitui a validação feita no momento da alteração.
+
 Detalhes de implementação e decisões estão no índice de
 [alteração de senha](../change-password/index.md).

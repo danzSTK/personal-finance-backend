@@ -12,6 +12,7 @@
 ## Comportamentos comprovados
 
 - a senha antiga autentica antes da alteração;
+- a consulta real informa disponibilidade antes da alteração;
 - o caso de uso real conclui a mudança;
 - a senha antiga deixa de autenticar e a nova passa a autenticar;
 - o hash persistido reconhece somente a senha nova;
@@ -19,6 +20,8 @@
 - um fato `PASSWORD_CHANGED` é persistido;
 - os três eventos esperados são gravados na outbox sem senha ou hash;
 - a projeção Redis é reconstruída e a barreira pendente é removida;
+- a consulta real lê a projeção reconstruída e informa indisponibilidade durante
+  o cooldown;
 - sessões anteriores são removidas;
 - as strategies de access e refresh rejeitam payloads com a versão antiga.
 
@@ -26,7 +29,8 @@
 
 Componentes reais:
 
-- `ChangeUserPasswordUseCase` e `ValidateCredentialsUseCase`;
+- `ChangeUserPasswordUseCase`, `GetPasswordChangeStatusUseCase` e
+  `ValidateCredentialsUseCase`;
 - `CachedUserRepository`, `UserRepository` e invalidator Redis;
 - `PasswordChangeEventRepository` e outbox;
 - `BcryptHashService`;
@@ -62,6 +66,9 @@ Cada cenário cria usuário, provider, e-mail, JTI e senhas sintéticos próprio
 Redis é limpo antes de cada cenário. O teardown fecha Redis e DataSource e remove
 os dois containers, tolerando inicialização parcial.
 
+A ampliação da consulta de status reutiliza os mesmos PostgreSQL e Redis; não
+adiciona imagem, porta, credencial, serviço ou mudança na pipeline.
+
 O teste não usa `setTimeout`, dados de produção ou ordem entre cenários. As
 asserções de credencial observam somente IDs/booleanos, e a inspeção da outbox
 reduz a presença de conteúdo sensível a um booleano; falhas não imprimem hashes,
@@ -86,11 +93,9 @@ indisponível para o processo, não falha da regra de negócio.
 
 Em 13 de agosto de 2026:
 
-- execução direcionada: 2 cenários aprovados em 14,455s de Jest;
+- execução direcionada: 2 cenários aprovados em 8,773s de Jest;
 - execução agregada final: 9 suítes e 36 testes aprovados;
-- tempo agregado final do Jest: 60,979s;
-- tempo total final medido: 68,47s;
-- memória residente máxima final medida: 669.328 KiB;
+- tempo agregado final do Jest: 72,541s;
 - timeout do job de CI: 20 minutos.
 
 Esses valores são baseline diagnóstico, não SLA. A pipeline não precisou mudar.
