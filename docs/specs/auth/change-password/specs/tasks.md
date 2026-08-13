@@ -175,3 +175,13 @@
       ativar as versões após aprovação.
 - [x] Executar validação dos templates, testes, lint, typecheck e build.
 - [x] Publicar o contrato de integração frontend do endpoint e seus erros.
+
+## 18. Evidência integrada da credencial
+
+- [x] Criar uma suíte própria com PostgreSQL e Redis reais para executar o caso de
+      uso completo.
+- [x] Comprovar persistência do hash e autenticação exclusiva pela nova senha.
+- [x] Comprovar incremento de `credentialVersion`, auditoria, outbox e projeção.
+- [x] Comprovar remoção de sessões e rejeição das versões antigas pelas duas
+      strategies JWT.
+- [x] Executar a suíte no comando agregado `npm run test:integration`.

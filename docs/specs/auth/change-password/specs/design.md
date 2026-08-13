@@ -317,3 +317,15 @@ O CORS expõe somente o header adicional `Retry-After`.
 Logs incluem somente código do erro e identificadores técnicos não secretos
 quando necessários. Não são registrados body, senha, hash, cookie, JWT, JTI,
 mutation token, HMAC original, IP cru ou User-Agent cru.
+
+## Evidência integrada da credencial
+
+`api/test/password-change-flow.integration-spec.ts` complementa o E2E de contrato
+HTTP com PostgreSQL, Redis, bcrypt, repositories, cache, sessões e strategies
+reais. A suíte comprova que o cascade persiste o novo hash, a senha anterior deixa
+de autenticar, a nova passa a autenticar, `credentialVersion` é incrementada e os
+tokens/sessões anteriores são rejeitados.
+
+As dependências e limites operacionais estão documentados em
+`docs/tests/integration/password-change-flow.md`. A suíte participa do comando
+agregado `npm run test:integration` junto de todas as demais integrações.

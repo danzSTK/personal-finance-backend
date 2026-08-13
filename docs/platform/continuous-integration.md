@@ -64,6 +64,11 @@ Executa `npm run test:integration`. Testcontainers provisiona PostgreSQL, Redis 
 
 Resultado esperado: cenários que dependem do comportamento real das dependências, incluindo concorrência e recuperação de falhas, aprovados sem serviços persistentes configurados no GitHub Actions.
 
+O catálogo de cada suíte, seus componentes reais, imagens e requisitos locais está
+em [Testes do backend](../tests/README.md). `npm run test:integration` é o comando
+agregado e executa todos os arquivos `api/test/*.integration-spec.ts`; filtros por
+arquivo são apenas atalhos de diagnóstico local.
+
 ## 4. Container smoke test
 
 Este job verifica o mesmo tipo de artefato usado em produção:
@@ -121,6 +126,7 @@ Atualize a CI quando:
 - a versão suportada do Node.js mudar;
 - o Dockerfile ou a composição dos processos mudar;
 - uma nova dependência for necessária ao smoke test;
+- uma suíte E2E ou de integração mudar dependências, provisionamento ou comando;
 - novas variáveis obrigatórias forem adicionadas;
 - novos arquivos passarem a influenciar build ou deploy.
 - um novo manifest monitorado pelo Dependabot for adicionado.
