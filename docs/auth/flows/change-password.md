@@ -20,14 +20,15 @@ e a sessão vêm do JWT validado; o body nunca escolhe ownership.
 Fluxo resumido:
 
 1. o guard técnico limita custo por fingerprints HMAC de IP e sessão;
-2. Redis informa bloqueio, cooldown, limite diário ou mutação pendente;
-3. estado ausente é reconstruído por `password_change_events`;
-4. uma barreira Redis serializa o fluxo antes do bcrypt;
-5. a transação bloqueia o usuário e confirma a senha atual;
-6. falha grava auditoria e pode iniciar um bloqueio;
-7. sucesso troca o hash, incrementa `credential_version` e grava outbox;
-8. os tokens anteriores falham pela versão e as sessões Redis são removidas;
-9. a resposta limpa os cookies de access e refresh.
+2. o DTO valida tamanho em caracteres e o máximo de 72 bytes UTF-8 das senhas;
+3. Redis informa bloqueio, cooldown, limite diário ou mutação pendente;
+4. estado ausente é reconstruído por `password_change_events`;
+5. uma barreira Redis serializa o fluxo antes do bcrypt;
+6. a transação bloqueia o usuário e confirma a senha atual;
+7. falha grava auditoria e pode iniciar um bloqueio;
+8. sucesso troca o hash, incrementa `credential_version` e grava outbox;
+9. os tokens anteriores falham pela versão e as sessões Redis são removidas;
+10. a resposta limpa os cookies de access e refresh.
 
 O primeiro bloqueio após cinco falhas em 15 minutos dura uma hora. Um novo
 bloqueio iniciado até 24 horas depois do anterior dura 24 horas. Alterações

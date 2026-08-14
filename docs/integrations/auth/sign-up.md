@@ -19,6 +19,10 @@ Content-Type: application/json
 }
 ```
 
+`password` deve ter entre 6 e 50 caracteres e no máximo 72 bytes UTF-8. Uma
+entrada acima do limite retorna `400 VALIDATION_ERROR` associada ao campo. Veja
+o [contrato de senhas locais](./passwords.md).
+
 ## Success (`201`)
 
 - `Set-Cookie: accessToken=...; HttpOnly; Path=/; ...`

@@ -15,6 +15,10 @@ Vincula email/senha a uma conta já autenticada.
 }
 ```
 
+`password` deve ter entre 6 e 50 caracteres e no máximo 72 bytes UTF-8. Excesso
+de bytes retorna `400 VALIDATION_ERROR` associado ao campo. Veja o
+[contrato de senhas locais](./passwords.md).
+
 ```bash
 curl -X POST http://localhost:3000/auth/providers/link/email \
   -H "Content-Type: application/json" \

@@ -15,7 +15,7 @@ Cadastro por credenciais.
 
 ## Fluxo
 
-1. Validar `RegisterDto`.
+1. Validar `RegisterDto`, inclusive o máximo de 72 bytes UTF-8 da senha.
 2. Gerar hash da senha.
 3. Verificar se já existe provider `EMAIL` para o e-mail.
 4. Verificar se já existe usuário com o mesmo e-mail.
