@@ -1,3 +1,4 @@
+import { PasswordByteLimitExceededError } from '@/common/domain/errors';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-local';
@@ -13,12 +14,20 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
   }
 
   async validate(email: string, password: string) {
-    const user = await this.validateCredentialsUseCase.execute({ email, password });
+    try {
+      const user = await this.validateCredentialsUseCase.execute({ email, password });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      if (!user) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      return user;
+    } catch (error) {
+      if (error instanceof PasswordByteLimitExceededError) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      throw error;
     }
-
-    return user;
   }
 }
