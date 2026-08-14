@@ -86,8 +86,9 @@ Content-Type: application/json
 }
 ```
 
-As duas senhas devem ser strings entre 6 e 50 caracteres. Campos adicionais
-são rejeitados.
+As duas senhas devem ser strings entre 6 e 50 caracteres e possuir no máximo 72
+bytes UTF-8. Os dois limites valem simultaneamente; campos adicionais são
+rejeitados. Veja o [contrato de senhas locais](./passwords.md).
 
 ## Success (`200`)
 

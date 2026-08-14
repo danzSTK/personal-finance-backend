@@ -173,6 +173,27 @@ describe('Change password HTTP contract (e2e)', () => {
     expect(changeUserPasswordUseCase.execute).not.toHaveBeenCalled();
   });
 
+  it('rejects a password above 72 UTF-8 bytes before the use case', async () => {
+    const response = await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .post('/auth/password/change')
+      .send({
+        currentPassword: 'current-password',
+        newPassword: `${'é'.repeat(36)}a`,
+      })
+      .expect(400);
+    const body = response.body as {
+      code: string;
+      details: {
+        fields: Array<{ field: string; messages: string[] }>;
+      };
+    };
+    const fieldError = body.details.fields.find(field => field.field === 'newPassword');
+
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(fieldError?.messages).toContain('newPassword must not exceed 72 bytes when encoded as UTF-8.');
+    expect(changeUserPasswordUseCase.execute).not.toHaveBeenCalled();
+  });
+
   it('returns true without Retry-After when password change is available', async () => {
     const response = await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/auth/password/change/status')

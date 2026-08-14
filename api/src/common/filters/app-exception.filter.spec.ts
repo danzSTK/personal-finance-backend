@@ -6,6 +6,7 @@ import {
 } from '@/modules/auth/application/errors';
 import { ArgumentsHost } from '@nestjs/common';
 import { MailError } from '@/shared/mail';
+import { PasswordByteLimitExceededError } from '@/common/domain/errors';
 
 describe('AppExceptionFilter', () => {
   const request = {
@@ -70,6 +71,20 @@ describe('AppExceptionFilter', () => {
       filter.catch(new PasswordChangeStateUnavailableError(), host);
 
       expect(response.status).toHaveBeenCalledWith(503);
+    });
+
+    it('maps the internal password byte limit error without exposing input data', () => {
+      const filter = new AppExceptionFilter();
+
+      filter.catch(new PasswordByteLimitExceededError(), host);
+
+      expect(response.status).toHaveBeenCalledWith(400);
+      expect(response.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'PASSWORD_BYTE_LIMIT_EXCEEDED',
+          details: null,
+        }),
+      );
     });
 
     it('maps missing provider template configuration to an internal error', () => {

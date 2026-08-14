@@ -27,6 +27,11 @@ related:
 | Nova senha igual (`NEW_PASSWORD_MUST_DIFFER`) | `400` |
 | Bloqueio/cooldown/limite diário/mutação concorrente/custo | `429` + `Retry-After` |
 | Estado Redis da alteração de senha indisponível | `503` |
+| Senha acima de 72 bytes em fluxo HTTP de criação/alteração (`VALIDATION_ERROR`) | `400` |
+
+`PASSWORD_BYTE_LIMIT_EXCEEDED` é a defesa interna do serviço de hash. Nos
+fluxos HTTP normais de criação e alteração, o DTO responde antes com
+`VALIDATION_ERROR`; no login, a estratégia preserva o `401` genérico.
 
 Respostas `429` da alteração de senha expõem o mesmo valor inteiro no header
 `Retry-After` e em `details.retryAfterSeconds`.

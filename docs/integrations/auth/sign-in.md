@@ -16,6 +16,11 @@ Content-Type: application/json
 }
 ```
 
+O backend não envia senhas acima de 72 bytes UTF-8 ao bcrypt. Para não revelar
+detalhes da política durante autenticação, excesso de bytes recebe o mesmo
+`401 Invalid credentials` das outras credenciais inválidas. Veja o
+[contrato de senhas locais](./passwords.md).
+
 ## Success (`200`)
 
 - `Set-Cookie: accessToken=...; HttpOnly; Path=/; ...`

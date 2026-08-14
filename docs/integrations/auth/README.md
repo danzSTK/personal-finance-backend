@@ -16,11 +16,14 @@ Para regras internas, decisões arquiteturais e fluxos de domínio, veja [Auth a
 - Não enviar `Authorization: Bearer`.
 - Não salvar access token em storage do browser.
 - Sempre usar `credentials: 'include'` / `withCredentials: true`.
+- Senhas locais usam simultaneamente 6 a 50 caracteres e no máximo 72 bytes
+  UTF-8. Veja o [contrato de senhas](./passwords.md).
 
 ## Endpoints
 
 - [POST /auth/sign-up](./sign-up.md)
 - [POST /auth/sign-in](./sign-in.md)
+- [Contrato de senhas locais](./passwords.md)
 - [GET /auth/google](./oauth-google.md)
 - [POST /auth/refresh](./refresh-tokens.md)
 - [POST /auth/logout](./logout.md)
