@@ -1,6 +1,6 @@
+import { AllowPendingEmailVerification } from '@/common/decorators/allow-pending-email-verification.decorator';
 import { CurrentSessionInfo } from '@/common/decorators/current-session-info.decorator';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { AllowPendingEmailVerification } from '@/common/decorators/allow-pending-email-verification.decorator';
 import { IsPublic } from '@/common/decorators/is-public.decorator';
 import { RefreshToken } from '@/common/decorators/refresh-token.decorator';
 import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
@@ -8,11 +8,12 @@ import { UserProfileResponseDto } from '@/common/dto/user-profile.response.dto';
 import { AUTH_CONSTANTS } from '@/common/models/constants';
 import { type SessionMetadata } from '@/common/models/interfaces';
 import { type AuthRequest } from '@/common/models/interfaces/auth-request.interface';
+import { resolveTrustedClientIp } from '@/common/utils/client-ip.util';
 import appConfig from '@/config/app.config';
 import jwtConfig from '@/config/jwt.config';
 import { RefreshTokenValidationService } from '@/modules/auth/application/services/refresh-token-validation.service';
-import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { ConfirmEmailVerificationUseCase } from '@/modules/auth/application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
+import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
 import { LogoutUseCase } from '@/modules/auth/application/use-cases/logout/logout.use-case';
 import { RefreshTokensUseCase } from '@/modules/auth/application/use-cases/refresh-tokens/refresh-tokens.use-case';
@@ -20,6 +21,8 @@ import { ResendEmailVerificationUseCase } from '@/modules/auth/application/use-c
 import { RevokeSessionUseCase } from '@/modules/auth/application/use-cases/revoke-session/revoke-session.use-case';
 import { SignInUseCase } from '@/modules/auth/application/use-cases/sign-in/sign-in.use-case';
 import { SignUpUseCase } from '@/modules/auth/application/use-cases/sign-up/sign-up.use-case';
+import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
+import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
 import { GoogleAuthGuard } from '@/modules/auth/infrastructure/guards/google-auth.guard';
 import { GoogleLinkAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-auth.guard';
 import { GoogleLinkInitAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-init-auth.guard';
@@ -27,6 +30,7 @@ import { JwtRefreshGuard } from '@/modules/auth/infrastructure/guards/jwt-refres
 import { LocalAuthGuard } from '@/modules/auth/infrastructure/guards/local-auth.guard';
 import { GoogleLinkAuthPayload } from '@/modules/auth/infrastructure/strategies/google-link.strategy';
 import { type RefreshStrategyResponse } from '@/modules/auth/infrastructure/strategies/refresh-strategy-response.interface';
+import { PasswordChangeCostGuard } from '@/modules/auth/presentation/guards/password-change-cost.guard';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import {
   Body,
@@ -56,12 +60,15 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { type Request, type Response } from 'express';
 import ms, { StringValue } from 'ms';
-import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
-import { LoginEmailDto } from '../dto/login-email.dto';
-import { RegisterDto } from '../dto/register.dto';
 import { ConfirmEmailVerificationDto } from '../dto/confirm-email-verification.dto';
 import { EmailVerificationConfirmationResponseDto } from '../dto/email-verification-confirmation.response.dto';
 import { EmailVerificationResendResponseDto } from '../dto/email-verification-resend.response.dto';
+import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
+import { LoginEmailDto } from '../dto/login-email.dto';
+import { PasswordChangeStatusResponseDto } from '../dto/password-change-status.response.dto';
+import { RegisterDto } from '../dto/register.dto';
+import { ChangeUserPasswordDto } from '../dto/change-user-password.dto';
+import { ChangeUserPasswordResponseDto } from '../dto/change-user-password.response.dto';
 
 @ApiTags('auth')
 @AllowPendingEmailVerification()
@@ -78,6 +85,8 @@ export class AuthController {
     private readonly revokeSessionUseCase: RevokeSessionUseCase,
     private readonly linkEmailProviderUseCase: LinkEmailProviderUseCase,
     private readonly refreshTokenValidationService: RefreshTokenValidationService,
+    private readonly changeUserPasswordUseCase: ChangeUserPasswordUseCase,
+    private readonly getPasswordChangeStatusUseCase: GetPasswordChangeStatusUseCase,
 
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
@@ -200,6 +209,7 @@ export class AuthController {
       userId: user.id,
       email: user.email.value,
       status: user.status,
+      credentialVersion: user.credentialVersion,
       sessionMetadata: sessionInfo,
     });
 
@@ -254,6 +264,7 @@ export class AuthController {
       userId: user.id,
       email: user.email.value,
       status: user.status,
+      credentialVersion: user.credentialVersion,
       sessionMetadata: sessionInfo,
     });
 
@@ -558,6 +569,93 @@ export class AuthController {
     }
 
     return res.redirect(`${frontendUrl}/auth/link?success=google`);
+  }
+
+  @UseGuards(PasswordChangeCostGuard)
+  @Post('password/change')
+  @HttpCode(HttpStatus.OK)
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({
+    summary: 'Alterar a senha do usuário autenticado',
+    description:
+      'Confirma a senha atual, aplica limites de segurança, revoga todas as sessões e limpa os cookies de autenticação.',
+  })
+  @ApiBody({ type: ChangeUserPasswordDto })
+  @ApiResponse({ status: 200, type: ChangeUserPasswordResponseDto })
+  @ApiResponse({ status: 400, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 403, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 409, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 429, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 503, type: PlatformErrorResponseDto })
+  async changePassword(
+    @CurrentUser() user: User,
+    @Body() body: ChangeUserPasswordDto,
+    @CurrentSessionInfo() sessionInfo: SessionMetadata,
+    @Req() request: AuthRequest,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<ChangeUserPasswordResponseDto> {
+    const sessionId = request.authToken?.jti;
+
+    if (!sessionId) {
+      throw new UnauthorizedException('Authenticated token context is unavailable');
+    }
+
+    const userAgentHeader = request.headers['user-agent'];
+    const userAgent = typeof userAgentHeader === 'string' ? userAgentHeader : null;
+
+    await this.changeUserPasswordUseCase.execute({
+      userId: user.id,
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+      sessionId,
+      ipAddress: resolveTrustedClientIp(request),
+      userAgent,
+      metadata: {
+        location: sessionInfo.location,
+        browser: sessionInfo.browser,
+        operatingSystem: sessionInfo.os,
+        device: sessionInfo.device,
+      },
+    });
+
+    this.clearAccessTokenCookie(response);
+    this.clearRefreshTokenCookie(response);
+
+    return new ChangeUserPasswordResponseDto();
+  }
+
+  @Get('password/change/status')
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({
+    summary: 'Consultar disponibilidade da alteração de senha',
+    description:
+      'Informa se o usuário autenticado pode iniciar uma alteração de senha agora, sem revelar o motivo de uma restrição temporária.',
+  })
+  @ApiResponse({
+    status: 200,
+    type: PasswordChangeStatusResponseDto,
+    headers: {
+      'Retry-After': {
+        description: 'Segundos restantes até uma nova tentativa, presente somente quando status é false.',
+        schema: { type: 'integer', minimum: 1, example: 600 },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 403, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 429, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 503, type: PlatformErrorResponseDto })
+  async getPasswordChangeStatus(
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<PasswordChangeStatusResponseDto> {
+    const result = await this.getPasswordChangeStatusUseCase.execute({ userId: user.id });
+
+    if (!result.status) {
+      response.setHeader('Retry-After', String(result.retryAfterSeconds));
+    }
+
+    return PasswordChangeStatusResponseDto.fromStatus(result.status);
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {

@@ -36,7 +36,7 @@ related:
 - [x] 23. Registrar repository e ORM entity no `AuthModule`.
 - [x] 24. Criar migration da tabela `email_verification_challenges`.
 - [x] 25. Atualizar `docs/database/schema.md` com a nova tabela, constraints e índices.
-- [x] 26. Adicionar configuração de TTL, cooldown, limite diário, path do frontend e template id.
+- [x] 26. Adicionar configuração de TTL, cooldown, limite diário, path do frontend e mapping de infraestrutura do template lógico.
 - [x] 27. Criar errors de aplicação de email verification.
 - [x] 28. Mapear novos error codes no `AppExceptionFilter`.
 - [x] 29. Atualizar `docs/integrations/errors.md`.

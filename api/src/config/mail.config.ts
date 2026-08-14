@@ -13,6 +13,7 @@ export interface MailConfig {
     baseUrl: string;
     timeoutMs: number;
     maxRetries: number;
+    templateIds: Readonly<Record<string, number | undefined>>;
   };
 }
 
@@ -38,6 +39,12 @@ const readNumber = (key: string, defaultValue: number): number => {
   return rawValue === undefined ? defaultValue : Number(rawValue);
 };
 
+const readOptionalNumber = (key: string): number | undefined => {
+  const rawValue = process.env[key];
+
+  return rawValue === undefined || rawValue.length === 0 ? undefined : Number(rawValue);
+};
+
 const readProvider = (): MailProviderName => {
   const provider = process.env.MAIL_PROVIDER;
 
@@ -58,6 +65,12 @@ export default registerAs(
       baseUrl: process.env.BREVO_API_BASE_URL ?? MailDefaults.brevoBaseUrl,
       timeoutMs: readNumber('BREVO_API_TIMEOUT_MS', MailDefaults.brevoTimeoutMs),
       maxRetries: readNumber('BREVO_API_MAX_RETRIES', MailDefaults.brevoMaxRetries),
+      templateIds: {
+        'welcome-email:v1': readOptionalNumber('BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID'),
+        'email-verification:v1': readOptionalNumber('BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID'),
+        'password-changed:v1': readOptionalNumber('BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID'),
+        'password-change-blocked:v1': readOptionalNumber('BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID'),
+      },
     },
   }),
 );

@@ -1,9 +1,9 @@
-import objectStorageConfig from '@/config/object-storage.config';
+import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import mailConfig from '@/config/mail.config';
 import notificationsConfig from '@/config/notifications.config';
+import objectStorageConfig from '@/config/object-storage.config';
 import queueConfig from '@/config/queue.config';
 import workerConfig from '@/config/worker.config';
-import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import Joi from 'joi';
@@ -106,6 +106,15 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
         REDIS_PORT: Joi.number().required(),
         REDIS_PASSWORD: Joi.string().required(),
         REDIS_TTL: Joi.number().default(3600),
+        PASSWORD_CHANGE_RATE_LIMIT_HMAC_SECRET: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.API,
+          then: Joi.when('NODE_ENV', {
+            is: 'test',
+            then: Joi.string().min(32).default('test-password-change-hmac-secret-32-characters'),
+            otherwise: Joi.string().min(32).required(),
+          }),
+          otherwise: Joi.string().optional(),
+        }),
 
         // mail
         MAIL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
@@ -136,12 +145,63 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
         BREVO_API_BASE_URL: Joi.string().uri().default('https://api.brevo.com/v3'),
         BREVO_API_TIMEOUT_MS: Joi.number().integer().min(1).default(10000),
         BREVO_API_MAX_RETRIES: Joi.number().integer().min(0).default(2),
+        BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.number().integer().positive().required(),
+              otherwise: Joi.number().integer().positive().optional(),
+            }),
+            otherwise: Joi.number().integer().positive().optional(),
+          }),
+          otherwise: Joi.number().integer().positive().optional(),
+        }),
+        BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.number().integer().positive().required(),
+              otherwise: Joi.number().integer().positive().optional(),
+            }),
+            otherwise: Joi.number().integer().positive().optional(),
+          }),
+          otherwise: Joi.number().integer().positive().optional(),
+        }),
+        BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.number().integer().positive().required(),
+              otherwise: Joi.number().integer().positive().optional(),
+            }),
+            otherwise: Joi.number().integer().positive().optional(),
+          }),
+          otherwise: Joi.number().integer().positive().optional(),
+        }),
+        BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID: Joi.when('PROCESS_ROLE', {
+          is: ProcessRoles.WORKER,
+          then: Joi.when('MAIL_ENABLED', {
+            is: true,
+            then: Joi.when('MAIL_PROVIDER', {
+              is: 'brevo',
+              then: Joi.number().integer().positive().required(),
+              otherwise: Joi.number().integer().positive().optional(),
+            }),
+            otherwise: Joi.number().integer().positive().optional(),
+          }),
+          otherwise: Joi.number().integer().positive().optional(),
+        }),
 
         // notifications
         NOTIFICATIONS_DASHBOARD_PATH: Joi.string().trim().pattern(/^\//).default('/dashboard'),
         NOTIFICATIONS_EMAIL_PREFERENCES_PATH: Joi.string().trim().pattern(/^\//).default('/settings/email-preferences'),
         NOTIFICATIONS_EMAIL_VERIFICATION_PATH: Joi.string().trim().pattern(/^\//).default('/verification-email'),
-        NOTIFICATIONS_EMAIL_VERIFICATION_PROVIDER_TEMPLATE_ID: Joi.string().trim().min(1).default('3'),
         EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: Joi.number().integer().min(1).default(15),
         EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES: Joi.number().integer().min(1).default(60),
         EMAIL_VERIFICATION_DAILY_LIMIT: Joi.number().integer().min(1).default(5),

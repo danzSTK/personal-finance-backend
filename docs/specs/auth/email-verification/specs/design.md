@@ -288,10 +288,13 @@ EMAIL_VERIFICATION_TOKEN_TTL_MINUTES=15
 EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES=60
 EMAIL_VERIFICATION_DAILY_LIMIT=5
 NOTIFICATIONS_EMAIL_VERIFICATION_PATH=/verification-email
-NOTIFICATIONS_EMAIL_VERIFICATION_PROVIDER_TEMPLATE_ID=<id-do-template>
+BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID=<id-do-template-na-brevo>
 ```
 
-`NOTIFICATIONS_EMAIL_VERIFICATION_PROVIDER_TEMPLATE_ID` precisa ser definido antes da implementação enviar e-mail real. Em ambiente local/teste pode usar provider noop.
+`BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID` é o mapping de infraestrutura para a
+referência lógica `email-verification:v1`. Ele é obrigatório no worker quando o
+envio real estiver habilitado com Brevo. Em ambiente local/teste pode ser usado
+o provider noop.
 
 ## Fluxos
 
@@ -409,14 +412,14 @@ Welcome:
 
 Adicionar application errors e mapear no `AppExceptionFilter`:
 
-| Código | HTTP | Uso |
-| --- | ---: | --- |
-| `EMAIL_VERIFICATION_REQUIRED` | 403 | usuário pendente tentou acessar rota não liberada |
-| `EMAIL_VERIFICATION_TOKEN_INVALID` | 400 | token ausente, malformado, inexistente ou challenge consumido sem idempotência possível |
-| `EMAIL_VERIFICATION_TOKEN_EXPIRED` | 410 | challenge existe, mas expirou |
-| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE` | 429 | resend antes de 60 minutos |
-| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` | 429 | mais de 5 envios em 24 horas |
-| `EMAIL_VERIFICATION_USER_BLOCKED` | 409 | tentativa de confirmar usuário bloqueado |
+| Código                                    | HTTP | Uso                                                                                     |
+| ----------------------------------------- | ---: | --------------------------------------------------------------------------------------- |
+| `EMAIL_VERIFICATION_REQUIRED`             |  403 | usuário pendente tentou acessar rota não liberada                                       |
+| `EMAIL_VERIFICATION_TOKEN_INVALID`        |  400 | token ausente, malformado, inexistente ou challenge consumido sem idempotência possível |
+| `EMAIL_VERIFICATION_TOKEN_EXPIRED`        |  410 | challenge existe, mas expirou                                                           |
+| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE`      |  429 | resend antes de 60 minutos                                                              |
+| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` |  429 | mais de 5 envios em 24 horas                                                            |
+| `EMAIL_VERIFICATION_USER_BLOCKED`         |  409 | tentativa de confirmar usuário bloqueado                                                |
 
 Não expor:
 

@@ -2,12 +2,31 @@ import { Brevo } from '@getbrevo/brevo';
 import { MailErrorCode } from '../errors';
 import { BrevoClientPort } from '../providers/brevo-client.provider';
 import { BrevoMailProvider } from './brevo-mail.provider';
+import { MailConfig } from '@/config/mail.config';
 
 describe('BrevoMailProvider', () => {
   let sendTransacEmail: jest.MockedFunction<
     (request?: Brevo.SendTransacEmailRequest) => Promise<Brevo.SendTransacEmailResponse>
   >;
   let provider: BrevoMailProvider;
+  const config: MailConfig = {
+    enabled: true,
+    provider: 'brevo',
+    defaultSender: {
+      email: 'no-reply@example.com',
+      name: 'Finance App',
+    },
+    brevo: {
+      apiKey: 'brevo-key',
+      baseUrl: 'https://api.brevo.com/v3',
+      timeoutMs: 10000,
+      maxRetries: 2,
+      templateIds: {
+        'welcome-email:v1': 123,
+        'email-verification:v1': 456,
+      },
+    },
+  };
 
   beforeEach(() => {
     sendTransacEmail = jest.fn();
@@ -17,7 +36,7 @@ describe('BrevoMailProvider', () => {
       } as unknown as BrevoClientPort['transactionalEmails'],
     };
 
-    provider = new BrevoMailProvider(client);
+    provider = new BrevoMailProvider(client, config);
     jest.clearAllMocks();
   });
 
@@ -62,8 +81,7 @@ describe('BrevoMailProvider', () => {
 
       await provider.send({
         to: [{ email: 'user@example.com' }],
-        from: { email: 'no-reply@example.com' },
-        templateId: 123,
+        template: { key: 'welcome-email', version: 1 },
         html: '<p>Ignored</p>',
         text: 'Ignored',
       });
@@ -71,10 +89,26 @@ describe('BrevoMailProvider', () => {
       expect(sendTransacEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           templateId: 123,
+          sender: undefined,
           htmlContent: undefined,
           textContent: undefined,
         }),
       );
+    });
+
+    it('rejects an unmapped template without calling Brevo', async () => {
+      await expect(
+        provider.send({
+          to: [{ email: 'user@example.com' }],
+          from: { email: 'no-reply@example.com' },
+          template: { key: 'unknown-template', version: 1 },
+        }),
+      ).rejects.toMatchObject({
+        code: MailErrorCode.TEMPLATE_MAPPING_MISSING,
+        retryable: false,
+      });
+
+      expect(sendTransacEmail).not.toHaveBeenCalled();
     });
 
     it('maps SDK failures to sanitized mail errors', async () => {

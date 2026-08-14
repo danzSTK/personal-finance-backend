@@ -2,18 +2,17 @@ import {
   EmailMessageLimits,
   EmailMessageStatus,
   EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
 } from '@/modules/notifications/domain/constants/email-message.constants';
 import { InvalidEmailMessageError } from '@/modules/notifications/domain/errors';
+import { EmailTemplateKey } from '@/modules/notifications/domain/templates/email-template.contract';
 
 export interface EmailMessageProps {
   type: EmailMessageType;
   recipientEmail: string;
   recipientName: string | null;
-  provider: EmailProviderKey;
+  provider: string | null;
   templateKey: EmailTemplateKey;
-  providerTemplateId: string;
+  templateVersion: number;
   templateParams: Record<string, unknown>;
   idempotencyKey: string;
   status: EmailMessageStatus;
@@ -46,7 +45,7 @@ export class EmailMessage {
     return this.props.recipientName;
   }
 
-  get provider(): EmailProviderKey {
+  get provider(): string | null {
     return this.props.provider;
   }
 
@@ -54,8 +53,8 @@ export class EmailMessage {
     return this.props.templateKey;
   }
 
-  get providerTemplateId(): string {
-    return this.props.providerTemplateId;
+  get templateVersion(): number {
+    return this.props.templateVersion;
   }
 
   get templateParams(): Readonly<Record<string, unknown>> {
@@ -138,7 +137,7 @@ export class EmailMessage {
     this.props.updatedAt = now;
   }
 
-  markSent(providerMessageId: string | null, now = new Date()): void {
+  markSent(provider: string, providerMessageId: string | null, now = new Date()): void {
     if (this.props.status === EmailMessageStatus.SENT) {
       return;
     }
@@ -147,7 +146,11 @@ export class EmailMessage {
       throw new InvalidEmailMessageError(`Cannot mark ${this.props.status} email message as sent.`);
     }
 
+    EmailMessage.ensureText(provider, 'Email provider is required when marking a message as sent.');
+    EmailMessage.ensureMaxLength(provider, EmailMessageLimits.providerMaxLength, 'Provider is too long.');
+
     this.props.status = EmailMessageStatus.SENT;
+    this.props.provider = provider.trim();
     this.props.providerMessageId = EmailMessage.normalizeNullable(providerMessageId);
     this.props.lastErrorCode = null;
     this.props.lastErrorMessage = null;
@@ -235,17 +238,19 @@ export class EmailMessage {
       EmailMessageLimits.recipientNameMaxLength,
       'Recipient name is too long.',
     );
-    EmailMessage.ensureMaxLength(this.props.provider, EmailMessageLimits.providerMaxLength, 'Provider is too long.');
+    EmailMessage.ensureNullableMaxLength(
+      this.props.provider,
+      EmailMessageLimits.providerMaxLength,
+      'Provider is too long.',
+    );
     EmailMessage.ensureMaxLength(
       this.props.templateKey,
       EmailMessageLimits.templateKeyMaxLength,
       'Template key is too long.',
     );
-    EmailMessage.ensureMaxLength(
-      this.props.providerTemplateId,
-      EmailMessageLimits.providerTemplateIdMaxLength,
-      'Provider template id is too long.',
-    );
+    if (!Number.isSafeInteger(this.props.templateVersion) || this.props.templateVersion < 1) {
+      throw new InvalidEmailMessageError('Template version must be a positive safe integer.');
+    }
     EmailMessage.ensureMaxLength(
       this.props.idempotencyKey,
       EmailMessageLimits.idempotencyKeyMaxLength,

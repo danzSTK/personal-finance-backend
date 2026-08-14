@@ -7,6 +7,7 @@ import { UserName } from '../value-objects/user-name.value-object';
 export abstract class IUserRepository {
   abstract findById(id: string, options?: IRepositoryOptions): Promise<User | null>;
   abstract findByIdForUpdate(id: string, options: Required<IRepositoryOptions>): Promise<User | null>;
+  abstract findCredentialVersionById(id: string, options?: IRepositoryOptions): Promise<number | null>;
   abstract findByEmail(email: Email, options?: IRepositoryOptions): Promise<User | null>;
   abstract findByUserName(userName: UserName, options?: IRepositoryOptions): Promise<User | null>;
   abstract findByAuthProvider(

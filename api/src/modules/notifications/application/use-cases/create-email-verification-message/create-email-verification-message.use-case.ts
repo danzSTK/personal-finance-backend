@@ -8,13 +8,16 @@ import {
 } from '@/modules/notifications/application/use-cases/create-email-verification-message/create-email-verification-message.dto';
 import {
   EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
   EmailVerificationIdempotencyKeys,
-  EmailVerificationParams,
 } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
+import {
+  ActiveEmailTemplateVersion,
+  EmailTemplateKey,
+  EmailVerificationV1Params,
+} from '@/modules/notifications/domain/templates/email-template.contract';
+import { EmailTemplateContractRegistry } from '@/modules/notifications/application/templates/email-template-contract.registry';
 import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 import { Inject, Injectable } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
@@ -63,16 +66,22 @@ export class CreateEmailVerificationMessageUseCase {
 
     const recipientEmail = user.email.value;
     const recipientName = user.firstName ?? null;
-    const params = this.buildTemplateParams(recipientName, recipientEmail, input.token);
+    const templateKey = EmailTemplateKey.EMAIL_VERIFICATION;
+    const templateVersion = ActiveEmailTemplateVersion[templateKey];
+    const params = EmailTemplateContractRegistry.validate(
+      templateKey,
+      templateVersion,
+      this.buildTemplateParams(recipientName, recipientEmail, input.token),
+    );
 
     const emailMessage = EmailMessage.create(
       {
         type: EmailMessageType.EMAIL_VERIFICATION,
         recipientEmail,
         recipientName,
-        provider: EmailProviderKey.BREVO,
-        templateKey: EmailTemplateKey.EMAIL_VERIFICATION,
-        providerTemplateId: this.notifications.emailVerificationProviderTemplateId,
+        provider: null,
+        templateKey,
+        templateVersion,
         templateParams: params,
         idempotencyKey,
         providerMessageId: null,
@@ -112,7 +121,7 @@ export class CreateEmailVerificationMessageUseCase {
     }
   }
 
-  private buildTemplateParams(firstName: string | null, email: string, token: string): EmailVerificationParams {
+  private buildTemplateParams(firstName: string | null, email: string, token: string): EmailVerificationV1Params {
     return {
       first_name: this.resolveFirstName(firstName, email),
       verification_url: this.buildVerificationUrl(token),

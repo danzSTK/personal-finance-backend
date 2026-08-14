@@ -7,6 +7,7 @@ import { type AuthRequest } from '@/common/models/interfaces/auth-request.interf
 import { ISessionRepository } from '@/modules/auth/domain/repositories/session.repository.interface';
 import { type JwtPayloadDto } from '@/modules/auth/presentation/dto/jwt-payload.dto';
 import { type RefreshStrategyResponse } from './refresh-strategy-response.interface';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -14,6 +15,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
     private readonly sessionRepository: ISessionRepository,
+    private readonly userRepository: IUserRepository,
   ) {
     super({
       jwtFromRequest: (req: AuthRequest) => {
@@ -21,6 +23,8 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
       },
       ignoreExpiration: false,
       secretOrKey: jwtConfiguration.refreshSecret,
+      issuer: jwtConfiguration.issuer,
+      algorithms: ['HS256'],
     });
   }
 
@@ -30,6 +34,12 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
 
     if (!jti) {
       throw new UnauthorizedException('Token identifier (jti) missing');
+    }
+
+    const credentialVersion = await this.userRepository.findCredentialVersionById(userId);
+
+    if (credentialVersion === null || (payload.credentialVersion ?? 1) !== credentialVersion) {
+      throw new UnauthorizedException('Refresh token revoked or expired');
     }
 
     const storedToken = await this.sessionRepository.getSession(userId, jti);

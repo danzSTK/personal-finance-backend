@@ -1,12 +1,10 @@
-import {
-  BrevoTemplateId,
-  EmailMessageStatus,
-  EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
-} from '@/modules/notifications/domain/constants/email-message.constants';
+import { EmailMessageStatus, EmailMessageType } from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { InvalidEmailMessageError } from '@/modules/notifications/domain/errors';
+import {
+  EmailTemplateKey,
+  EmailTemplateVersion,
+} from '@/modules/notifications/domain/templates/email-template.contract';
 
 const makeEmailMessage = (): EmailMessage =>
   EmailMessage.create(
@@ -14,9 +12,9 @@ const makeEmailMessage = (): EmailMessage =>
       type: EmailMessageType.WELCOME,
       recipientEmail: 'daniel@example.com',
       recipientName: 'Daniel',
-      provider: EmailProviderKey.BREVO,
+      provider: null,
       templateKey: EmailTemplateKey.WELCOME,
-      providerTemplateId: BrevoTemplateId.WELCOME,
+      templateVersion: EmailTemplateVersion.V1,
       templateParams: {
         first_name: 'Daniel',
         dashboard_url: 'https://app.danfy.com/dashboard',
@@ -57,9 +55,33 @@ describe('EmailMessage', () => {
             type: EmailMessageType.WELCOME,
             recipientEmail: 'invalid-email',
             recipientName: null,
-            provider: EmailProviderKey.BREVO,
+            provider: null,
             templateKey: EmailTemplateKey.WELCOME,
-            providerTemplateId: BrevoTemplateId.WELCOME,
+            templateVersion: EmailTemplateVersion.V1,
+            templateParams: {},
+            idempotencyKey: 'email:welcome:user:user-1',
+            providerMessageId: null,
+            lastErrorCode: null,
+            lastErrorMessage: null,
+            processingAt: null,
+            sentAt: null,
+            failedAt: null,
+          },
+          'email-message-1',
+        ),
+      ).toThrow(InvalidEmailMessageError);
+    });
+
+    it('rejects a non-positive template version', () => {
+      expect(() =>
+        EmailMessage.create(
+          {
+            type: EmailMessageType.WELCOME,
+            recipientEmail: 'daniel@example.com',
+            recipientName: null,
+            provider: null,
+            templateKey: EmailTemplateKey.WELCOME,
+            templateVersion: 0,
             templateParams: {},
             idempotencyKey: 'email:welcome:user:user-1',
             providerMessageId: null,
@@ -82,10 +104,11 @@ describe('EmailMessage', () => {
       const sentAt = new Date('2026-01-01T10:01:00.000Z');
 
       emailMessage.markProcessing(processingAt);
-      emailMessage.markSent('brevo-message-1', sentAt);
+      emailMessage.markSent('brevo', 'brevo-message-1', sentAt);
 
       expect(emailMessage.status).toBe(EmailMessageStatus.SENT);
       expect(emailMessage.providerMessageId).toBe('brevo-message-1');
+      expect(emailMessage.provider).toBe('brevo');
       expect(emailMessage.sentAt).toBe(sentAt);
       expect(emailMessage.processingAt).toBeNull();
       expect(emailMessage.isTerminal).toBe(true);
@@ -108,7 +131,7 @@ describe('EmailMessage', () => {
     it('does not allow canceling a sent message', () => {
       const emailMessage = makeEmailMessage();
       emailMessage.markProcessing();
-      emailMessage.markSent('brevo-message-1');
+      emailMessage.markSent('brevo', 'brevo-message-1');
 
       expect(() => emailMessage.cancel()).toThrow(InvalidEmailMessageError);
     });

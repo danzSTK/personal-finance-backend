@@ -127,7 +127,10 @@ export interface SendMailInput {
   replyTo?: MailAddress;
   html?: string;
   text?: string;
-  templateId?: number;
+  template?: {
+    key: string;
+    version: number;
+  };
   params?: Record<string, unknown>;
   tags?: string[];
   metadata?: Record<string, string>;
@@ -144,10 +147,22 @@ Regras:
 
 - `to` deve ter pelo menos um destinatário;
 - `subject` deve ser obrigatório para envios sem template, e opcional se o provedor/template permitir assunto próprio;
-- pelo menos um entre `templateId`, `html` ou `text` deve existir;
+- pelo menos um entre `template`, `html` ou `text` deve existir;
+- a referência lógica de template deve ser convertida em ID externo somente no
+  adapter do provider;
 - se `from` não for informado, usar `mail.defaultSender`;
 - `params` deve ser serializável em JSON;
 - `metadata` não deve carregar segredos.
+
+Quando `template` for informado, o adapter ativo resolve o par lógico
+`key:version` para sua configuração externa. No adapter Brevo, por exemplo,
+`email-verification:v1` é convertido em `templateId` usando variável de
+ambiente. O contrato compartilhado e os módulos consumidores não conhecem esse
+número.
+
+Se template e conteúdo bruto forem enviados juntos, o template tem precedência.
+Os campos `html` e `text` são usados somente quando não existe referência de
+template.
 
 ## Porta De Provider
 
@@ -232,15 +247,16 @@ Mapeamento de campos:
 - `subject` -> `subject`;
 - `html` -> `htmlContent`;
 - `text` -> `textContent`;
-- `templateId` -> `templateId`;
+- `template.key + template.version` -> mapping configurado -> `templateId`;
 - `params` -> `params`;
 - `tags` -> `tags`.
 
 Regra de precedência:
 
-- se `templateId` existir, o adapter envia `templateId` e `params`;
-- `html` e `text` podem continuar no contrato para providers que aceitem fallback, mas Brevo deve priorizar template;
-- se `templateId` não existir, usar `html` e/ou `text`.
+- se `template` existir, o adapter resolve e envia `templateId` e `params`;
+- `html` e `text` continuam no contrato para conteúdo bruto, mas Brevo deve
+  priorizar a referência lógica de template;
+- se `template` não existir, usar `html` e/ou `text`.
 
 ## Noop Provider
 

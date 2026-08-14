@@ -1,13 +1,14 @@
 import appConfig from '@/config/app.config';
 import notificationsConfig from '@/config/notifications.config';
 import {
-  BrevoTemplateId,
   EmailMessageStatus,
   EmailMessageType,
-  EmailProviderKey,
-  EmailTemplateKey,
   WelcomeEmailIdempotencyKeys,
 } from '@/modules/notifications/domain/constants/email-message.constants';
+import {
+  EmailTemplateKey,
+  EmailTemplateVersion,
+} from '@/modules/notifications/domain/templates/email-template.contract';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
 import { WelcomeEmailUserNotFoundError } from '@/modules/notifications/application/errors';
@@ -22,9 +23,9 @@ const makeEmailMessage = (status: EmailMessageStatus = EmailMessageStatus.PENDIN
       type: EmailMessageType.WELCOME,
       recipientEmail: 'daniel@example.com',
       recipientName: 'Daniel',
-      provider: EmailProviderKey.BREVO,
+      provider: null,
       templateKey: EmailTemplateKey.WELCOME,
-      providerTemplateId: BrevoTemplateId.WELCOME,
+      templateVersion: EmailTemplateVersion.V1,
       templateParams: {},
       idempotencyKey: WelcomeEmailIdempotencyKeys.user('user-1'),
       status,
@@ -80,6 +81,7 @@ describe('CreateWelcomeEmailMessageUseCase', () => {
     userRepository = {
       findById: findUserById,
       findByIdForUpdate: jest.fn(),
+      findCredentialVersionById: jest.fn(),
       findByEmail: jest.fn(),
       findByUserName: jest.fn(),
       findByAuthProvider: jest.fn(),
@@ -117,7 +119,8 @@ describe('CreateWelcomeEmailMessageUseCase', () => {
       expect(result.shouldEnqueue).toBe(true);
       expect(result.emailMessage.idempotencyKey).toBe('email:welcome:user:user-1');
       expect(result.emailMessage.templateKey).toBe(EmailTemplateKey.WELCOME);
-      expect(result.emailMessage.providerTemplateId).toBe('2');
+      expect(result.emailMessage.templateVersion).toBe(1);
+      expect(result.emailMessage.provider).toBeNull();
       expect(result.emailMessage.templateParams).toEqual({
         first_name: 'Daniel',
         dashboard_url: 'https://app.danfy.com/dashboard',

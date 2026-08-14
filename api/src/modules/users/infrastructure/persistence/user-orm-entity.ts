@@ -22,6 +22,7 @@ import { AuthProviderOrmEntity } from './auth-provider-orm.entity';
 @Index('idx_users_status', ['status'])
 @Index('idx_users_email', ['email'], { unique: true })
 @Check('CHK_users_status', `"status" IN ('PENDING_PROFILE', 'PENDING_EMAIL_VERIFICATION', 'ACTIVE', 'BLOCKED')`)
+@Check('CHK_users_credential_version', `"credential_version" > 0`)
 @Unique('UQ_user_name', ['userName'])
 @Unique('UQ_users_avatar_asset_id', ['avatarAssetId'])
 export class UserOrmEntity {
@@ -68,6 +69,9 @@ export class UserOrmEntity {
 
   @Column({ name: 'avatar_asset_id', type: 'uuid', nullable: true })
   avatarAssetId!: string | null;
+
+  @Column({ name: 'credential_version', type: 'integer', nullable: false, default: 1 })
+  credentialVersion!: number;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;

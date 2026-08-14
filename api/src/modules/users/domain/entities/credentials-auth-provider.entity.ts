@@ -18,6 +18,11 @@ export class CredentialsAuthProvider extends AuthProvider {
     return this.props.passwordHash!;
   }
 
+  changePasswordHash(passwordHash: HashedPassword, changedAt: Date): void {
+    this.props.passwordHash = passwordHash;
+    this.props.updatedAt = new Date(changedAt);
+  }
+
   static create(props: AuthProviderProps, id: string): CredentialsAuthProvider {
     return new CredentialsAuthProvider(props, id);
   }

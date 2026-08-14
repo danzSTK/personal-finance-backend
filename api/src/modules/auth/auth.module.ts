@@ -8,9 +8,8 @@ import { CommonModule } from '@/common/common.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { OutboxModule } from '@/shared/outbox';
 import { AuthEmailVerificationCoreModule } from './auth-email-verification-core.module';
-
-// Domain
-import { ISessionRepository } from './domain/repositories/session.repository.interface';
+import { AuthPasswordChangeCoreModule } from './auth-password-change-core.module';
+import { AuthSessionCoreModule } from './auth-session-core.module';
 
 // Application — Use Cases
 import { GenerateTokenUseCase } from './application/use-cases/generate-token/generate-token.use-case';
@@ -27,9 +26,8 @@ import { LinkGoogleProviderUseCase } from './application/use-cases/link-google-p
 import { RefreshTokenValidationService } from './application/services/refresh-token-validation.service';
 import { ConfirmEmailVerificationUseCase } from './application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
 import { ResendEmailVerificationUseCase } from './application/use-cases/resend-email-verification/resend-email-verification.use-case';
-
-// Infrastructure — Persistence
-import { RedisSessionRepository } from './infrastructure/persistence/redis-session.repository';
+import { ChangeUserPasswordUseCase } from './application/use-cases/change-user-password/change-user-password.use-case';
+import { GetPasswordChangeStatusUseCase } from './application/use-cases/get-password-change-status/get-password-change-status.use-case';
 
 // Infrastructure — Strategies
 import { LocalStrategy } from './infrastructure/strategies/local.strategy';
@@ -42,6 +40,7 @@ import { GoogleLinkInitAuthGuard } from './infrastructure/guards/google-link-ini
 
 // Presentation
 import { AuthController } from './presentation/http/auth.controller';
+import { PasswordChangeCostGuard } from './presentation/guards/password-change-cost.guard';
 
 @Module({
   imports: [
@@ -64,17 +63,13 @@ import { AuthController } from './presentation/http/auth.controller';
     CommonModule,
     NotificationsModule,
     AuthEmailVerificationCoreModule,
+    AuthPasswordChangeCoreModule,
+    AuthSessionCoreModule,
     OutboxModule,
     PassportModule,
   ],
   controllers: [AuthController],
   providers: [
-    // Repository binding
-    {
-      provide: ISessionRepository,
-      useClass: RedisSessionRepository,
-    },
-
     // Use Cases
     ConfirmEmailVerificationUseCase,
     ResendEmailVerificationUseCase,
@@ -90,6 +85,8 @@ import { AuthController } from './presentation/http/auth.controller';
     LinkEmailProviderUseCase,
     LinkGoogleProviderUseCase,
     RefreshTokenValidationService,
+    ChangeUserPasswordUseCase,
+    GetPasswordChangeStatusUseCase,
 
     // Strategies
     LocalStrategy,
@@ -99,7 +96,8 @@ import { AuthController } from './presentation/http/auth.controller';
     GoogleLinkStrategy,
     GoogleLinkAuthGuard,
     GoogleLinkInitAuthGuard,
+    PasswordChangeCostGuard,
   ],
-  exports: [ISessionRepository],
+  exports: [AuthSessionCoreModule],
 })
 export class AuthModule {}

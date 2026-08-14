@@ -1,4 +1,6 @@
 import { ConfigModule } from '@/config/config.module';
+import { CreatePasswordChangeBlockedEmailMessageUseCase } from '@/modules/notifications/application/use-cases/create-password-change-blocked-email-message/create-password-change-blocked-email-message.use-case';
+import { CreatePasswordChangedEmailMessageUseCase } from '@/modules/notifications/application/use-cases/create-password-changed-email-message/create-password-changed-email-message.use-case';
 import { UsersPersistenceModule } from '@/modules/users/users-persistence.module';
 import { JobsModule } from '@/shared/jobs/jobs.module';
 import { BullModule } from '@nestjs/bullmq';
@@ -22,12 +24,16 @@ import { NotificationsPersistenceModule } from './notifications-persistence.modu
     { provide: EmailJobQueueProducer, useClass: BullmqEmailJobQueueProducer },
     CreateEmailVerificationMessageUseCase,
     CreateWelcomeEmailMessageUseCase,
+    CreatePasswordChangeBlockedEmailMessageUseCase,
+    CreatePasswordChangedEmailMessageUseCase,
   ],
   exports: [
     NotificationsPersistenceModule,
     EmailJobQueueProducer,
     CreateEmailVerificationMessageUseCase,
     CreateWelcomeEmailMessageUseCase,
+    CreatePasswordChangeBlockedEmailMessageUseCase,
+    CreatePasswordChangedEmailMessageUseCase,
     BullModule,
   ],
 })

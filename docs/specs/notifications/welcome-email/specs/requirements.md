@@ -17,7 +17,7 @@ related:
 
 Criar o `NotificationsModule` com o primeiro fluxo de notificação transacional: envio de e-mail de boas-vindas após criação de usuário.
 
-O envio deve usar o `MailService`, o template Brevo `2` e um job assíncrono com idempotência persistida. A feature também deve criar a documentação oficial de templates de e-mail, incluindo provider, identificadores, parâmetros obrigatórios e casos de uso.
+O envio deve usar o `MailService`, a referência lógica `welcome-email:v1` e um job assíncrono com idempotência persistida. A documentação oficial registra versão, parâmetros, origem e caso de uso; o provider resolve seu identificador na infraestrutura.
 
 ## Contexto
 
@@ -42,7 +42,7 @@ Esta spec cobre:
 - criação de queue e worker de envio de e-mail;
 - criação do use case de envio de boas-vindas;
 - reação ao `UserCreatedEvent`;
-- envio via `MailService` usando template Brevo `2`;
+- envio via `MailService` usando `welcome-email:v1`;
 - atualização de status de envio;
 - migration TypeORM;
 - testes de domínio, use cases, handler, queue/worker e repositório.
@@ -87,7 +87,7 @@ Esta spec não cobre:
 ### REQ-001 - Documentar template de boas-vindas
 
 WHEN a feature estiver implementada
-THE SYSTEM SHALL documentar o template `welcome-email`, provider Brevo, provider template id `2`, parâmetros e caso de uso.
+THE SYSTEM SHALL documentar `welcome-email:v1`, seus parâmetros, fonte HTML e caso de uso, sem ID externo.
 
 ### REQ-002 - Registrar intenção idempotente
 
@@ -112,7 +112,7 @@ THE SYSTEM SHALL usar um `jobId` determinístico derivado de `emailMessage.id`, 
 ### REQ-006 - Enviar via MailService
 
 WHEN o worker processar o job
-THE SYSTEM SHALL buscar `email_messages` por id e chamar `MailService.send` com template Brevo `2`.
+THE SYSTEM SHALL buscar `email_messages` por id e chamar `MailService.send` com `welcome-email:v1`.
 
 ### REQ-007 - Enviar parâmetros obrigatórios
 
@@ -151,7 +151,7 @@ THE SYSTEM SHALL registrar log operacional com o `emailMessageId` e o status fin
 
 ## Template Params
 
-O template Brevo `2` exige:
+O contrato `welcome-email:v1` exige:
 
 | Param               | Obrigatório | Origem                              |
 | ------------------- | ----------- | ----------------------------------- |
@@ -199,5 +199,5 @@ O template Brevo `2` exige:
 - O worker usa `MailService`.
 - O processor registra jobs concluídos sem envio efetivo.
 - A porta de enfileiramento usa nome de producer.
-- Os parâmetros do template Brevo `2` são enviados.
+- Os parâmetros de `welcome-email:v1` são enviados.
 - Testes cobrem idempotência, enfileiramento, worker e atualização de status.

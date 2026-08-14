@@ -23,6 +23,7 @@ async function bootstrap() {
     origin: isProduction ? process.env.FRONTEND_URL : true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
+    exposedHeaders: ['Retry-After'],
   });
 
   app.use(

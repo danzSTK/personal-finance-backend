@@ -1,0 +1,4 @@
+interface:
+  display_name: "Governança de Testes"
+  short_description: "Governa dependências e documentação de testes"
+  default_prompt: "Use $test-suite-governance para criar ou alterar uma suíte E2E ou de integração com análise de dependências e documentação sincronizada."

@@ -11,8 +11,8 @@ Catálogo dos templates de e-mail usados pela aplicação.
 Cada template deve documentar:
 
 - key interna;
-- provider;
-- id no provider;
+- versão;
+- caminho do HTML;
 - tipo de e-mail;
 - caso de uso;
 - trigger;
@@ -22,9 +22,19 @@ Cada template deve documentar:
 - regra de idempotência;
 - observações de segurança.
 
+O ID de um provider não faz parte da identidade do template. A infraestrutura
+resolve `template_key + template_version` usando configuração do ambiente.
+
 ## Templates
 
-| Key                                   | Provider | Provider template id | Tipo         | Status      |
-| ------------------------------------- | -------- | -------------------- | ------------ | ----------- |
-| [`email-verification`](./email-verification.md) | Brevo | `3` | Transacional | implemented |
-| [`welcome-email`](./welcome-email.md) | Brevo    | `2`                  | Transacional | implemented |
+| Key                                                       | Versão ativa | Tipo         | Fonte HTML                                                     | Status      |
+| --------------------------------------------------------- | ------------ | ------------ | -------------------------------------------------------------- | ----------- |
+| [`email-verification`](./email-verification.md)           | `1`          | Transacional | `api/email-templates/email-verification/v1/template.html`      | implemented |
+| [`password-change-blocked`](./password-change-blocked.md) | `1`          | Segurança    | `api/email-templates/password-change-blocked/v1/template.html` | implemented |
+| [`password-changed`](./password-changed.md)               | `1`          | Segurança    | `api/email-templates/password-changed/v1/template.html`        | implemented |
+| [`welcome-email`](./welcome-email.md)                     | `1`          | Transacional | `api/email-templates/welcome-email/v1/template.html`           | implemented |
+
+## Referências
+
+- [Modelo e versionamento](./template-model.md)
+- [Design system](./design-system.md)

@@ -28,6 +28,12 @@ export class JwtPayloadDto {
   status: UserStatus;
 
   @ApiPropertyOptional({
+    description: 'Versão da credencial usada para revogação global de tokens',
+    example: 1,
+  })
+  credentialVersion?: number;
+
+  @ApiPropertyOptional({
     description: 'Timestamp de expiração do token (Unix timestamp)',
     example: 1707400000,
   })

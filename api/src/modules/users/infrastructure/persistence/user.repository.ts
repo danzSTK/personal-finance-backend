@@ -55,6 +55,19 @@ export class UserRepository implements IUserRepository {
     return userWithProviders ? UserMapper.toDomain(userWithProviders) : null;
   }
 
+  async findCredentialVersionById(id: string, options?: IRepositoryOptions): Promise<number | null> {
+    const repository = options?.manager ? options.manager.getRepository(UserOrmEntity) : this.userRepository;
+    const user = await repository.findOne({
+      where: { id },
+      select: {
+        id: true,
+        credentialVersion: true,
+      },
+    });
+
+    return user?.credentialVersion ?? null;
+  }
+
   async findByEmail(email: Email, options?: IRepositoryOptions): Promise<User | null> {
     const repository = options?.manager ? options.manager.getRepository(UserOrmEntity) : this.userRepository;
 
