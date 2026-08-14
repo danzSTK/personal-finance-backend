@@ -24,6 +24,7 @@ Para regras internas, decisões arquiteturais e fluxos de domínio, veja [Auth a
 - [GET /auth/google](./oauth-google.md)
 - [POST /auth/refresh](./refresh-tokens.md)
 - [POST /auth/logout](./logout.md)
+- [GET status e POST /auth/password/change](./change-password.md)
 - [Email verification](./email-verification.md)
 - [GET /users/me](./get-me.md)
 - [GET/DELETE /auth/sessions](./sessions.md)

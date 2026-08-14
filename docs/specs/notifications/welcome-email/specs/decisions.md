@@ -80,10 +80,10 @@ A idempotência fica legível e estável no banco; a fila recebe identificador c
 Status: accepted
 
 Decision:
-Cada template deve ter documentação própria com key, provider, provider id, params e caso de uso.
+Cada template deve ter documentação própria com chave, versão, fonte HTML, parâmetros e caso de uso.
 
 Reason:
-Templates vivem fora do código, no provider. A documentação vira o contrato entre backend e Brevo.
+O backend é a fonte do contrato e do HTML. O provider recebe um mapping de infraestrutura que não pertence ao domínio.
 
 Impact:
 Nenhum template novo deve ser usado sem doc em `docs/notifications/email-templates`.

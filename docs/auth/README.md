@@ -36,6 +36,7 @@ Para documentação de consumo HTTP, use [Integração Auth](../integrations/aut
 - [Sessões ativas](./flows/sessions.md)
 - [Link EMAIL provider](./flows/link-email-provider.md)
 - [Link GOOGLE provider](./flows/link-google-provider.md)
+- [Alteração de senha autenticada](./flows/change-password.md)
 
 ### Decisões
 
@@ -43,6 +44,16 @@ Para documentação de consumo HTTP, use [Integração Auth](../integrations/aut
 - [Refresh token stateful no Redis](./decisions/stateful-refresh-token-in-redis.md)
 - [Não vincular providers automaticamente](./decisions/no-automatic-provider-link.md)
 - [State Redis no link Google](./decisions/google-link-state-in-redis.md)
+
+### Alteração de senha
+
+- [Índice](./change-password/index.md)
+- [Arquitetura](./change-password/architecture.md)
+- [Fluxo detalhado](./change-password/flow/README.md)
+- [Decisões](./change-password/decisions/README.md)
+- [Chaves Redis](./change-password/redis-keys.md)
+- [Scripts Lua](./change-password/lua-scripts.md)
+- [Notificações](./change-password/notifications.md)
 
 ### Referência
 

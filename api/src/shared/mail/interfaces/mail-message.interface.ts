@@ -3,6 +3,11 @@ export interface MailAddress {
   name?: string;
 }
 
+export interface MailTemplateReference {
+  key: string;
+  version: number;
+}
+
 export interface SendMailInput {
   to: MailAddress[];
   subject?: string;
@@ -10,7 +15,7 @@ export interface SendMailInput {
   replyTo?: MailAddress;
   html?: string;
   text?: string;
-  templateId?: number;
+  template?: MailTemplateReference;
   params?: Record<string, unknown>;
   tags?: string[];
   metadata?: Record<string, string>;

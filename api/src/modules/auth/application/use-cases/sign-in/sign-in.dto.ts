@@ -5,6 +5,7 @@ export interface SignInUseCaseInput {
   userId: string;
   email: string;
   status: UserStatus;
+  credentialVersion: number;
   sessionMetadata: SessionMetadata;
 }
 

@@ -1,5 +1,7 @@
 import { AccountType, CategoryType } from '@/common/models/enums';
 
+const passwordChangeScope = (userId: string) => `auth:password-change:{${userId}}`;
+
 export const CacheKeys = {
   users: {
     byId: (userId: string) => `users:id:${userId}`,
@@ -15,6 +17,19 @@ export const CacheKeys = {
 
     userSessions: (userId: string) => `auth:sessions:${userId}`,
     googleLinkState: (state: string) => `auth:google-link:${state}`,
+    passwordChange: {
+      failures: (userId: string) => `${passwordChangeScope(userId)}:failures`,
+      block: (userId: string) => `${passwordChangeScope(userId)}:block`,
+      blockRecurrence: (userId: string) => `${passwordChangeScope(userId)}:block-recurrence`,
+      changes: (userId: string) => `${passwordChangeScope(userId)}:changes`,
+      initialized: (userId: string): string => `${passwordChangeScope(userId)}:initialized`,
+
+      pending: (userId: string): string => `${passwordChangeScope(userId)}:pending`,
+
+      costByIp: (ipFingerprint: string): string => `auth:password-change:cost:ip:${ipFingerprint}`,
+
+      costBySession: (sessionFingerprint: string): string => `auth:password-change:cost:session:${sessionFingerprint}`,
+    },
   },
 
   accounts: {

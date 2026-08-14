@@ -12,34 +12,17 @@ export type EmailMessageStatus = (typeof EmailMessageStatus)[keyof typeof EmailM
 export const EmailMessageType = {
   WELCOME: 'WELCOME',
   EMAIL_VERIFICATION: 'EMAIL_VERIFICATION',
+  PASSWORD_CHANGED: 'PASSWORD_CHANGED',
+  PASSWORD_CHANGE_BLOCKED: 'PASSWORD_CHANGE_BLOCKED',
 } as const;
 
 export type EmailMessageType = (typeof EmailMessageType)[keyof typeof EmailMessageType];
-
-export const EmailProviderKey = {
-  BREVO: 'brevo',
-} as const;
-
-export type EmailProviderKey = (typeof EmailProviderKey)[keyof typeof EmailProviderKey];
-
-export const EmailTemplateKey = {
-  WELCOME: 'welcome-email',
-  EMAIL_VERIFICATION: 'email-verification',
-} as const;
-
-export type EmailTemplateKey = (typeof EmailTemplateKey)[keyof typeof EmailTemplateKey];
-
-export const BrevoTemplateId = {
-  WELCOME: '2',
-  EMAIL_VERIFICATION: '3',
-} as const;
 
 export const EmailMessageLimits = {
   recipientEmailMaxLength: 320,
   recipientNameMaxLength: 120,
   providerMaxLength: 50,
   templateKeyMaxLength: 100,
-  providerTemplateIdMaxLength: 100,
   idempotencyKeyMaxLength: 255,
   statusMaxLength: 30,
   providerMessageIdMaxLength: 255,
@@ -47,33 +30,18 @@ export const EmailMessageLimits = {
   lastErrorMessageMaxLength: 2_000,
 } as const;
 
-export const WelcomeEmailTemplateParams = {
-  FIRST_NAME: 'first_name',
-  DASHBOARD_URL: 'dashboard_url',
-  SUPPORT_URL: 'support_url',
-  SUPPORT_URL_LABEL: 'support_url_label',
-  PREFERENCES_URL: 'preferences_url',
-} as const;
-
-export interface WelcomeEmailParams extends Record<string, unknown> {
-  first_name: string;
-  dashboard_url: string;
-  support_url: string;
-  support_url_label: string;
-  preferences_url: string;
-}
-
 export const WelcomeEmailIdempotencyKeys = {
   user: (userId: string): string => `email:welcome:user:${userId}`,
 } as const;
 
-export interface EmailVerificationParams extends Record<string, unknown> {
-  first_name: string;
-  verification_url: string;
-  expires_in_minutes: number;
-  support_url: string;
-}
-
 export const EmailVerificationIdempotencyKeys = {
   challenge: (challengeId: string): string => `email:verification:challenge:${challengeId}`,
+} as const;
+
+export const PasswordChangedEmailIdempotencyKeys = {
+  event: (sourceEventId: string): string => `email:password-change:event:${sourceEventId}`,
+} as const;
+
+export const PasswordChangeBlockedEmailIdempotencyKeys = {
+  event: (sourceEventId: string): string => `email:password-change:event:${sourceEventId}`,
 } as const;

@@ -36,6 +36,7 @@ export class RefreshTokensUseCase {
       userId: user.id,
       email: user.email.value,
       status: user.status,
+      credentialVersion: user.credentialVersion,
       sessionMetadata,
     });
   }

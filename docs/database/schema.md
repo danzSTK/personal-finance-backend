@@ -23,6 +23,7 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 | `users`           | Identidade principal do usuário dentro do sistema.                                  |
 | `auth_providers`  | Formas de autenticação vinculadas a um usuário, como `EMAIL` e `GOOGLE`.            |
 | `email_verification_challenges` | Desafios de confirmação de e-mail por token com expiração e consumo. |
+| `password_change_events` | Eventos de segurança usados para auditoria e limites da alteração de senha. |
 | `accounts`        | Contas financeiras do usuário, como `CASH`, `BANK`, `CREDIT_CARD` e `INVESTMENT`.   |
 | `categories`      | Categorias financeiras e técnicas do usuário, incluindo receita, despesa, transferência, ajuste e investimento. |
 | `transactions`    | Movimentações financeiras registradas para usuário, conta e categoria.              |
@@ -56,6 +57,7 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | `last_name` | `varchar(255)` | `nullable` | Sobrenome do usuário. |
 | `status` | `varchar(50)` | `not null default 'PENDING_PROFILE'` | Estado operacional do usuário: `PENDING_PROFILE`, `PENDING_EMAIL_VERIFICATION`, `ACTIVE` ou `BLOCKED`. |
 | `avatar_asset_id` | `uuid` | `nullable` | Referência ao asset que representa o avatar atual do usuário. |
+| `credential_version` | `integer` | `not null default 1` | Versão durável incluída nos JWTs; seu incremento revoga logicamente todos os tokens anteriores. |
 | `created_at` | `timestamptz` | `not null default now()` | Quando o usuário foi criado. |
 | `updated_at` | `timestamptz` | `not null default now()` | Última atualização do usuário. |
 
@@ -65,6 +67,7 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | --- | --- | --- | --- |
 | `PK_users` | primary key | `id` | Garante identidade única da linha. |
 | `CHK_users_status` | check | `status IN ('PENDING_PROFILE', 'PENDING_EMAIL_VERIFICATION', 'ACTIVE', 'BLOCKED')` | Impede estados de usuário fora do contrato do domínio. |
+| `CHK_users_credential_version` | check | `credential_version > 0` | Mantém a versão usada para revogação global em um domínio válido. |
 | `UQ_074a1f262efaca6aba16f7ed920` | unique | `user_name` | Evita dois usuários com o mesmo `user_name`. A entidade declara o nome lógico `UQ_user_name`, mas a migration histórica criou esse nome automático. |
 | `UQ_users_avatar_asset_id` | unique | `avatar_asset_id` | Impede que o mesmo asset seja usado como avatar atual por usuários diferentes. |
 | `FK_users_avatar_asset` | foreign key | `avatar_asset_id -> assets.id ON DELETE SET NULL` | Mantém o usuário válido caso uma linha de asset seja removida fisicamente. |
@@ -82,6 +85,7 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | --- | --- | --- |
 | `auth_providers.user_id -> users.id` | `ON DELETE CASCADE` | Remove providers quando o usuário é removido. |
 | `email_verification_challenges.user_id -> users.id` | `ON DELETE CASCADE` | Remove challenges quando o usuário é removido. |
+| `password_change_events.user_id -> users.id` | `ON DELETE CASCADE` | Remove eventos de alteração de senha quando o usuário é removido. |
 | `accounts.user_id -> users.id` | `ON DELETE CASCADE` | Remove contas quando o usuário é removido. |
 | `categories.user_id -> users.id` | `ON DELETE CASCADE` | Remove categorias quando o usuário é removido. |
 | `transactions.user_id -> users.id` | `ON DELETE CASCADE` | Remove transações quando o usuário é removido. |
@@ -171,6 +175,58 @@ Representa desafios de confirmação de e-mail. O token em claro nunca é persis
 | `idx_email_verification_challenges_email_purpose_created_at` | `(email, purpose, created_at DESC)` | Cooldown e limite de envios por e-mail. |
 | `idx_email_verification_challenges_user_purpose_created_at` | `(user_id, purpose, created_at DESC)` | Diagnóstico e consultas por usuário. |
 | `idx_email_verification_challenges_unconsumed_expiration` | `(purpose, expires_at) WHERE consumed_at IS NULL` | Suporte a limpeza/reconciliação futura de challenges abertos. |
+
+## `password_change_events`
+
+Registra fatos de segurança da alteração de senha. A tabela sustenta o contador de falhas, o bloqueio por falhas repetidas, o cooldown e o limite de alterações concluídas.
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identificador único do evento. |
+| `user_id` | `uuid` | `not null` | Usuário ao qual o evento pertence. |
+| `auth_provider_id` | `uuid` | `nullable` | Provider `EMAIL` envolvido. Permanece nullable para aceitar `ON DELETE SET NULL`. |
+| `event_type` | `varchar(50)` | `not null` | Tipo do fato: falha da senha atual, senha alterada ou início de bloqueio por falhas. |
+| `blocked_until` | `timestamptz` | `nullable` | Fim do bloqueio. Existe somente em `FAILED_ATTEMPTS_BLOCK_STARTED`. |
+| `session_id` | `uuid` | `nullable` | Identificador estável da sessão que originou o evento, quando disponível. |
+| `ip_address` | `inet` | `nullable` | IP normalizado da requisição para contexto de segurança. |
+| `user_agent` | `varchar(512)` | `nullable` | User-Agent sanitizado e limitado da requisição. |
+| `metadata` | `jsonb` | `not null default '{}'::jsonb` | Contexto adicional permitido, sem credenciais, tokens ou cookies. |
+| `occurred_at` | `timestamptz` | `not null default now()` | Instante do fato e referência para as janelas temporais. |
+| `created_at` | `timestamptz` | `not null default now()` | Instante de persistência da linha. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_password_change_events` | primary key | `id` | Garante identidade única do evento. |
+| `FK_password_change_events_user` | foreign key | `user_id -> users.id ON DELETE CASCADE` | Garante ownership e acompanha a exclusão do usuário. |
+| `FK_password_change_events_provider` | foreign key | `auth_provider_id -> auth_providers.id ON DELETE SET NULL` | Preserva o evento se apenas o provider for removido. |
+| `CHK_password_change_events_type` | check | `event_type IN ('CURRENT_PASSWORD_FAILED', 'PASSWORD_CHANGED', 'FAILED_ATTEMPTS_BLOCK_STARTED')` | Impede tipos fora do contrato. |
+| `CHK_password_change_events_block` | check | Bloqueio exige `blocked_until > occurred_at`; os demais eventos exigem `blocked_until IS NULL`. | Mantém coerência temporal e semântica do bloqueio. |
+| `CHK_password_change_events_metadata` | check | `jsonb_typeof(metadata) = 'object'` | Garante metadata em formato de objeto JSON. |
+
+### Índices
+
+| Nome | Colunas/filtro | Utilidade |
+| --- | --- | --- |
+| `idx_password_change_events_user_type_occurred_at` | `(user_id, event_type, occurred_at DESC)` | Sustenta falhas em 15 minutos, cooldown, alterações em 24 horas e consulta ao bloqueio anterior. |
+| `idx_password_change_events_auth_provider_id` | `auth_provider_id` | Sustenta a FK ao remover um provider e consultas operacionais por provider. |
+
+### Relacionamentos
+
+| Relacionamento | Regra | Utilidade |
+| --- | --- | --- |
+| `password_change_events.user_id -> users.id` | `ON DELETE CASCADE` | Trata os eventos como dados de segurança pertencentes ao usuário. |
+| `password_change_events.auth_provider_id -> auth_providers.id` | `ON DELETE SET NULL` | Mantém o histórico mesmo que o provider seja removido separadamente. |
+
+### Observações
+
+- A tabela é append-only e não possui `updated_at`.
+- Cooldown e limite de três alterações são calculados a partir de `PASSWORD_CHANGED`; eles não criam eventos de bloqueio.
+- `FAILED_ATTEMPTS_BLOCK_STARTED` representa somente um novo bloqueio iniciado por falhas repetidas da senha atual.
+- IP, User-Agent e metadata exigem sanitização, allowlist e política de retenção.
 
 ## `accounts`
 
@@ -402,21 +458,21 @@ Mais detalhes de domínio estão em [Assets](../assets/README.md).
 
 ## `email_messages`
 
-Representa uma intenção idempotente de envio de e-mail transacional. A tabela guarda o estado atual da mensagem, os parâmetros de template usados no provider e o diagnóstico da última falha, mas não funciona como log detalhado de tentativas.
+Representa uma intenção idempotente de envio de e-mail transacional. A tabela guarda o estado atual da mensagem, a referência lógica versionada, os parâmetros validados e o diagnóstico da última falha, mas não funciona como log detalhado de tentativas.
 
-O v1 usa essa tabela para o e-mail de boas-vindas disparado por `user.created`. A execução assíncrona fica na fila BullMQ `notifications.email`, e o `jobId` é derivado de `email_messages.id`, mas não é persistido.
+Os fluxos atuais usam a tabela para boas-vindas e verificação de e-mail. A execução assíncrona fica na fila BullMQ `notifications.email`, e o `jobId` é derivado de `email_messages.id`, mas não é persistido.
 
 ### Colunas
 
 | Coluna | Tipo | Nulo/default | Responsabilidade |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `default gen_random_uuid()` | Identificador interno da intenção de e-mail. Também é usado para derivar o job id da fila. |
-| `type` | `varchar(50)` | `not null` | Tipo lógico do e-mail, inicialmente `WELCOME`. |
+| `type` | `varchar(50)` | `not null` | Tipo lógico do e-mail: `WELCOME` ou `EMAIL_VERIFICATION`. |
 | `recipient_email` | `varchar(320)` | `not null` | Endereço de destino usado pelo provider de e-mail. |
 | `recipient_name` | `varchar(120)` | `nullable` | Nome exibível do destinatário quando disponível. |
-| `provider` | `varchar(50)` | `not null` | Provider de envio usado na intenção, como `brevo`. |
+| `provider` | `varchar(50)` | `nullable` | Provider que efetivamente aceitou o envio; permanece nulo enquanto existe apenas a intenção. |
 | `template_key` | `varchar(100)` | `not null` | Chave interna documentada do template, como `welcome-email`. |
-| `provider_template_id` | `varchar(100)` | `not null` | Identificador do template no provider externo, como `2` na Brevo. |
+| `template_version` | `integer` | `not null` | Versão positiva e imutável do contrato aplicado à intenção. |
 | `template_params` | `jsonb` | `not null default '{}'::jsonb` | Parâmetros enviados ao template. Deve ser objeto JSON. |
 | `idempotency_key` | `varchar(255)` | `not null` | Chave de negócio que impede duplicidade lógica. Para welcome: `email:welcome:user:<userId>`. |
 | `status` | `varchar(30)` | `not null default 'PENDING'` | Estado operacional: `PENDING`, `PROCESSING`, `SENT`, `FAILED_RETRYABLE`, `FAILED_PERMANENT` ou `CANCELED`. |
@@ -438,6 +494,7 @@ O v1 usa essa tabela para o e-mail de boas-vindas disparado por `user.created`. 
 | `CHK_email_messages_status` | check | `status IN ('PENDING', 'PROCESSING', 'SENT', 'FAILED_RETRYABLE', 'FAILED_PERMANENT', 'CANCELED')` | Impede estados fora do ciclo operacional de notifications. |
 | `CHK_email_messages_attempts_count` | check | `attempts_count >= 0` | Impede contador de tentativas negativo. |
 | `CHK_email_messages_template_params_object` | check | `jsonb_typeof(template_params) = 'object'` | Garante que os parâmetros de template sejam sempre objeto JSON. |
+| `CHK_email_messages_template_version` | check | `template_version >= 1` | Impede referências a versões inválidas. |
 
 ### Índices
 
@@ -466,6 +523,8 @@ O v1 usa essa tabela para o e-mail de boas-vindas disparado por `user.created`. 
 - A tabela não possui `job_id` nem `bullmq_job_id`; o job id é reconstruído como `email-message-<emailMessage.id>`.
 - A tabela não substitui `email_delivery_attempts`. Um log detalhado de tentativas deve ser criado em spec futura, se necessário.
 - Esta tabela contém e-mail de destinatário e parâmetros de template. Não exponha esses dados em endpoint de usuário sem uma spec que modele ownership, autorização e retenção.
+- IDs externos de template são resolvidos pelo adapter e não são persistidos.
+- `email-verification:v1` contém atualmente a URL com token de uso único em `template_params`; a proteção em repouso será estudada separadamente antes da produção.
 
 Mais detalhes de domínio estão em [Notifications](../notifications/README.md) e no catálogo de [templates de e-mail](../notifications/email-templates/README.md).
 

@@ -30,6 +30,7 @@ interface CachedUser {
   lastName: string | null;
   status: UserStatus;
   avatarAssetId?: string | null;
+  credentialVersion?: number;
   createdAt: string;
   updatedAt: string;
   authProviders: CachedAuthProvider[];
@@ -46,6 +47,11 @@ export class CachedUserRepository implements IUserRepository {
   findByIdForUpdate(id: string, options: Required<IRepositoryOptions>): Promise<User | null> {
     return this.userRepository.findByIdForUpdate(id, options);
   }
+
+  findCredentialVersionById(id: string, options?: IRepositoryOptions): Promise<number | null> {
+    return this.userRepository.findCredentialVersionById(id, options);
+  }
+
   async usernameAlreadyExists(userName: UserName, options?: IRepositoryOptions): Promise<boolean> {
     if (options?.manager) {
       return this.userRepository.usernameAlreadyExists(userName, { manager: options.manager });
@@ -213,6 +219,7 @@ export class CachedUserRepository implements IUserRepository {
       lastName: user.lastName,
       status: user.status,
       avatarAssetId: user.avatarAssetId,
+      credentialVersion: user.credentialVersion,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
       authProviders: user.authProviders.map(ap => ({
@@ -236,6 +243,7 @@ export class CachedUserRepository implements IUserRepository {
         lastName: cached.lastName,
         status: cached.status,
         avatarAssetId: cached.avatarAssetId ?? null,
+        credentialVersion: cached.credentialVersion ?? 1,
         createdAt: new Date(cached.createdAt),
         updatedAt: new Date(cached.updatedAt),
         authProviders: cached.authProviders.map(ap =>

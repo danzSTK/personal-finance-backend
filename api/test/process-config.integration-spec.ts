@@ -91,6 +91,38 @@ describe('Process bootstrap and secret contracts integration', () => {
     expect(result.stderr).toBe('');
   });
 
+  it('validates worker configuration with every Brevo template mapping', () => {
+    const result = validateConfig({
+      ...baseEnv,
+      PROCESS_ROLE: 'worker',
+      MAIL_ENABLED: 'true',
+      MAIL_PROVIDER: 'brevo',
+      MAIL_DEFAULT_FROM_EMAIL: 'no-reply@integration.example.com',
+      BREVO_API_KEY: 'integration-brevo-key',
+      BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID: '1001',
+      BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID: '1002',
+      BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID: '1003',
+      BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID: '1004',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  });
+
+  it('rejects a real Brevo worker when a template mapping is missing', () => {
+    const result = validateConfig({
+      ...baseEnv,
+      PROCESS_ROLE: 'worker',
+      MAIL_ENABLED: 'true',
+      MAIL_PROVIDER: 'brevo',
+      MAIL_DEFAULT_FROM_EMAIL: 'no-reply@integration.example.com',
+      BREVO_API_KEY: 'integration-brevo-key',
+      BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID: '1001',
+    });
+
+    expect(result.status).toBe(1);
+  });
+
   it('rejects both entrypoints when their configured role is mismatched', () => {
     const workerAsApi = spawnSync(node, [workerEntrypoint], {
       cwd: apiRoot,

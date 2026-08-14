@@ -18,13 +18,14 @@ export class GenerateTokenUseCase {
   ) {}
 
   async execute(data: GenerateTokenUseCaseInput): Promise<GenerateTokenOutput> {
-    const { userId, email, status, sessionMetadata } = data;
+    const { userId, email, status, credentialVersion, sessionMetadata } = data;
 
     const accessTokenPayload: JwtPayloadDto = {
       jti: randomUUID(),
       sub: userId,
       email,
       status,
+      credentialVersion,
     };
 
     const refreshTokenPayload: JwtPayloadDto = {
@@ -32,6 +33,7 @@ export class GenerateTokenUseCase {
       sub: userId,
       email,
       status,
+      credentialVersion,
     };
 
     const accessToken = this.jwtService.sign(accessTokenPayload, {

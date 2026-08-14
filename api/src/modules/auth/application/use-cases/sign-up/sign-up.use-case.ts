@@ -71,6 +71,7 @@ export class SignUpUseCase {
       userId: result.id,
       email: result.email.value,
       status: result.status,
+      credentialVersion: result.credentialVersion,
       sessionMetadata: data.sessionMetadata,
     });
 

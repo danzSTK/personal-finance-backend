@@ -10,6 +10,7 @@ related:
   - ./user-email-verified.md
   - ./user-avatar-updated.md
   - ./user-avatar-removed.md
+  - ./password-change.md
 ---
 
 # Events
@@ -39,6 +40,7 @@ Guia para criar novos eventos: [Add event](./add-event.md).
 | [user.email.verified](./user-email-verified.md) | current | `users`  | `notifications/email` welcome email                               |
 | [user.avatar.updated](./user-avatar-updated.md) | current | `users`  | remoção idempotente do asset anterior em `assets`                 |
 | [user.avatar.removed](./user-avatar-removed.md) | current | `users`  | remoção idempotente do asset removido em `assets`                 |
+| [auth.password-change.*](./password-change.md)  | current | `auth`   | reconciliação Redis, sessões e futura notificação de segurança    |
 
 ## Por Que Outbox
 
