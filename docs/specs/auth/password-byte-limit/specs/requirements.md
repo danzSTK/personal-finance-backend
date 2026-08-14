@@ -50,17 +50,17 @@ Fonte de rastreamento: issue #80.
 
 ## Critérios de aceitação
 
-- [ ] Entradas de 72 bytes passam por hash e comparação normalmente.
-- [ ] Entradas de 73 bytes ou mais nunca chegam ao bcrypt.
-- [ ] Cadastro, vínculo `EMAIL` e alteração de senha retornam erro de validação
+- [x] Entradas de 72 bytes passam por hash e comparação normalmente.
+- [x] Entradas de 73 bytes ou mais nunca chegam ao bcrypt.
+- [x] Cadastro, vínculo `EMAIL` e alteração de senha retornam erro de validação
       associado ao campo quando o limite é excedido.
-- [ ] Consumidores internos recebem `PASSWORD_BYTE_LIMIT_EXCEEDED` se chamarem o
+- [x] Consumidores internos recebem `PASSWORD_BYTE_LIMIT_EXCEEDED` se chamarem o
       serviço com entrada acima do limite.
-- [ ] Login acima do limite permanece uma falha genérica `401`.
-- [ ] Nenhuma variante acima do limite autentica por truncamento.
-- [ ] Swagger e documentação explicam que caracteres e bytes são limites
+- [x] Login acima do limite permanece uma falha genérica `401`.
+- [x] Nenhuma variante acima do limite autentica por truncamento.
+- [x] Swagger e documentação explicam que caracteres e bytes são limites
       simultâneos.
-- [ ] Testes cobrem ASCII, acentos, emoji e as fronteiras de 72 e 73 bytes.
+- [x] Testes cobrem ASCII, acentos, emoji e as fronteiras de 72 e 73 bytes.
 
 ## Fora de escopo
 

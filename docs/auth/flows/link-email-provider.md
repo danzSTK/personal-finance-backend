@@ -15,7 +15,7 @@ Vincula credenciais de e-mail e senha a um usuário já autenticado.
 
 ## Fluxo
 
-1. Recebe `email` e `password`.
+1. Recebe `email` e `password` e valida o máximo de 72 bytes UTF-8 da senha.
 2. Verifica se já existe provider `EMAIL` com aquele e-mail.
 3. Carrega usuário autenticado.
 4. Impede vínculo duplicado caso o usuário já tenha provider `EMAIL`.

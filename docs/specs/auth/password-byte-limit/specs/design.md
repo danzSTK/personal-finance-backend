@@ -42,8 +42,9 @@ cujos pipes realmente executam antes da criação ou alteração de credenciais:
 - `ChangeUserPasswordDto.newPassword`.
 
 O `LoginEmailDto` serve hoje como descrição Swagger, mas o `LocalAuthGuard`
-executa antes dos pipes do controller. Portanto, o decorator nesse DTO não será
-tratado como proteção do login. A garantia real do login pertence a
+executa antes dos pipes do controller. O decorator também é aplicado nesse DTO
+como contrato declarativo e para futuros consumidores, mas não é tratado como
+proteção do login atual. A garantia real do login pertence a
 `IHashService.compare()` e à tradução segura feita pela `LocalStrategy`.
 
 ### Serviço de hash

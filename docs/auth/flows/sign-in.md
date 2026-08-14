@@ -18,11 +18,12 @@ Login por e-mail e senha.
 1. `LocalAuthGuard` usa `LocalStrategy`.
 2. `ValidateCredentialsUseCase` valida usuário por e-mail.
 3. Verifica existência do provider `EMAIL`.
-4. Valida senha.
+4. Rejeita internamente entradas acima de 72 bytes UTF-8 e valida a senha.
 5. Verifica que o usuário não está bloqueado.
 6. `SignInUseCase` gera novo par de tokens.
 7. Cria sessão no Redis.
 8. Seta cookies HttpOnly.
 9. Retorna perfil do usuário.
 
-Falha de credenciais retorna `401 Unauthorized`.
+Falha de credenciais retorna `401 Unauthorized`. O mesmo contrato genérico é
+mantido quando a entrada ultrapassa o limite em bytes.

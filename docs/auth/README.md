@@ -24,6 +24,7 @@ Para documentação de consumo HTTP, use [Integração Auth](../integrations/aut
 - [Refresh token](./concepts/refresh-token.md)
 - [Sessão stateful](./concepts/session-state.md)
 - [Auth provider](./concepts/auth-provider.md)
+- [Política de senhas locais](./concepts/local-password-policy.md)
 - [CSRF e origin check](./concepts/csrf-origin-check.md)
 
 ### Fluxos
@@ -44,6 +45,7 @@ Para documentação de consumo HTTP, use [Integração Auth](../integrations/aut
 - [Refresh token stateful no Redis](./decisions/stateful-refresh-token-in-redis.md)
 - [Não vincular providers automaticamente](./decisions/no-automatic-provider-link.md)
 - [State Redis no link Google](./decisions/google-link-state-in-redis.md)
+- [Limite UTF-8 de senhas locais](./decisions/limit-local-passwords-by-utf8-bytes.md)
 
 ### Alteração de senha
 
