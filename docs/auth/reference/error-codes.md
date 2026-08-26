@@ -21,7 +21,8 @@ related:
 | E-mail pendente tentando acessar recurso bloqueado | `403` |
 | Token de verificação inválido | `400` |
 | Token de verificação expirado | `410` |
-| Cooldown/limite de reenvio de verificação | `429` |
+| Cooldown/limite/mutação concorrente do reenvio de verificação | `429` + `Retry-After` |
+| Estado Redis do reenvio de verificação indisponível | `503` |
 | Senha atual incorreta (`CURRENT_PASSWORD_INVALID`) | `403` |
 | Provider local ausente (`PASSWORD_CHANGE_EMAIL_PROVIDER_REQUIRED`) | `409` |
 | Nova senha igual (`NEW_PASSWORD_MUST_DIFFER`) | `400` |
@@ -33,7 +34,7 @@ related:
 fluxos HTTP normais de criação e alteração, o DTO responde antes com
 `VALIDATION_ERROR`; no login, a estratégia preserva o `401` genérico.
 
-Respostas `429` da alteração de senha expõem o mesmo valor inteiro no header
+Respostas `429` da alteração de senha e do reenvio de verificação expõem o mesmo valor inteiro no header
 `Retry-After` e em `details.retryAfterSeconds`.
 
 ## Link Google

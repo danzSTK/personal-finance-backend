@@ -38,6 +38,10 @@ email:verification:challenge:<challengeId>
 
 Cada challenge gera no máximo uma intenção. Um reenvio cria outro challenge.
 
+O challenge automático inicial é idempotente por usuário e purpose. Challenges
+registram `origin=AUTOMATIC` ou `MANUAL_RESEND`; registros anteriores à migration
+recebem `LEGACY_UNKNOWN` apenas para auditoria.
+
 ## Parâmetros V1
 
 | Parâmetro            | Tipo             | Origem                            | Sensível |
@@ -56,3 +60,11 @@ Cada challenge gera no máximo uma intenção. Um reenvio cria outro challenge.
   separado antes da produção.
 - Erros e observabilidade podem registrar chave, versão e `emailMessageId`, mas
   nunca os parâmetros.
+
+## Prazo De Entrega
+
+A intenção define `deliver_before = challenge.expires_at - 5 minutos`. Com token
+de 15 minutos, o worker possui até 10 minutos para iniciar a entrega e preserva
+uma janela mínima de uso de cinco minutos. Se `deliver_before <= now`, a intenção
+vira `CANCELED`, o provider não é chamado e o processor lança o erro terminal do
+BullMQ depois de persistir o estado.

@@ -95,7 +95,7 @@ api/src/modules/auth/
 │   └── value-objects/email-verification-token.value-object.ts
 ├── infrastructure/
 │   ├── cache/
-│   │   ├── redis-email-verification-resend-state.store.ts
+│   │   ├── redis-email-verification-resend-state-store.ts
 │   │   └── scripts/
 │   ├── mappers/
 │   └── persistence/
@@ -104,7 +104,8 @@ api/src/modules/auth/
     └── http/auth.controller.ts
 ```
 
-- A policy recebe estado e horário e não conhece Redis, TypeORM, Nest ou HTTP.
+- A policy codifica fórmula e precedência como regra pura e não conhece Redis,
+  TypeORM, Nest ou HTTP; os scripts aplicam a mesma regra sobre o estado atômico.
 - A store retorna uniões discriminadas para estado disponível, bloqueado e
   pendente; falhas técnicas são convertidas em erro de aplicação específico.
 - Controllers permanecem finos; `Retry-After` de erros é serializado pelo filtro

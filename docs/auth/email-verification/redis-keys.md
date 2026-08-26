@@ -2,7 +2,7 @@
 area: auth
 feature: email-verification
 type: reference
-status: proposed
+status: current
 related:
   - ./index.md
   - ./lua-scripts.md

@@ -2,7 +2,7 @@
 area: auth
 feature: email-verification
 type: index
-status: proposed
+status: current
 related:
   - ../../specs/auth/email-verification/specs/requirements.md
   - ../../specs/auth/email-verification/specs/design.md
@@ -13,9 +13,9 @@ related:
 
 Documentação interna da política de verificação e reenvio de e-mail.
 
-Esta pasta descreve o estado planejado pela issue 76. Enquanto a implementação
-não for concluída, o contrato atualmente disponível ao frontend continua sendo
-o documentado em `docs/integrations/auth/email-verification.md`.
+Esta pasta descreve a política operacional implementada pela issue 76. O
+contrato público para o frontend está em
+`docs/integrations/auth/email-verification.md`.
 
 ## Mapa
 
@@ -30,7 +30,7 @@ o documentado em `docs/integrations/auth/email-verification.md`.
 - [Decisions](../../specs/auth/email-verification/specs/decisions.md): decisões e
   alternativas consideradas.
 
-## Resumo Da Política Planejada
+## Resumo Da Política
 
 - envio automático inicia cooldown de 60 segundos e não consome limite manual;
 - até cinco resends manuais em janela móvel de 24 horas;

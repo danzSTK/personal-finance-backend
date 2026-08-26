@@ -76,6 +76,7 @@ provider continua retentável.
 - destinatário;
 - parâmetros validados;
 - idempotência e estado operacional;
+- prazo opcional `deliver_before` para impedir uma tentativa sem utilidade;
 - provider e message id somente como resultado do envio.
 
 O banco não guarda HTML nem ID externo do template.

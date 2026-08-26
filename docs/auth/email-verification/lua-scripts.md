@@ -2,7 +2,7 @@
 area: auth
 feature: email-verification
 type: reference
-status: proposed
+status: current
 related:
   - ./index.md
   - ./redis-keys.md
@@ -26,6 +26,99 @@ Regras comuns:
 - PTTL `-1`, arrays inesperados ou valores inválidos são falha técnica;
 - nenhum retorno contém token, e-mail, URL, template params ou mutation token;
 - o adapter valida o contrato antes de produzir tipos de aplicação.
+
+## Visão Geral Do Fluxo Manual
+
+O e-mail ainda não foi entregue quando `COMPLETE` executa. Nesse ponto o
+PostgreSQL já confirmou o challenge e a intenção, portanto o consumo lógico do
+recurso existe mesmo que o enqueue imediato falhe e o reconciliador precise
+enfileirar depois.
+
+```text
+                      POST RESEND
+                           │
+                           ▼
+              ┌────────────────────────┐
+              │         BEGIN          │
+              │                        │
+              │ remove manuais antigos │
+              │ conta resends manuais  │
+              │ verifica cooldown      │
+              │ verifica limite 24h    │
+              │ verifica pending       │
+              └────────────┬───────────┘
+                           │
+                    pode continuar?
+                       ╱       ╲
+                    não         sim
+                     │           │
+                     ▼           ▼
+            429 + Retry-After  SET pending
+                               NX PX 30s
+                                   │
+                                   ▼
+                         ┌──────────────────┐
+                         │ transação SQL    │
+                         │                  │
+                         │ cria challenge   │
+                         │ MANUAL_RESEND    │
+                         │ cria intenção    │
+                         │ deliver_before   │
+                         └────────┬─────────┘
+                                  │
+                              commitou?
+                              ╱       ╲
+                            não       sim
+                             │         │
+                             ▼         ▼
+                         ┌───────┐  ┌────────────────────────┐
+                         │ ABORT │  │        COMPLETE        │
+                         │       │  │                        │
+                         │ DEL se│  │ ZADD NX manual resend  │
+                         │ é dono│  │ conta manuais após add │
+                         └───────┘  │ calcula backoff        │
+                                    │ atualiza cooldown      │
+                                    │ atualiza last-send     │
+                                    │ remove pending do dono │
+                                    └───────────┬────────────┘
+                                                │
+                                                ▼
+                                         enqueue do job
+                                                │
+                                                ▼
+                                   worker verifica deliver_before
+                                           ╱           ╲
+                                      vencido         válido
+                                         │              │
+                                         ▼              ▼
+                                    CANCELED +       provider de
+                                 UnrecoverableError      e-mail
+```
+
+O `GET /auth/email-verification/resend/status` executa somente `LOAD`: ele faz o
+mesmo pruning e cálculo das restrições, mas não cria `pending`, não incrementa o
+contador e não inicia cooldown.
+
+## Como O Cooldown É Calculado
+
+`COMPLETE` usa a contagem manual **depois** do `ZADD NX`. O automático não entra
+no ZSET e recebe sempre o cooldown inicial.
+
+```text
+envio automático confirmado ───────────────────────►  60s
+
+1º resend manual ─► usados=1 ─► min(60 × 2¹, 600) ─► 120s
+2º resend manual ─► usados=2 ─► min(60 × 2², 600) ─► 240s
+3º resend manual ─► usados=3 ─► min(60 × 2³, 600) ─► 480s
+4º resend manual ─► usados=4 ─► min(60 × 2⁴, 600) ─► 600s
+5º resend manual ─► usados=5 ─► min(60 × 2⁵, 600) ─► 600s
+                                                │
+                                                └── limite diário até o
+                                                    mais antigo sair de 24h
+```
+
+Como o token dura no mínimo 15 minutos e `deliver_before` fica cinco minutos
+antes da expiração, o teto de 10 minutos não consome a janela útil mínima.
 
 ## LOAD_EMAIL_VERIFICATION_RESEND_STATE_SCRIPT
 

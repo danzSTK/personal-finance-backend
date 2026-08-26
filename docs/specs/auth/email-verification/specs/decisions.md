@@ -441,3 +441,22 @@ starvation. É uma capacidade transversal que merece feature e critérios própr
 
 Impact:
 Todos os jobs continuam sem prioridade explícita nesta entrega.
+
+## DEC-027 - Estados da feature usam const objects tipados
+
+Status: accepted
+
+Decision:
+Centralizar `AVAILABLE`, `BLOCKED`, `ALREADY_VERIFIED`, `QUEUED` e `ACQUIRED`
+em `EmailVerificationResendStatus` e `EmailVerificationResendMutationKind`. Porta,
+adapter, use cases, DTOs e controller usam os valores e tipos derivados desses
+objetos, sem repetir magic strings.
+
+Reason:
+Esses valores formam o vocabulário estável do fluxo e participam de uniões
+discriminadas e do contrato HTTP. Literais espalhados permitem divergência entre
+camadas e dificultam refactors seguros.
+
+Impact:
+As strings aparecem diretamente apenas na declaração central e nos exemplos de
+documentação. Novos estados exigem uma alteração explícita no catálogo tipado.

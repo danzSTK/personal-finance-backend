@@ -12,3 +12,5 @@ status: current
 | `POST /auth/sign-in` | 5 | 1min | 10min |
 | `GET /auth/google` | 5 | 1min | 10min |
 | `POST /auth/refresh` | 5 | 60s | - |
+| `POST /auth/email-verification/confirm` | 10 | 1min | - |
+| `POST /auth/email-verification/resend` | 5 | 1min | - |
