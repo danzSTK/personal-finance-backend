@@ -6,6 +6,7 @@ export interface CreateEmailVerificationMessageUseCaseInput {
   challengeId: string;
   email: string;
   token: string | null;
+  deliverBefore: Date;
   options?: IRepositoryOptions;
 }
 

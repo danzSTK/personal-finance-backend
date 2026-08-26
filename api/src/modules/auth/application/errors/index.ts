@@ -2,6 +2,8 @@ export * from './auth-provider-already-linked.error';
 export * from './auth-provider-linked-to-another-user.error';
 export * from './email-verification-cooldown-active.error';
 export * from './email-verification-daily-limit-exceeded.error';
+export * from './email-verification-operation-pending.error';
+export * from './email-verification-state-unavailable.error';
 export * from './email-verification-required.error';
 export * from './email-verification-token-expired.error';
 export * from './email-verification-token-invalid.error';

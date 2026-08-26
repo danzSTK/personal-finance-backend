@@ -6,6 +6,9 @@ export const RESPONSE_OBJECT_TYPES = {
   TRANSACTION_SUMMARY_OVERVIEW: 'transaction_summary.overview',
   EMAIL_VERIFICATION_CONFIRMATION: 'email_verification.confirmation',
   EMAIL_VERIFICATION_RESEND: 'email_verification.resend',
+  EMAIL_VERIFICATION_RESEND_STATUS_AVAILABLE: 'email_verification.resend_status.available',
+  EMAIL_VERIFICATION_RESEND_STATUS_BLOCKED: 'email_verification.resend_status.blocked',
+  EMAIL_VERIFICATION_RESEND_STATUS_ALREADY_VERIFIED: 'email_verification.resend_status.already_verified',
   AUTH_PASSWORD_CHANGE: 'auth.password_change',
   AUTH_PASSWORD_CHANGE_STATUS: 'auth.password_change_status',
 } as const;

@@ -5,7 +5,10 @@ import {
   SendEmailMessageUseCaseOutput,
 } from '@/modules/notifications/application/use-cases/send-email-message/send-email-message.dto';
 import { EmailMessageNotFoundError } from '@/modules/notifications/application/errors';
-import { EmailMessageStatus } from '@/modules/notifications/domain/constants/email-message.constants';
+import {
+  EmailMessageFailureCode,
+  EmailMessageStatus,
+} from '@/modules/notifications/domain/constants/email-message.constants';
 import { EmailMessage } from '@/modules/notifications/domain/entities/email-message.entity';
 import { IEmailMessageRepository } from '@/modules/notifications/domain/repositories/email-message.repository.interface';
 import { Injectable } from '@nestjs/common';
@@ -20,6 +23,11 @@ interface MailFailure {
   cause: Error;
 }
 
+interface PreparedEmailMessage {
+  emailMessage: EmailMessage;
+  deliveryDeadlineExceeded: boolean;
+}
+
 @Injectable()
 export class SendEmailMessageUseCase {
   constructor(
@@ -29,12 +37,22 @@ export class SendEmailMessageUseCase {
   ) {}
 
   async execute(input: SendEmailMessageUseCaseInput): Promise<SendEmailMessageUseCaseOutput> {
-    const emailMessage = await this.prepareMessage(input.emailMessageId);
+    const prepared = await this.prepareMessage(input.emailMessageId, input.now ?? new Date());
+    const emailMessage = prepared.emailMessage;
+
+    if (prepared.deliveryDeadlineExceeded) {
+      return {
+        status: emailMessage.status,
+        sent: false,
+        unrecoverable: true,
+      };
+    }
 
     if (!emailMessage.canBeProcessed) {
       return {
         status: emailMessage.status,
         sent: emailMessage.status === EmailMessageStatus.SENT,
+        unrecoverable: false,
       };
     }
 
@@ -68,6 +86,7 @@ export class SendEmailMessageUseCase {
       return {
         status: sentMessage.status,
         sent: true,
+        unrecoverable: false,
       };
     } catch (error) {
       const failure = this.toFailure(error);
@@ -80,21 +99,38 @@ export class SendEmailMessageUseCase {
       return {
         status: failedMessage.status,
         sent: false,
+        unrecoverable: false,
       };
     }
   }
 
-  private async prepareMessage(emailMessageId: string): Promise<EmailMessage> {
+  private async prepareMessage(emailMessageId: string, now: Date): Promise<PreparedEmailMessage> {
     return await this.dataSource.transaction(async manager => {
       const emailMessage = await this.findMessageForUpdate(emailMessageId, manager);
 
       if (!emailMessage.canBeProcessed) {
-        return emailMessage;
+        return { emailMessage, deliveryDeadlineExceeded: false };
       }
 
-      emailMessage.markProcessing();
+      if (emailMessage.hasReachedDeliveryDeadline(now)) {
+        emailMessage.cancel(
+          EmailMessageFailureCode.DELIVERY_DEADLINE_EXCEEDED,
+          'Email delivery deadline was reached before provider dispatch.',
+          now,
+        );
 
-      return await this.emailMessageRepository.save(emailMessage, { manager });
+        return {
+          emailMessage: await this.emailMessageRepository.save(emailMessage, { manager }),
+          deliveryDeadlineExceeded: true,
+        };
+      }
+
+      emailMessage.markProcessing(now);
+
+      return {
+        emailMessage: await this.emailMessageRepository.save(emailMessage, { manager }),
+        deliveryDeadlineExceeded: false,
+      };
     });
   }
 

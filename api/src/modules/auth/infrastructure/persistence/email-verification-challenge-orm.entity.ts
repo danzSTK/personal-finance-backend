@@ -19,10 +19,7 @@ import { Check, Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedCo
   where: '"consumed_at" IS NULL',
 })
 @Check('CHK_email_verification_challenges_purpose', `"purpose" IN ('EMAIL_VERIFICATION')`)
-@Check(
-  'CHK_email_verification_challenges_origin',
-  `"origin" IN ('AUTOMATIC', 'MANUAL_RESEND', 'LEGACY_UNKNOWN')`,
-)
+@Check('CHK_email_verification_challenges_origin', `"origin" IN ('AUTOMATIC', 'MANUAL_RESEND', 'LEGACY_UNKNOWN')`)
 @Check('CHK_email_verification_challenges_token_hash_length', `length("token_hash") = 64`)
 @Check('CHK_email_verification_challenges_expiration', `"expires_at" > "created_at"`)
 @Check(

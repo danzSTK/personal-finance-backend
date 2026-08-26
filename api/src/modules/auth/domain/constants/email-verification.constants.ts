@@ -27,6 +27,24 @@ export const EmailVerificationResendRestriction = {
 export type EmailVerificationResendRestriction =
   (typeof EmailVerificationResendRestriction)[keyof typeof EmailVerificationResendRestriction];
 
+export const EmailVerificationResendStatus = {
+  AVAILABLE: 'AVAILABLE',
+  BLOCKED: 'BLOCKED',
+  ALREADY_VERIFIED: 'ALREADY_VERIFIED',
+  QUEUED: 'QUEUED',
+} as const;
+
+export type EmailVerificationResendStatus =
+  (typeof EmailVerificationResendStatus)[keyof typeof EmailVerificationResendStatus];
+
+export const EmailVerificationResendMutationKind = {
+  ACQUIRED: 'ACQUIRED',
+  BLOCKED: EmailVerificationResendStatus.BLOCKED,
+} as const;
+
+export type EmailVerificationResendMutationKind =
+  (typeof EmailVerificationResendMutationKind)[keyof typeof EmailVerificationResendMutationKind];
+
 export const EMAIL_VERIFICATION_MANUAL_RESEND_LIMIT = 5;
 export const EMAIL_VERIFICATION_MANUAL_RESEND_WINDOW_SECONDS = 86_400;
 export const EMAIL_VERIFICATION_INITIAL_COOLDOWN_SECONDS = 60;

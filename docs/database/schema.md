@@ -151,6 +151,7 @@ Representa desafios de confirmação de e-mail. O token em claro nunca é persis
 | `user_id` | `uuid` | `not null` | Usuário dono do challenge. |
 | `email` | `varchar(255)` | `not null` | E-mail que receberá o link de verificação, validado pelas mesmas regras do e-mail principal do usuário. |
 | `purpose` | `varchar(50)` | `not null` | Finalidade do challenge. Inicialmente `EMAIL_VERIFICATION`. |
+| `origin` | `varchar(30)` | `not null` | Origem persistida: `AUTOMATIC`, `MANUAL_RESEND` ou `LEGACY_UNKNOWN` para registros anteriores à política. |
 | `token_hash` | `varchar(64)` | `not null` | SHA-256 hexadecimal do token. |
 | `expires_at` | `timestamptz` | `not null` | Instante em que o token deixa de ser válido. |
 | `consumed_at` | `timestamptz` | `nullable` | Instante de consumo do challenge. |
@@ -163,6 +164,7 @@ Representa desafios de confirmação de e-mail. O token em claro nunca é persis
 | `PK_email_verification_challenges` | primary key | `id` | Garante identidade única do challenge. |
 | `FK_email_verification_challenges_user` | foreign key | `user_id -> users.id ON DELETE CASCADE` | Remove challenges quando o usuário é removido. |
 | `CHK_email_verification_challenges_purpose` | check | `purpose IN ('EMAIL_VERIFICATION')` | Impede finalidades fora do contrato atual. |
+| `CHK_email_verification_challenges_origin` | check | `origin IN ('AUTOMATIC', 'MANUAL_RESEND', 'LEGACY_UNKNOWN')` | Impede origens fora do contrato e preserva valor explícito para o backfill legado. |
 | `CHK_email_verification_challenges_token_hash_length` | check | `length(token_hash) = 64` | Garante formato SHA-256 hexadecimal. |
 | `CHK_email_verification_challenges_expiration` | check | `expires_at > created_at` | Garante challenge com validade futura. |
 | `CHK_email_verification_challenges_consumed_after_created` | check | `consumed_at IS NULL OR consumed_at >= created_at` | Mantém coerência temporal do consumo. |
@@ -172,9 +174,15 @@ Representa desafios de confirmação de e-mail. O token em claro nunca é persis
 | Nome | Colunas/filtro | Utilidade |
 | --- | --- | --- |
 | `idx_email_verification_challenges_token` | `(purpose, token_hash)` | Lookup de confirmação por token. |
-| `idx_email_verification_challenges_email_purpose_created_at` | `(email, purpose, created_at DESC)` | Cooldown e limite de envios por e-mail. |
+| `idx_email_verification_challenges_email_purpose_created_at` | `(email, purpose, created_at DESC)` | Diagnóstico histórico por destinatário e finalidade; cooldown e limite pertencem ao Redis. |
 | `idx_email_verification_challenges_user_purpose_created_at` | `(user_id, purpose, created_at DESC)` | Diagnóstico e consultas por usuário. |
 | `idx_email_verification_challenges_unconsumed_expiration` | `(purpose, expires_at) WHERE consumed_at IS NULL` | Suporte a limpeza/reconciliação futura de challenges abertos. |
+| `UQ_email_verification_challenges_automatic_user_purpose` | `(user_id, purpose) WHERE origin = 'AUTOMATIC'`, unique | Garante um único challenge automático inicial por usuário e finalidade. |
+
+### Observações
+
+- Novas criações declaram `AUTOMATIC` ou `MANUAL_RESEND`; `LEGACY_UNKNOWN` é reservado à reconstituição de linhas anteriores à migration.
+- A tabela representa token, expiração, consumo e auditoria. Cooldown, janela móvel e barreira concorrente são estado operacional no Redis.
 
 ## `password_change_events`
 
@@ -483,6 +491,7 @@ Os fluxos atuais usam a tabela para boas-vindas e verificação de e-mail. A exe
 | `processing_at` | `timestamptz` | `nullable` | Momento em que o worker iniciou o processamento atual ou mais recente. |
 | `sent_at` | `timestamptz` | `nullable` | Momento em que o provider aceitou o envio. |
 | `failed_at` | `timestamptz` | `nullable` | Momento da última falha registrada. |
+| `deliver_before` | `timestamptz` | `nullable` | Último instante em que uma tentativa ainda pode começar de forma útil; `null` representa mensagem sem prazo funcional. |
 | `created_at` | `timestamptz` | `not null default now()` | Quando a intenção foi criada. |
 | `updated_at` | `timestamptz` | `not null default now()` | Última atualização da intenção. |
 
@@ -495,6 +504,7 @@ Os fluxos atuais usam a tabela para boas-vindas e verificação de e-mail. A exe
 | `CHK_email_messages_attempts_count` | check | `attempts_count >= 0` | Impede contador de tentativas negativo. |
 | `CHK_email_messages_template_params_object` | check | `jsonb_typeof(template_params) = 'object'` | Garante que os parâmetros de template sejam sempre objeto JSON. |
 | `CHK_email_messages_template_version` | check | `template_version >= 1` | Impede referências a versões inválidas. |
+| `CHK_email_messages_deliver_before` | check | `deliver_before IS NULL OR deliver_before > created_at` | Impede uma intenção nascer com prazo de entrega já atingido. |
 
 ### Índices
 
@@ -524,6 +534,7 @@ Os fluxos atuais usam a tabela para boas-vindas e verificação de e-mail. A exe
 - A tabela não substitui `email_delivery_attempts`. Um log detalhado de tentativas deve ser criado em spec futura, se necessário.
 - Esta tabela contém e-mail de destinatário e parâmetros de template. Não exponha esses dados em endpoint de usuário sem uma spec que modele ownership, autorização e retenção.
 - IDs externos de template são resolvidos pelo adapter e não são persistidos.
+- Intenções de verificação usam `deliver_before = challenge.expires_at - 5 minutos`; o worker cancela a mensagem antes do provider quando o prazo é atingido.
 - `email-verification:v1` contém atualmente a URL com token de uso único em `template_params`; a proteção em repouso será estudada separadamente antes da produção.
 
 Mais detalhes de domínio estão em [Notifications](../notifications/README.md) e no catálogo de [templates de e-mail](../notifications/email-templates/README.md).

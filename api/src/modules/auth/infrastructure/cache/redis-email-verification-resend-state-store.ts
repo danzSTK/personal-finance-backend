@@ -14,6 +14,8 @@ import {
   EMAIL_VERIFICATION_MUTATION_TTL_SECONDS,
   EmailVerificationChallengeOrigin,
   EmailVerificationResendRestriction,
+  EmailVerificationResendMutationKind,
+  EmailVerificationResendStatus,
   NewEmailVerificationChallengeOrigin,
 } from '@/modules/auth/domain/constants/email-verification.constants';
 import { ABORT_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT } from '@/modules/auth/infrastructure/cache/scripts/abort-email-verification-resend-mutation.script';
@@ -30,6 +32,7 @@ const milliseconds = (seconds: number): number => seconds * 1_000;
 export class RedisEmailVerificationResendStateStore implements IEmailVerificationResendStateStore {
   constructor(private readonly redis: RedisService) {}
 
+  /** Executes the read-only business-state transition and validates its complete Lua response contract. */
   async load(userId: string, now: Date): Promise<EmailVerificationResendState> {
     const keys = this.keys(userId);
     const rawResult = await this.redis
@@ -50,7 +53,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
       const manualResendsUsed = this.parseManualCount(values[1]);
 
       return {
-        kind: 'AVAILABLE',
+        kind: EmailVerificationResendStatus.AVAILABLE,
         manualResendsUsed,
         manualResendsRemaining: this.parseRemaining(values[2], manualResendsUsed),
         lastLogicalSendAt: this.parseLastLogicalSendAt(values[3]),
@@ -62,7 +65,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
       const manualResendsUsed = this.parseManualCount(values[3]);
 
       return {
-        kind: 'BLOCKED',
+        kind: EmailVerificationResendStatus.BLOCKED,
         blockedBy: this.parseRestriction(values[1]),
         retryAfterSeconds: this.parseRetryAfterSeconds(values[2]),
         manualResendsUsed,
@@ -74,6 +77,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     throw new Error('Invalid email verification resend load status from Redis.');
   }
 
+  /** Evaluates all resend restrictions and acquires the Redis mutation barrier in one Lua execution. */
   async beginMutation(
     userId: string,
     mutationToken: string,
@@ -101,7 +105,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
       this.assertLength(values, 2, 'acquired mutation');
 
       return {
-        kind: 'ACQUIRED',
+        kind: EmailVerificationResendMutationKind.ACQUIRED,
         manualResendsUsed: this.parseManualCount(values[1]),
       };
     }
@@ -110,7 +114,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
       this.assertLength(values, 4, 'blocked mutation');
 
       return {
-        kind: 'BLOCKED',
+        kind: EmailVerificationResendMutationKind.BLOCKED,
         blockedBy: this.parseRestriction(values[1]),
         retryAfterSeconds: this.parseRetryAfterSeconds(values[2]),
         manualResendsUsed: this.parseManualCount(values[3]),
@@ -120,6 +124,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     throw new Error('Invalid email verification resend mutation status from Redis.');
   }
 
+  /** Finalizes a committed logical send atomically and validates every field returned by Redis. */
   async completeLogicalSend(input: CompleteEmailVerificationLogicalSendInput): Promise<void> {
     const keys = this.keys(input.userId);
     const rawResult = await this.redis
@@ -148,6 +153,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     this.parseNonNegativeInteger(values[3], 'cooldown remaining');
   }
 
+  /** Removes the pending barrier with compare-and-delete semantics, so another operation's lock is preserved. */
   async abortMutation(userId: string, mutationToken: string): Promise<void> {
     const rawResult = await this.redis
       .getClient()
@@ -166,6 +172,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     }
   }
 
+  /** Builds the four co-located Redis keys for one user in the canonical script order. */
   private keys(userId: string): [string, string, string, string] {
     return [
       CacheKeys.auth.emailVerification.manualResends(userId),
@@ -175,6 +182,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     ];
   }
 
+  /** Narrows an unknown Redis reply to the array shape required by every script contract. */
   private parseArray(value: unknown, operation: string): RedisScriptValue[] {
     if (!Array.isArray(value)) {
       throw new Error(`Invalid email verification Redis ${operation} response.`);
@@ -183,13 +191,22 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     return value as RedisScriptValue[];
   }
 
+  /** Rejects script replies whose arity differs from the documented logical response. */
   private assertLength(values: RedisScriptValue[], expected: number, operation: string): void {
     if (values.length !== expected) {
       throw new Error(`Invalid email verification Redis ${operation} response length.`);
     }
   }
 
+  /** Parses a Redis number/string while rejecting empty, fractional and unsafe integer values. */
   private parseInteger(value: RedisScriptValue | undefined, field: string): number {
+    if (
+      (typeof value !== 'number' && typeof value !== 'string') ||
+      (typeof value === 'string' && !/^-?\d+$/.test(value))
+    ) {
+      throw new Error(`Invalid email verification Redis ${field}.`);
+    }
+
     const parsed = Number(value);
 
     if (!Number.isSafeInteger(parsed)) {
@@ -199,6 +216,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     return parsed;
   }
 
+  /** Parses a safe integer and additionally requires a value greater than or equal to zero. */
   private parseNonNegativeInteger(value: RedisScriptValue | undefined, field: string): number {
     const parsed = this.parseInteger(value, field);
 
@@ -209,6 +227,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     return parsed;
   }
 
+  /** Validates that the manual count remains within the centrally defined product limit. */
   private parseManualCount(value: RedisScriptValue | undefined): number {
     const count = this.parseNonNegativeInteger(value, 'manual resend count');
 
@@ -219,6 +238,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     return count;
   }
 
+  /** Validates that Redis' remaining count exactly complements the number of resends already used. */
   private parseRemaining(value: RedisScriptValue | undefined, manualResendsUsed: number): number {
     const remaining = this.parseNonNegativeInteger(value, 'manual resend remaining');
 
@@ -229,6 +249,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     return remaining;
   }
 
+  /** Converts a positive millisecond wait into the conservative whole-second Retry-After value. */
   private parseRetryAfterSeconds(value: RedisScriptValue | undefined): number {
     const retryAfterMs = this.parseInteger(value, 'retry after');
 
@@ -239,6 +260,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     return Math.max(1, Math.ceil(retryAfterMs / 1_000));
   }
 
+  /** Maps the stable numeric Lua restriction code to the application-level literal union. */
   private parseRestriction(value: RedisScriptValue | undefined): EmailVerificationResendRestriction {
     switch (this.parseInteger(value, 'restriction')) {
       case 1:
@@ -252,6 +274,7 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     }
   }
 
+  /** Parses and validates the sanitized last logical-send JSON stored by the completion script. */
   private parseLastLogicalSendAt(value: RedisScriptValue | undefined): Date | null {
     if (value === '') {
       return null;
@@ -291,10 +314,10 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     return logicalSendAt;
   }
 
+  /** Accepts only origins that can be created by the current application. */
   private isLogicalSendOrigin(value: unknown): value is NewEmailVerificationChallengeOrigin {
     return (
-      value === EmailVerificationChallengeOrigin.AUTOMATIC ||
-      value === EmailVerificationChallengeOrigin.MANUAL_RESEND
+      value === EmailVerificationChallengeOrigin.AUTOMATIC || value === EmailVerificationChallengeOrigin.MANUAL_RESEND
     );
   }
 }

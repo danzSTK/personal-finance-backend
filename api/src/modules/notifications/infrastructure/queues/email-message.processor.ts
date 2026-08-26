@@ -9,7 +9,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Inject, OnApplicationBootstrap } from '@nestjs/common';
 import queueConfig from '@/config/queue.config';
 import type { ConfigType } from '@nestjs/config';
-import { Job } from 'bullmq';
+import { Job, UnrecoverableError } from 'bullmq';
 
 @Injectable()
 @Processor(NotificationsQueues.EMAIL)
@@ -33,6 +33,10 @@ export class EmailMessageProcessor extends WorkerHost implements OnApplicationBo
       throw new Error(`Unsupported notifications email job: ${job.name}`);
     }
     const result = await this.sendEmailMessageUseCase.execute({ emailMessageId: job.data.emailMessageId });
+
+    if (result.unrecoverable) {
+      throw new UnrecoverableError(`Email message ${job.data.emailMessageId} reached its delivery deadline.`);
+    }
 
     if (!result.sent) {
       this.logger.warn(

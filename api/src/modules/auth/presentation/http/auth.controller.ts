@@ -12,8 +12,11 @@ import { resolveTrustedClientIp } from '@/common/utils/client-ip.util';
 import appConfig from '@/config/app.config';
 import jwtConfig from '@/config/jwt.config';
 import { RefreshTokenValidationService } from '@/modules/auth/application/services/refresh-token-validation.service';
+import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
 import { ConfirmEmailVerificationUseCase } from '@/modules/auth/application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
 import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
+import { GetEmailVerificationResendStatusUseCase } from '@/modules/auth/application/use-cases/get-email-verification-resend-status/get-email-verification-resend-status.use-case';
+import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
 import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
 import { LogoutUseCase } from '@/modules/auth/application/use-cases/logout/logout.use-case';
 import { RefreshTokensUseCase } from '@/modules/auth/application/use-cases/refresh-tokens/refresh-tokens.use-case';
@@ -21,8 +24,6 @@ import { ResendEmailVerificationUseCase } from '@/modules/auth/application/use-c
 import { RevokeSessionUseCase } from '@/modules/auth/application/use-cases/revoke-session/revoke-session.use-case';
 import { SignInUseCase } from '@/modules/auth/application/use-cases/sign-in/sign-in.use-case';
 import { SignUpUseCase } from '@/modules/auth/application/use-cases/sign-up/sign-up.use-case';
-import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
-import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
 import { GoogleAuthGuard } from '@/modules/auth/infrastructure/guards/google-auth.guard';
 import { GoogleLinkAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-auth.guard';
 import { GoogleLinkInitAuthGuard } from '@/modules/auth/infrastructure/guards/google-link-init-auth.guard';
@@ -31,6 +32,7 @@ import { LocalAuthGuard } from '@/modules/auth/infrastructure/guards/local-auth.
 import { GoogleLinkAuthPayload } from '@/modules/auth/infrastructure/strategies/google-link.strategy';
 import { type RefreshStrategyResponse } from '@/modules/auth/infrastructure/strategies/refresh-strategy-response.interface';
 import { PasswordChangeCostGuard } from '@/modules/auth/presentation/guards/password-change-cost.guard';
+import { EmailVerificationResendStatus } from '@/modules/auth/domain/constants/email-verification.constants';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import {
   Body,
@@ -52,23 +54,32 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiExcludeEndpoint,
+  ApiExtraModels,
   ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { type Request, type Response } from 'express';
 import ms, { StringValue } from 'ms';
+import { ChangeUserPasswordDto } from '../dto/change-user-password.dto';
+import { ChangeUserPasswordResponseDto } from '../dto/change-user-password.response.dto';
 import { ConfirmEmailVerificationDto } from '../dto/confirm-email-verification.dto';
 import { EmailVerificationConfirmationResponseDto } from '../dto/email-verification-confirmation.response.dto';
+import {
+  EmailVerificationResendStatusAlreadyVerifiedResponseDto,
+  EmailVerificationResendStatusAvailableResponseDto,
+  EmailVerificationResendStatusBlockedResponseDto,
+  EmailVerificationResendStatusResponseDto,
+  toEmailVerificationResendStatusResponseDto,
+} from '../dto/email-verification-resend-status.response.dto';
 import { EmailVerificationResendResponseDto } from '../dto/email-verification-resend.response.dto';
 import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
 import { PasswordChangeStatusResponseDto } from '../dto/password-change-status.response.dto';
 import { RegisterDto } from '../dto/register.dto';
-import { ChangeUserPasswordDto } from '../dto/change-user-password.dto';
-import { ChangeUserPasswordResponseDto } from '../dto/change-user-password.response.dto';
 
 @ApiTags('auth')
 @AllowPendingEmailVerification()
@@ -87,6 +98,7 @@ export class AuthController {
     private readonly refreshTokenValidationService: RefreshTokenValidationService,
     private readonly changeUserPasswordUseCase: ChangeUserPasswordUseCase,
     private readonly getPasswordChangeStatusUseCase: GetPasswordChangeStatusUseCase,
+    private readonly getEmailVerificationResendStatusUseCase: GetEmailVerificationResendStatusUseCase,
 
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
@@ -470,16 +482,70 @@ export class AuthController {
   @ApiResponse({ status: 202, type: EmailVerificationResendResponseDto })
   @ApiResponse({ status: 200, description: 'E-mail já verificado', type: EmailVerificationResendResponseDto })
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
-  @ApiResponse({ status: 429, description: 'Cooldown ativo ou limite diário excedido', type: PlatformErrorResponseDto })
+  @ApiResponse({
+    status: 429,
+    description: 'Cooldown, limite diário ou outra mutação impedem o reenvio',
+    type: PlatformErrorResponseDto,
+  })
+  @ApiResponse({ status: 503, description: 'Estado operacional indisponível', type: PlatformErrorResponseDto })
   async resendEmailVerification(
     @CurrentUser() user: User,
     @Res({ passthrough: true }) res: Response,
   ): Promise<EmailVerificationResendResponseDto> {
     const result = await this.resendEmailVerificationUseCase.execute({ userId: user.id });
 
-    res.status(result.status === 'ALREADY_VERIFIED' ? HttpStatus.OK : HttpStatus.ACCEPTED);
+    res.status(result.status === EmailVerificationResendStatus.ALREADY_VERIFIED ? HttpStatus.OK : HttpStatus.ACCEPTED);
 
     return EmailVerificationResendResponseDto.fromStatus(result.status);
+  }
+
+  @Get('email-verification/resend/status')
+  @AllowPendingEmailVerification()
+  @ApiCookieAuth('accessToken')
+  @ApiExtraModels(
+    EmailVerificationResendStatusAvailableResponseDto,
+    EmailVerificationResendStatusBlockedResponseDto,
+    EmailVerificationResendStatusAlreadyVerifiedResponseDto,
+  )
+  @ApiOperation({
+    summary: 'Consultar disponibilidade do reenvio de verificação',
+    description: 'Retorna o estado operacional do reenvio para sincronização do frontend sem consumir o recurso.',
+  })
+  @ApiResponse({
+    status: 200,
+    headers: {
+      'Retry-After': {
+        description: 'Segundos até nova tentativa; presente somente quando o recurso está bloqueado.',
+        schema: { type: 'integer', minimum: 1, example: 91 },
+      },
+      'Cache-Control': {
+        description: 'Impede cache intermediário do estado do usuário.',
+        schema: { type: 'string', example: 'no-store' },
+      },
+    },
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(EmailVerificationResendStatusAvailableResponseDto) },
+        { $ref: getSchemaPath(EmailVerificationResendStatusBlockedResponseDto) },
+        { $ref: getSchemaPath(EmailVerificationResendStatusAlreadyVerifiedResponseDto) },
+      ],
+    },
+  })
+  @ApiResponse({ status: 401, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 403, type: PlatformErrorResponseDto })
+  @ApiResponse({ status: 503, type: PlatformErrorResponseDto })
+  async getEmailVerificationResendStatus(
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<EmailVerificationResendStatusResponseDto> {
+    const result = await this.getEmailVerificationResendStatusUseCase.execute({ userId: user.id });
+
+    response.setHeader('Cache-Control', 'no-store');
+    if (result.status === EmailVerificationResendStatus.BLOCKED) {
+      response.setHeader('Retry-After', String(result.retryAfterSeconds));
+    }
+
+    return toEmailVerificationResendStatusResponseDto(result);
   }
 
   @Post('providers/link/email')
