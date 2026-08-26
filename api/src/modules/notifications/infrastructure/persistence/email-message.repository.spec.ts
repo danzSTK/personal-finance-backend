@@ -26,6 +26,7 @@ const makeOrmEntity = (): EmailMessageOrmEntity => ({
   processing_at: null,
   sent_at: null,
   failed_at: null,
+  deliver_before: new Date('2026-01-01T10:10:00.000Z'),
   created_at: new Date('2026-01-01T10:00:00.000Z'),
   updated_at: new Date('2026-01-01T10:00:00.000Z'),
 });
@@ -80,6 +81,7 @@ describe('EmailMessageRepository', () => {
       });
       expect(result).toBeInstanceOf(EmailMessage);
       expect(result?.idempotencyKey).toBe('email:welcome:user:user-1');
+      expect(result?.deliverBefore).toEqual(new Date('2026-01-01T10:10:00.000Z'));
     });
   });
 
@@ -104,6 +106,7 @@ describe('EmailMessageRepository', () => {
           processingAt: ormEntity.processing_at,
           sentAt: ormEntity.sent_at,
           failedAt: ormEntity.failed_at,
+          deliverBefore: ormEntity.deliver_before,
           createdAt: ormEntity.created_at,
           updatedAt: ormEntity.updated_at,
         },
@@ -120,6 +123,7 @@ describe('EmailMessageRepository', () => {
           idempotency_key: 'email:welcome:user:user-1',
           template_key: 'welcome-email',
           template_version: 1,
+          deliver_before: new Date('2026-01-01T10:10:00.000Z'),
         }),
       );
       expect(result.id).toBe('email-message-1');

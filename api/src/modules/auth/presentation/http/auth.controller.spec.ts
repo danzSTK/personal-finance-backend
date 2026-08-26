@@ -7,6 +7,7 @@ import jwtConfig from '@/config/jwt.config';
 import { RefreshTokenValidationService } from '@/modules/auth/application/services/refresh-token-validation.service';
 import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
 import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
+import { GetEmailVerificationResendStatusUseCase } from '@/modules/auth/application/use-cases/get-email-verification-resend-status/get-email-verification-resend-status.use-case';
 import { ConfirmEmailVerificationUseCase } from '@/modules/auth/application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
 import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
@@ -18,6 +19,10 @@ import { SignInUseCase } from '@/modules/auth/application/use-cases/sign-in/sign
 import { SignUpUseCase } from '@/modules/auth/application/use-cases/sign-up/sign-up.use-case';
 import { AuthController } from '@/modules/auth/presentation/http/auth.controller';
 import { PasswordChangeCostGuard } from '@/modules/auth/presentation/guards/password-change-cost.guard';
+import {
+  EmailVerificationResendRestriction,
+  EmailVerificationResendStatus,
+} from '@/modules/auth/domain/constants/email-verification.constants';
 import { User } from '@/modules/users/domain/entities/user.entity';
 import { Test } from '@nestjs/testing';
 import { Response } from 'express';
@@ -27,6 +32,7 @@ describe('AuthController', () => {
   let controller: AuthController;
   let changeUserPasswordUseCase: jest.Mocked<ChangeUserPasswordUseCase>;
   let getPasswordChangeStatusUseCase: jest.Mocked<GetPasswordChangeStatusUseCase>;
+  let getEmailVerificationResendStatusUseCase: jest.Mocked<GetEmailVerificationResendStatusUseCase>;
 
   beforeEach(async () => {
     changeUserPasswordUseCase = {
@@ -35,6 +41,15 @@ describe('AuthController', () => {
     getPasswordChangeStatusUseCase = {
       execute: jest.fn().mockResolvedValue({ status: true }),
     } as unknown as jest.Mocked<GetPasswordChangeStatusUseCase>;
+    getEmailVerificationResendStatusUseCase = {
+      execute: jest.fn().mockResolvedValue({
+        status: EmailVerificationResendStatus.AVAILABLE,
+        available: true,
+        manualResendsUsed: 0,
+        manualResendsRemaining: 5,
+        lastLogicalSendAt: null,
+      }),
+    } as unknown as jest.Mocked<GetEmailVerificationResendStatusUseCase>;
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
@@ -50,6 +65,7 @@ describe('AuthController', () => {
         { provide: RefreshTokenValidationService, useValue: {} },
         { provide: ChangeUserPasswordUseCase, useValue: changeUserPasswordUseCase },
         { provide: GetPasswordChangeStatusUseCase, useValue: getPasswordChangeStatusUseCase },
+        { provide: GetEmailVerificationResendStatusUseCase, useValue: getEmailVerificationResendStatusUseCase },
         {
           provide: jwtConfig.KEY,
           useValue: {
@@ -174,6 +190,51 @@ describe('AuthController', () => {
       });
 
       expect(getPasswordChangeStatusUseCase.execute).toHaveBeenCalledWith({ userId });
+      expect(response.setHeader).toHaveBeenCalledWith('Retry-After', '91');
+    });
+  });
+
+  describe('getEmailVerificationResendStatus', () => {
+    it('serializes the blocked shape and synchronizes Retry-After without caching', async () => {
+      const userId = randomUUID();
+      const user = User.reconstitute(
+        {
+          userName: null,
+          firstName: null,
+          lastName: null,
+          email: Email.reconstitute('pending@example.com'),
+          status: UserStatus.PENDING_EMAIL_VERIFICATION,
+          avatarAssetId: null,
+          authProviders: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        userId,
+      );
+      const response = { setHeader: jest.fn() } as unknown as Response;
+      getEmailVerificationResendStatusUseCase.execute.mockResolvedValue({
+        status: EmailVerificationResendStatus.BLOCKED,
+        available: false,
+        blockedBy: EmailVerificationResendRestriction.COOLDOWN,
+        retryAfterSeconds: 91,
+        manualResendsUsed: 2,
+        manualResendsRemaining: 3,
+        lastLogicalSendAt: new Date('2026-08-26T00:00:00.000Z'),
+      });
+
+      await expect(controller.getEmailVerificationResendStatus(user, response)).resolves.toEqual({
+        object: 'email_verification.resend_status.blocked',
+        status: EmailVerificationResendStatus.BLOCKED,
+        available: false,
+        blockedBy: EmailVerificationResendRestriction.COOLDOWN,
+        retryAfterSeconds: 91,
+        manualResendsUsed: 2,
+        manualResendsRemaining: 3,
+        manualResendLimit: 5,
+        windowSeconds: 86400,
+        lastLogicalSendAt: '2026-08-26T00:00:00.000Z',
+      });
+      expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
       expect(response.setHeader).toHaveBeenCalledWith('Retry-After', '91');
     });
   });

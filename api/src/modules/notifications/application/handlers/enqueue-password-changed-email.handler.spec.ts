@@ -39,6 +39,7 @@ const makeEmailMessage = (): EmailMessage =>
       processingAt: null,
       sentAt: null,
       failedAt: null,
+      deliverBefore: null,
       createdAt: occurredAt,
       updatedAt: occurredAt,
     },
