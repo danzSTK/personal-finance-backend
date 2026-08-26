@@ -1,12 +1,12 @@
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { EmailVerificationChallenge } from '@/modules/auth/domain/entities/email-verification-challenge.entity';
-
-export type CreateEmailVerificationChallengeMode = 'automatic' | 'resend';
+import { NewEmailVerificationChallengeOrigin } from '@/modules/auth/domain/constants/email-verification.constants';
 
 export interface CreateEmailVerificationChallengeUseCaseInput {
   userId: string;
   email: string;
-  mode: CreateEmailVerificationChallengeMode;
+  origin: NewEmailVerificationChallengeOrigin;
+  now?: Date;
   options?: IRepositoryOptions;
 }
 

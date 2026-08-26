@@ -41,6 +41,7 @@ const makeEmailMessage = (): EmailMessage =>
       processingAt: null,
       sentAt: null,
       failedAt: null,
+      deliverBefore: new Date('2026-01-01T10:10:00.000Z'),
       createdAt: new Date('2026-01-01T10:00:00.000Z'),
       updatedAt: new Date('2026-01-01T10:00:00.000Z'),
     },
@@ -121,6 +122,7 @@ describe('CreateEmailVerificationMessageUseCase', () => {
         challengeId: 'challenge-1',
         email: 'event-email@example.com',
         token: 'token+/with=special?characters',
+        deliverBefore: new Date(Date.now() + 10 * 60 * 1_000),
       });
 
       expect(result.created).toBe(true);
@@ -145,6 +147,7 @@ describe('CreateEmailVerificationMessageUseCase', () => {
         challengeId: 'challenge-1',
         email: 'daniel@example.com',
         token: null,
+        deliverBefore: new Date(Date.now() + 10 * 60 * 1_000),
       });
 
       expect(result).toEqual({ emailMessage: existingMessage, created: false, shouldEnqueue: true });
@@ -160,6 +163,7 @@ describe('CreateEmailVerificationMessageUseCase', () => {
         challengeId: 'challenge-1',
         email: 'daniel@example.com',
         token: null,
+        deliverBefore: new Date(Date.now() + 10 * 60 * 1_000),
       });
 
       expect(result).toEqual({ emailMessage: null, created: false, shouldEnqueue: false });
@@ -177,6 +181,7 @@ describe('CreateEmailVerificationMessageUseCase', () => {
           challengeId: 'challenge-1',
           email: 'daniel@example.com',
           token: 'token',
+          deliverBefore: new Date(Date.now() + 10 * 60 * 1_000),
         }),
       ).rejects.toBeInstanceOf(EmailVerificationUserNotFoundError);
       expect(saveEmailMessage).not.toHaveBeenCalled();
@@ -193,6 +198,7 @@ describe('CreateEmailVerificationMessageUseCase', () => {
         challengeId: 'challenge-1',
         email: 'daniel@example.com',
         token: 'token',
+        deliverBefore: new Date(Date.now() + 10 * 60 * 1_000),
       });
 
       expect(result).toEqual({ emailMessage: concurrentMessage, created: false, shouldEnqueue: true });

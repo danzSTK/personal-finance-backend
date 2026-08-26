@@ -45,6 +45,7 @@ const makeEmailMessage = (status: EmailMessageStatus = EmailMessageStatus.PENDIN
       processingAt: null,
       sentAt: null,
       failedAt: null,
+      deliverBefore: null,
       createdAt: occurredAt,
       updatedAt: occurredAt,
     },

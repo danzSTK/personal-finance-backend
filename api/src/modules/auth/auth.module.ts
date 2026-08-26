@@ -28,6 +28,7 @@ import { ConfirmEmailVerificationUseCase } from './application/use-cases/confirm
 import { ResendEmailVerificationUseCase } from './application/use-cases/resend-email-verification/resend-email-verification.use-case';
 import { ChangeUserPasswordUseCase } from './application/use-cases/change-user-password/change-user-password.use-case';
 import { GetPasswordChangeStatusUseCase } from './application/use-cases/get-password-change-status/get-password-change-status.use-case';
+import { GetEmailVerificationResendStatusUseCase } from './application/use-cases/get-email-verification-resend-status/get-email-verification-resend-status.use-case';
 
 // Infrastructure — Strategies
 import { LocalStrategy } from './infrastructure/strategies/local.strategy';
@@ -87,6 +88,7 @@ import { PasswordChangeCostGuard } from './presentation/guards/password-change-c
     RefreshTokenValidationService,
     ChangeUserPasswordUseCase,
     GetPasswordChangeStatusUseCase,
+    GetEmailVerificationResendStatusUseCase,
 
     // Strategies
     LocalStrategy,

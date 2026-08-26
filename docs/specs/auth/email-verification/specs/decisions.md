@@ -102,18 +102,24 @@ O link é poderoso o suficiente para ativar uma conta, então o tempo de validad
 Impact:
 O resend precisa ser simples e confiável para recuperar UX quando o token expirar.
 
-## DEC-008 - Limite de 5 e-mails por 24 horas inclui envio automático
+## DEC-008 - Limite de 5 e-mails por 24 horas incluía envio automático
 
-Status: accepted
+Status: superseded by DEC-017
 
-Decision:
-O primeiro envio automático criado por `user.created` conta no limite de 5 em 24 horas para o mesmo `email + purpose`.
+Historical decision:
+O primeiro envio automático criado por `user.created` contava no limite de 5 em
+24 horas para o mesmo `email + purpose`.
 
 Reason:
 O limite é sobre volume de e-mails enviados para o destinatário, independentemente da origem do envio.
 
-Impact:
-Depois do envio automático, restam no máximo 4 resends na janela móvel de 24 horas.
+Historical impact:
+Depois do envio automático, restavam no máximo 4 resends na janela móvel de 24
+horas.
+
+Supersession:
+Esta regra não integra o desenho atual. DEC-017 preserva o automático no
+cooldown, mas retira esse envio do limite manual.
 
 ## DEC-009 - Challenge separado de email_messages
 
@@ -192,3 +198,313 @@ As rotas de auth e sessão são essenciais para usuários `PENDING_EMAIL_VERIFIC
 
 Impact:
 O bloqueio por e-mail pendente continua valendo para recursos de produto. No módulo `auth`, a regra de negócio específica de cada endpoint ainda decide o que faz sentido para usuário pendente.
+
+## DEC-015 - Redis é a autoridade operacional da política de resend
+
+Status: accepted
+
+Decision:
+Cooldown, contagem de reenvios manuais, último envio lógico e barreira de
+mutação passam a ser avaliados no Redis por `userId`. A tabela de challenges
+deixa de ser consultada para decidir cooldown ou limite diário.
+
+Reason:
+Esses dados são temporais, possuem expiração natural e precisam retornar PTTL
+com baixa latência. `email_verification_challenges` representa autorização por
+token, não um rate limiter operacional.
+
+Alternatives considered:
+
+- Continuar contando challenges no PostgreSQL: simples, mas mistura
+  responsabilidades e não fornece TTL diretamente.
+- Persistir somente contadores fixos: não representa corretamente uma janela
+  móvel de 24 horas.
+
+Impact:
+Exige store Redis, chaves centralizadas, scripts Lua, testes com Redis real e
+contrato explícito para falhas entre Redis e PostgreSQL.
+
+## DEC-016 - Estado ausente é fail-open e Redis indisponível é fail-closed
+
+Status: accepted
+
+Decision:
+Ausência total ou parcial das chaves do usuário representa estado vazio e
+permite a operação. Erro de conexão, timeout ou resposta Redis inválida retorna
+`503 EMAIL_VERIFICATION_STATE_UNAVAILABLE` antes de uma mutação manual.
+
+Reason:
+O resend não é crítico o suficiente para exigir reconstrução do estado em cada
+cache miss, mas indisponibilidade não pode ser confundida com ausência. Liberar
+durante outage poderia persistir várias intenções que seriam enviadas em rajada
+quando BullMQ retornasse.
+
+Alternatives considered:
+
+- Hidratar pelo PostgreSQL: preserva limites, porém recoloca consultas de janela
+  no caminho quente e aumenta complexidade operacional.
+- Fail-open também em indisponibilidade: maior disponibilidade, com risco de
+  abuso e rajada de e-mails reconciliados.
+
+Impact:
+Perda de chaves pode reiniciar cooldown e contagem. Esse comportamento deve ser
+testado, documentado e monitorado.
+
+## DEC-017 - Automático inicia cooldown e não entra no limite manual
+
+Status: accepted
+
+Decision:
+O envio automático inicial gera cooldown de 60 segundos, mas não é inserido no
+contador de cinco reenvios manuais da janela móvel de 24 horas.
+
+Reason:
+O usuário não escolheu consumir o envio inicial. Ainda assim, o cooldown evita
+um resend imediato enquanto o primeiro job está em trânsito.
+
+Impact:
+Depois do automático, o usuário mantém cinco resends manuais. A decisão anterior
+DEC-008 foi substituída.
+
+## DEC-018 - Cooldown exponencial limitado usa constantes centrais
+
+Status: accepted
+
+Decision:
+O automático produz 60 segundos. Depois de cada manual confirmado, usar
+`min(60 * 2 ^ manualResendsUsedAfterSend, 600)`, resultando em 120, 240, 480,
+600 e 600 segundos. Limite 5, janela 86.400 segundos, cooldown inicial 60,
+máximo 600 e janela útil mínima 300 ficam em constantes centrais, não em
+variáveis de ambiente.
+
+Reason:
+Esses valores controlam consumo de recurso e comportamento de produto. Mudá-los
+deve exigir diff, revisão e atualização da spec, em vez de alteração operacional
+silenciosa por ambiente.
+
+Alternatives considered:
+
+- Cooldown fixo: não aumenta fricção progressiva para uso repetido.
+- Cooldown sem teto: pode superar o TTL e deixar o usuário sem link utilizável.
+- Variáveis de ambiente: flexíveis, mas permitem divergência não versionada.
+
+Impact:
+Remover `EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES` e
+`EMAIL_VERIFICATION_DAILY_LIMIT`. O TTL configurado do token deve respeitar a
+invariante de 900 segundos com os valores atuais.
+
+## DEC-019 - Persistir a origem do challenge
+
+Status: accepted
+
+Decision:
+Adicionar `email_verification_challenges.origin` com `AUTOMATIC`,
+`MANUAL_RESEND` e `LEGACY_UNKNOWN`. Novos challenges usam somente as duas
+primeiras origens; legado é preenchido na migration ou pelo default temporário
+quando code N escreve durante rollback.
+
+Reason:
+Origem é procedência do fato, útil para auditoria, idempotência e diagnóstico,
+sem transformar a tabela em contador temporal.
+
+Alternatives considered:
+
+- Manter origem somente no Redis: perde contexto após expiração ou perda de
+  chaves.
+- Inferir pela ordem dos challenges: ambíguo e incorreto sob retries.
+
+Impact:
+Exige uma nova coluna, check constraint, mapper, domínio e índice partial unique
+que impeça dois challenges automáticos por usuário/purpose.
+
+## DEC-020 - Escopo Redis por userId
+
+Status: accepted
+
+Decision:
+As chaves da política usam `userId` e a hash tag `{userId}`.
+
+Reason:
+Resend e status são autenticados e pertencem à conta. `userId` evita PII na chave
+e mantém todas as chaves do usuário no mesmo slot para scripts Redis Cluster.
+
+Impact:
+O limite deixa de ser compartilhado por texto de e-mail entre contas distintas.
+Troca/reuso de endereço continua fora do escopo da feature.
+
+## DEC-021 - Reserva Redis precede o commit e projeção só registra fatos confirmados
+
+Status: accepted
+
+Decision:
+Um script atômico avalia restrições e adquire `pending` antes da transação. O
+contador e o cooldown só são atualizados depois que challenge e intenção forem
+confirmados no PostgreSQL. Rollback executa compare-and-delete e TTL é fallback.
+
+Reason:
+A barreira impede concorrência; atualizar contadores antes do commit criaria
+envios fantasmas se a transação falhasse.
+
+Impact:
+Falha depois do commit e antes da finalização Redis pode deixar a projeção
+atrasada. A API preserva `202`, a barreira expira e a política fail-open aceita
+esse risco raro.
+
+## DEC-022 - deliver_before é um prazo genérico de entrega
+
+Status: accepted
+
+Decision:
+Adicionar `email_messages.deliver_before timestamptz null`. Para verification,
+persistir `challenge.expiresAt - 300 segundos`; `null` mantém o comportamento de
+mensagens sem deadline.
+
+Reason:
+O conceito pode ser reutilizado por outras notificações e permite que o worker
+decida localmente, sem dependência circular de notifications para auth. Verificar
+somente `expiresAt > now` ainda poderia enviar um token com poucos segundos úteis.
+
+Alternatives considered:
+
+- Consultar o challenge no worker: exige relacionamento explícito e acopla
+  notifications a auth.
+- Extrair challenge id da idempotency key: usa uma string operacional como
+  relacionamento e é frágil.
+
+Impact:
+Exige uma coluna nullable e uma constraint em `email_messages`, além de alterações
+na entidade, mapper, repository e criação da intenção.
+
+## DEC-023 - Deadline vencido cancela a intenção e falha o job sem retry
+
+Status: accepted
+
+Decision:
+Quando `deliver_before <= now`, marcar `email_messages` como `CANCELED` antes de
+retornar um resultado terminal. O processor lança `UnrecoverableError` para o
+BullMQ mover o job a failed sem usar as tentativas restantes.
+
+O instante deve ser lido depois da aquisição do lock. Intenções com deadline são
+revalidadas sob um novo lock imediatamente antes do provider, pois o preparo ou a
+espera transacional podem atravessar `deliver_before`. Depois do commit dessa
+revalidação, uma última leitura antecede `MailService.send`; se o prazo cruzou, o
+cancelamento volta ao lock. A chamada externa nunca mantém a transação aberta.
+
+Reason:
+Não houve falha do provider; a mensagem perdeu utilidade. O estado SQL terminal
+impede o reconciliador de reenfileirar, enquanto o estado failed no BullMQ dá
+visibilidade operacional.
+
+Impact:
+O caso de uso não importa BullMQ. Erro e logs devem ser sanitizados e nunca conter
+URL, token ou template params.
+
+## DEC-024 - Expor status do resend para sincronização do frontend
+
+Status: accepted
+
+Decision:
+Criar `GET /auth/email-verification/resend/status`, autenticado. O endpoint retorna
+`200` com formas `AVAILABLE`, `BLOCKED` ou `ALREADY_VERIFIED`; quando bloqueado,
+repete o mesmo valor em `retryAfterSeconds` e `Retry-After` e usa
+`Cache-Control: no-store`.
+
+As formas `AVAILABLE` e `ALREADY_VERIFIED` preservam o campo
+`retryAfterSeconds` explicitamente como `null`; somente a forma `BLOCKED` usa um
+inteiro positivo e emite o header.
+
+Reason:
+O frontend precisa bloquear consumo inválido e sincronizar seu contador local sem
+executar um resend apenas para descobrir a restrição.
+
+Impact:
+Exige use case de leitura, três response DTOs com `object` próprio, Swagger,
+documentação de integração e testes de body/header. Polling contínuo por segundo
+não faz parte do contrato recomendado.
+
+## DEC-025 - Documentar individualmente todos os scripts Lua
+
+Status: accepted
+
+Decision:
+Cada script Lua deve possuir documentação com objetivo, chaves, argumentos,
+retornos, transição atômica, momento de chamada, idempotência e falhas.
+
+Reason:
+Scripts executam transições multi-key fora do type checker TypeScript. O contrato
+documentado reduz risco de alterar posições de `KEYS`/`ARGV` ou interpretar
+retornos incorretamente.
+
+Impact:
+`docs/auth/email-verification/lua-scripts.md` é parte obrigatória da entrega e
+deve evoluir junto dos scripts.
+
+## DEC-026 - Prioridade de e-mails fica fora desta feature
+
+Status: accepted
+
+Decision:
+Não alterar prioridades BullMQ na issue 76.
+
+Reason:
+Prioridade afeta todos os tipos de notificação, producer, reconciliador e risco de
+starvation. É uma capacidade transversal que merece feature e critérios próprios.
+
+Impact:
+Todos os jobs continuam sem prioridade explícita nesta entrega.
+
+## DEC-027 - Estados da feature usam const objects tipados
+
+Status: accepted
+
+Decision:
+Centralizar `AVAILABLE`, `BLOCKED`, `ALREADY_VERIFIED`, `QUEUED` e `ACQUIRED`
+em `EmailVerificationResendStatus` e `EmailVerificationResendMutationKind`. Porta,
+adapter, use cases, DTOs e controller usam os valores e tipos derivados desses
+objetos, sem repetir magic strings.
+
+Reason:
+Esses valores formam o vocabulário estável do fluxo e participam de uniões
+discriminadas e do contrato HTTP. Literais espalhados permitem divergência entre
+camadas e dificultam refactors seguros.
+
+Impact:
+As strings aparecem diretamente apenas na declaração central e nos exemplos de
+documentação. Novos estados exigem uma alteração explícita no catálogo tipado.
+
+## DEC-028 - origin mantém default até o contract de compatibilidade
+
+Status: accepted
+
+Decision:
+Manter `DEFAULT 'LEGACY_UNKNOWN'` na expansão de `origin`, mesmo que code N+1
+sempre grave uma origem explícita. Registrar o shim como `DB-COMPAT-001` em
+`docs/architecture/compatibility.md` e removê-lo somente em nova migration.
+
+Reason:
+Migrations precedem a ativação e não são revertidas automaticamente. Code N omite
+a coluna; sem default, rollback da aplicação quebraria inserts com `NOT NULL`.
+
+Impact:
+O banco aceita temporariamente inserts legados. O contract fica bloqueado até
+code N sair da janela de rollback e deve remover exatamente o default, sem editar
+a migration já aplicada.
+
+## DEC-029 - A barreira de resend é renovada em checkpoints transacionais
+
+Status: accepted
+
+Decision:
+Adicionar um script compare-and-`PEXPIRE` que renova `pending` somente quando o
+mutation token ainda é o dono. O resend o executa depois do lock PostgreSQL e
+depois de cada operação assíncrona relevante antes do commit.
+
+Reason:
+Um TTL fixo pode expirar durante espera pelo row lock ou durante uma operação SQL.
+Renovar depois de cada espera detecta token perdido antes da próxima escrita ou
+do commit, sem criar timers concorrentes ou manter uma task em background.
+
+Impact:
+Ausência da chave, token divergente, retorno inválido ou Redis indisponível falha
+fechado com rollback e `EMAIL_VERIFICATION_STATE_UNAVAILABLE`. A renovação final
+restaura o TTL de 30 segundos para cobrir commit e `complete-logical-send`.

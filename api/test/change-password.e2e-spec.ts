@@ -10,6 +10,7 @@ import { PasswordChangeBlockedError } from '@/modules/auth/application/errors';
 import { RefreshTokenValidationService } from '@/modules/auth/application/services/refresh-token-validation.service';
 import { ChangeUserPasswordUseCase } from '@/modules/auth/application/use-cases/change-user-password/change-user-password.use-case';
 import { GetPasswordChangeStatusUseCase } from '@/modules/auth/application/use-cases/get-password-change-status/get-password-change-status.use-case';
+import { GetEmailVerificationResendStatusUseCase } from '@/modules/auth/application/use-cases/get-email-verification-resend-status/get-email-verification-resend-status.use-case';
 import { ConfirmEmailVerificationUseCase } from '@/modules/auth/application/use-cases/confirm-email-verification/confirm-email-verification.use-case';
 import { GetActiveSessionsUseCase } from '@/modules/auth/application/use-cases/get-active-sessions/get-active-sessions.use-case';
 import { LinkEmailProviderUseCase } from '@/modules/auth/application/use-cases/link-email-provider/link-email-provider.use-case';
@@ -71,6 +72,7 @@ describe('Change password HTTP contract (e2e)', () => {
         { provide: RefreshTokenValidationService, useValue: {} },
         { provide: ChangeUserPasswordUseCase, useValue: changeUserPasswordUseCase },
         { provide: GetPasswordChangeStatusUseCase, useValue: getPasswordChangeStatusUseCase },
+        { provide: GetEmailVerificationResendStatusUseCase, useValue: { execute: jest.fn() } },
         {
           provide: jwtConfig.KEY,
           useValue: {

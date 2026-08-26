@@ -30,6 +30,10 @@ export const EmailMessageLimits = {
   lastErrorMessageMaxLength: 2_000,
 } as const;
 
+export const EmailMessageFailureCode = {
+  DELIVERY_DEADLINE_EXCEEDED: 'EMAIL_MESSAGE_DELIVERY_DEADLINE_EXCEEDED',
+} as const;
+
 export const WelcomeEmailIdempotencyKeys = {
   user: (userId: string): string => `email:welcome:user:${userId}`,
 } as const;

@@ -30,6 +30,7 @@ const makeEmailMessage = (): EmailMessage =>
       processingAt: null,
       sentAt: null,
       failedAt: null,
+      deliverBefore: null,
       createdAt: new Date('2026-01-01T10:00:00.000Z'),
       updatedAt: new Date('2026-01-01T10:00:00.000Z'),
     },

@@ -85,9 +85,11 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | `PASSWORD_CHANGE_OPERATION_PENDING`       |  `429` | Outra mutação de senha está em andamento                                |
 | `PASSWORD_CHANGE_COST_LIMITED`            |  `429` | Limite técnico por sessão ou IP foi excedido                            |
 | `PASSWORD_CHANGE_STATE_UNAVAILABLE`       |  `503` | Estado operacional de segurança não pôde ser carregado                  |
-| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE`      |  `429` | Reenvio de verificação solicitado antes de 60 minutos                   |
-| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` |  `429` | Limite de 5 e-mails de verificação em 24 horas foi excedido             |
+| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE`      |  `429` | Cooldown exponencial do reenvio de verificação ainda está ativo         |
+| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` |  `429` | Limite de 5 resends manuais na janela móvel de 24 horas foi atingido    |
+| `EMAIL_VERIFICATION_OPERATION_PENDING`    |  `429` | Outra mutação de reenvio está em andamento                              |
 | `EMAIL_VERIFICATION_REQUIRED`             |  `403` | Usuário autenticado ainda precisa confirmar e-mail                      |
+| `EMAIL_VERIFICATION_STATE_UNAVAILABLE`    |  `503` | Estado operacional do reenvio não pôde ser carregado                    |
 | `EMAIL_VERIFICATION_TOKEN_EXPIRED`        |  `410` | Token de confirmação de e-mail expirou                                  |
 | `EMAIL_VERIFICATION_TOKEN_INVALID`        |  `400` | Token de confirmação de e-mail inválido                                 |
 | `EMAIL_VERIFICATION_USER_BLOCKED`         |  `409` | Usuário bloqueado tentou confirmar e-mail                               |
@@ -159,5 +161,5 @@ Erros de DTO usam `VALIDATION_ERROR`.
 - Não dependa de texto exato em `message`.
 - Para `401`, tente refresh/session flow quando aplicável.
 - Para `409`, trate como conflito de regra de negócio, não como falha técnica.
-- Para erros `429` da alteração de senha, respeite o header `Retry-After` ou
+- Para erros `429` da alteração de senha ou do reenvio de verificação, respeite o header `Retry-After` ou
   `details.retryAfterSeconds`; ambos usam segundos inteiros.

@@ -1,11 +1,16 @@
 import { Email } from '@/common/domain/value-objects/email.value-object';
-import { EmailVerificationPurpose } from '@/modules/auth/domain/constants/email-verification.constants';
+import {
+  EmailVerificationChallengeOrigin,
+  EmailVerificationPurpose,
+  NewEmailVerificationChallengeOrigin,
+} from '@/modules/auth/domain/constants/email-verification.constants';
 import { InvalidEmailVerificationChallengeError } from '@/modules/auth/domain/errors/invalid-email-verification-challenge.error';
 
 export interface EmailVerificationChallengeProps {
   userId: string;
   email: string;
   purpose: EmailVerificationPurpose;
+  origin: EmailVerificationChallengeOrigin;
   tokenHash: string;
   expiresAt: Date;
   consumedAt: Date | null;
@@ -32,6 +37,10 @@ export class EmailVerificationChallenge {
 
   get tokenHash(): string {
     return this.props.tokenHash;
+  }
+
+  get origin(): EmailVerificationChallengeOrigin {
+    return this.props.origin;
   }
 
   get expiresAt(): Date {
@@ -67,14 +76,18 @@ export class EmailVerificationChallenge {
   }
 
   static create(
-    props: Omit<EmailVerificationChallengeProps, 'consumedAt' | 'createdAt'>,
+    props: Omit<EmailVerificationChallengeProps, 'consumedAt' | 'createdAt' | 'origin'> & {
+      origin: NewEmailVerificationChallengeOrigin;
+      createdAt?: Date;
+    },
     id: string,
   ): EmailVerificationChallenge {
+    const { createdAt, ...challengeProps } = props;
     const challenge = new EmailVerificationChallenge(
       {
-        ...props,
+        ...challengeProps,
         consumedAt: null,
-        createdAt: new Date(),
+        createdAt: createdAt ?? new Date(),
       },
       id,
     );
@@ -97,6 +110,13 @@ export class EmailVerificationChallenge {
 
     if (this.props.purpose !== EmailVerificationPurpose.EMAIL_VERIFICATION) {
       throw new InvalidEmailVerificationChallengeError('Email verification purpose is invalid.');
+    }
+
+    if (
+      this.props.origin !== EmailVerificationChallengeOrigin.AUTOMATIC &&
+      this.props.origin !== EmailVerificationChallengeOrigin.MANUAL_RESEND
+    ) {
+      throw new InvalidEmailVerificationChallengeError('New email verification challenge origin is invalid.');
     }
 
     if (!/^[a-f0-9]{64}$/.test(this.props.tokenHash)) {

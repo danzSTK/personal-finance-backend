@@ -1,9 +1,9 @@
-import { ApplicationError } from '@/shared/application';
+import { RetryAfterApplicationError } from '@/shared/application';
 
-export class EmailVerificationDailyLimitExceededError extends ApplicationError {
+export class EmailVerificationDailyLimitExceededError extends RetryAfterApplicationError {
   readonly code = 'EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED';
 
-  constructor() {
-    super('Email verification daily limit exceeded.');
+  constructor(retryAfterSeconds: number) {
+    super('Email verification daily limit exceeded.', retryAfterSeconds);
   }
 }

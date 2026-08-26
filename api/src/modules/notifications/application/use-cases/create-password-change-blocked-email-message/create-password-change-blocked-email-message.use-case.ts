@@ -80,6 +80,7 @@ export class CreatePasswordChangeBlockedEmailMessageUseCase {
         processingAt: null,
         sentAt: null,
         failedAt: null,
+        deliverBefore: null,
       },
       randomUUID(),
     );

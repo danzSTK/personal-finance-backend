@@ -21,6 +21,7 @@ export class EmailMessageMapper {
         processingAt: entity.processing_at,
         sentAt: entity.sent_at,
         failedAt: entity.failed_at,
+        deliverBefore: entity.deliver_before,
         createdAt: entity.created_at,
         updatedAt: entity.updated_at,
       },
@@ -47,6 +48,7 @@ export class EmailMessageMapper {
       processing_at: emailMessage.processingAt,
       sent_at: emailMessage.sentAt,
       failed_at: emailMessage.failedAt,
+      deliver_before: emailMessage.deliverBefore,
       created_at: emailMessage.createdAt,
       updated_at: emailMessage.updatedAt,
     };
