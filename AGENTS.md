@@ -196,6 +196,78 @@ Before creating, generating, or running any migration, read `docs/database/schem
 
 Never ship entity schema changes without a migration. Never modify applied migrations; create a new migration to revert or adjust.
 
+## Code Review Rules
+
+Passing builds, tests, lint, and type checks is necessary but not sufficient for approval. Review the changed behavior against every applicable invariant in this file and the authoritative documentation below. Focus findings on correctness, reliability, compatibility, security, and consequential maintainability risks introduced by the pull request; leave formatting and other deterministic checks to CI.
+
+For every finding:
+
+- Identify the affected file and line, the violated invariant or authoritative document, and an observable failure scenario.
+- Explain the consequence and provide a safe implementation path.
+- Assign priority from impact and reachability, not preference. Do not report speculative issues without a concrete path to failure or preference-only nits when the implementation follows a documented safe path.
+- Do not approve solely because the code runs. If no finding remains, state any material residual risk or test gap.
+
+### Authoritative documentation
+
+When reviewing a change, treat the most specific applicable documentation as the source of truth:
+
+- `docs/architecture.md` for system-wide boundaries and dependency direction.
+- `docs/specs/**/specs/requirements.md`, `design.md`, and `decisions.md` for feature behavior, design, and accepted trade-offs.
+- `docs/database/schema.md` for the current database model and database-level invariants.
+- `docs/errors/README.md`, `docs/events/README.md`, and `docs/notifications/README.md` for platform contracts.
+- `docs/platform/queue-infrastructure.md` and `docs/platform/worker-operations.md` for queue and worker reliability.
+- `docs/integrations/` for consumer-facing HTTP contracts, and each domain's `reference/invariants.md` when present for business invariants.
+
+If code contradicts an applicable documented decision in a way that can affect correctness, reliability, compatibility, or security, report it. An intentional decision change is safe only when the pull request updates the applicable specification and documentation together with the implementation and preserves a compatible migration path where required.
+
+### Architectural boundaries
+
+- **Context:** Changes that add or move behavior across domain, application, infrastructure, or presentation layers.
+- **Invariant:** Domain code remains independent of NestJS, TypeORM, Redis, BullMQ, and HTTP. Application code orchestrates through project-owned interfaces; infrastructure and presentation contain framework adapters.
+- **Violation:** Report framework imports or decorators in the domain, ORM entities escaping infrastructure, controllers containing business rules, or use cases depending directly on concrete adapters.
+- **Consequence:** These dependencies reverse the intended dependency direction, couple business behavior to delivery technology, and make isolated testing or adapter replacement unsafe.
+- **Safe path:** Define stable entities, value objects, errors, and ports in the inner layers; implement adapters in infrastructure and translate transport concerns at the presentation boundary or global exception filter.
+
+### Transaction correctness
+
+- **Context:** A business operation performs multiple database writes, enforces an invariant with read-modify-write logic, or coordinates concurrent mutations.
+- **Invariant:** Writes whose partial completion would create invalid state execute atomically, and concurrency-sensitive invariants are checked inside the same transaction with the required lock or database constraint.
+- **Violation:** Report removed or split transactions, repositories using a different transaction manager, checks performed only before entering the transaction, or race-prone read-then-write flows.
+- **Consequence:** Crashes or concurrent requests can leave partial state, duplicate records, lost updates, or balances and ownership relationships that violate domain rules.
+- **Safe path:** Use the project's transaction pattern, propagate the transaction context to every participating repository, and enforce invariants with constraints or lock-and-recheck inside the transaction.
+
+### Durable external side effects
+
+- **Context:** A committed database state requires a durable event, email, queue job, webhook, or other external side effect.
+- **Invariant:** A crash between the database commit and dispatch must not silently lose required behavior, and retries must not produce harmful duplicates.
+- **Violation:** Report independent commit-then-publish/enqueue flows with no durable intent, recovery path, or idempotency strategy when loss or duplication changes business behavior.
+- **Consequence:** The database may claim an operation succeeded while consumers never observe it, or retries may repeat user-visible or financial effects.
+- **Safe path:** Use the project's transactional outbox for state-derived events. For other side effects, persist an equivalent durable intent and use deterministic idempotency plus the established retry/reconciliation flow.
+
+### Authorization and tenant isolation
+
+- **Context:** Any read or mutation of user-owned or tenant-owned data, including indirect access through related resources.
+- **Invariant:** Ownership comes from the authenticated principal and is enforced in the data-access predicate for every affected resource.
+- **Violation:** Report trusting `userId` or tenant identifiers from body, query, or path input; loading or mutating by resource ID alone; or checking ownership only after data has already been exposed or changed.
+- **Consequence:** An attacker can read or mutate another user's data through an IDOR or cross-tenant access path.
+- **Safe path:** Derive identity from `@CurrentUser()`, carry it through the use-case input, and include it in repository queries, updates, deletes, and transaction locks.
+
+### API and integration compatibility
+
+- **Context:** Changes to response fields, `object` discriminators, enum values, HTTP status or headers, public error codes, event names or payloads, queue job contracts, and persisted wire formats.
+- **Invariant:** Existing consumers continue to work unless the change includes an explicit, documented, and safely deployable compatibility migration.
+- **Violation:** Report removed or renamed fields, changed semantics under the same identifier, unversioned event or job payload changes, and newly exposed sensitive data.
+- **Consequence:** Frontends, workers, integrations, or rolling deployments can fail even when the changed service compiles and its local tests pass.
+- **Safe path:** Prefer additive changes, preserve existing identifiers and semantics, centralize discriminators and codes instead of adding magic strings, and version contracts when compatibility cannot be preserved.
+
+### Tests for changed invariants
+
+- **Context:** A pull request adds, removes, or changes a business rule, failure mode, concurrency guarantee, migration, or public contract.
+- **Invariant:** Tests demonstrate the success path and the consequential failure or boundary condition introduced by the change at the layer that can actually prove the behavior.
+- **Violation:** Report happy-path-only coverage, mocks that bypass the behavior under review, missing boundary or concurrent scenarios, or assertions that do not observe the public/domain consequence.
+- **Consequence:** The suite can stay green while the exact regression risk introduced by the pull request remains untested.
+- **Safe path:** Keep domain tests pure, mock ports in use-case tests, use integration tests for PostgreSQL/Redis/BullMQ semantics, and use E2E tests for HTTP contracts and global error translation. Avoid timing-dependent tests.
+
 ## Code Style
 
 - Use Conventional Commits in Portuguese with `<type>(<scope>): <description>`.
