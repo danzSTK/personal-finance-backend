@@ -1,5 +1,8 @@
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
-import { EmailVerificationPurpose } from '@/modules/auth/domain/constants/email-verification.constants';
+import {
+  EmailVerificationChallengeOrigin,
+  EmailVerificationPurpose,
+} from '@/modules/auth/domain/constants/email-verification.constants';
 import { EmailVerificationChallenge } from '@/modules/auth/domain/entities/email-verification-challenge.entity';
 
 export abstract class IEmailVerificationChallengeRepository {
@@ -15,18 +18,17 @@ export abstract class IEmailVerificationChallengeRepository {
     options: Required<IRepositoryOptions>,
   ): Promise<EmailVerificationChallenge | null>;
 
-  abstract findLatestByEmailAndPurpose(
-    email: string,
+  abstract findByUserIdPurposeAndOrigin(
+    userId: string,
     purpose: EmailVerificationPurpose,
+    origin: EmailVerificationChallengeOrigin,
     options?: IRepositoryOptions,
   ): Promise<EmailVerificationChallenge | null>;
 
-  abstract countByEmailAndPurposeSince(
-    email: string,
-    purpose: EmailVerificationPurpose,
-    since: Date,
+  abstract saveAutomaticIfAbsent(
+    challenge: EmailVerificationChallenge,
     options?: IRepositoryOptions,
-  ): Promise<number>;
+  ): Promise<{ challenge: EmailVerificationChallenge; created: boolean }>;
 
   abstract save(
     challenge: EmailVerificationChallenge,

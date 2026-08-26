@@ -1,4 +1,7 @@
-import { EmailVerificationPurpose } from '@/modules/auth/domain/constants/email-verification.constants';
+import {
+  EmailVerificationChallengeOrigin,
+  EmailVerificationPurpose,
+} from '@/modules/auth/domain/constants/email-verification.constants';
 import { EmailVerificationChallenge } from '@/modules/auth/domain/entities/email-verification-challenge.entity';
 import { InvalidEmailVerificationChallengeError } from '@/modules/auth/domain/errors/invalid-email-verification-challenge.error';
 
@@ -8,6 +11,7 @@ const createChallenge = (email = 'daniel@example.com'): EmailVerificationChallen
       userId: 'user-1',
       email,
       purpose: EmailVerificationPurpose.EMAIL_VERIFICATION,
+      origin: EmailVerificationChallengeOrigin.MANUAL_RESEND,
       tokenHash: 'a'.repeat(64),
       expiresAt: new Date(Date.now() + 15 * 60 * 1000),
     },
@@ -20,6 +24,7 @@ const makeChallenge = (): EmailVerificationChallenge =>
       userId: 'user-1',
       email: 'daniel@example.com',
       purpose: EmailVerificationPurpose.EMAIL_VERIFICATION,
+      origin: EmailVerificationChallengeOrigin.LEGACY_UNKNOWN,
       tokenHash: 'a'.repeat(64),
       expiresAt: new Date('2026-01-01T10:15:00.000Z'),
       consumedAt: null,
