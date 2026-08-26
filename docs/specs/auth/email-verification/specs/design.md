@@ -211,6 +211,7 @@ Disponível:
   "object": "email_verification.resend_status.available",
   "status": "AVAILABLE",
   "available": true,
+  "retryAfterSeconds": null,
   "manualResendsUsed": 2,
   "manualResendsRemaining": 3,
   "manualResendLimit": 5,
@@ -252,7 +253,8 @@ Já verificado:
 {
   "object": "email_verification.resend_status.already_verified",
   "status": "ALREADY_VERIFIED",
-  "available": false
+  "available": false,
+  "retryAfterSeconds": null
 }
 ```
 
@@ -423,13 +425,18 @@ duplicadas como números mágicos no Lua.
 
 ### Entrega No Worker
 
-1. O processor carrega e bloqueia a intenção como hoje.
-2. Antes do provider, o use case compara `deliverBefore` com `now`.
-3. `null` ou prazo futuro seguem o envio normal.
-4. Prazo atingido marca a intenção `CANCELED` com código interno sanitizado.
-5. O processor lança `UnrecoverableError`; BullMQ move o job para failed sem
+1. O processor carrega e bloqueia a intenção; o primeiro `now` é lido somente
+   depois que o lock foi adquirido.
+2. Para intenções com prazo, o use case adquire novamente o lock e lê um novo
+   `now` imediatamente antes do provider.
+3. Depois do commit, uma leitura final imediatamente antes de `MailService.send`
+   fecha a janela sem manter uma transação aberta durante I/O externo; se o prazo
+   cruzou, o cancelamento retorna ao lock.
+4. `null` ou prazo futuro na leitura final seguem o envio normal.
+5. Prazo atingido marca a intenção `CANCELED` com código interno sanitizado.
+6. O processor lança `UnrecoverableError`; BullMQ move o job para failed sem
    consumir as tentativas restantes.
-6. O reconciliador ignora a intenção terminal.
+7. O reconciliador ignora a intenção terminal.
 
 ## Erros E Contrato De Retry
 
@@ -537,6 +544,8 @@ de adicionar índice.
 - intenção de verification calcula `deliver_before` corretamente;
 - `deliver_before = now` cancela sem chamar MailService;
 - `deliver_before = now + 1ms` pode seguir;
+- prazo que vence entre o preparo inicial e a revalidação cancela sem chamar
+  MailService;
 - intenção sem prazo preserva o comportamento atual;
 - estado SQL fica terminal antes de `UnrecoverableError`;
 - tentativas restantes não são consumidas e o reconciliador não reenfileira.
@@ -546,7 +555,8 @@ de adicionar índice.
 - status exige autenticação e usa o usuário do JWT;
 - três response DTOs possuem `object` próprio;
 - status bloqueado retorna `200`, body e `Retry-After` iguais;
-- status disponível/ativo não retorna `Retry-After`;
+- status disponível/ativo retorna `retryAfterSeconds: null` e não retorna o
+  header `Retry-After`;
 - resend bloqueado retorna `429` com body/header;
 - Redis indisponível retorna `503` sem intenção persistida;
 - fluxo completo cobre automático, cinco manuais, janela móvel e confirmação.

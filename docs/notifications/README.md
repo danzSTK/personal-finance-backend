@@ -38,8 +38,10 @@ A API não carrega `MailModule` nem `EmailMessageProcessor`. Ela pode persistir 
 
 1. Um caso de uso ou handler persiste uma intenção idempotente em `email_messages`.
 2. O producer adiciona `send-email-message` em `notifications.email` com `jobId` derivado do id da intenção.
-3. O worker carrega a intenção sob lock e, quando existe `deliver_before`,
-   verifica se ainda pode iniciar uma entrega útil.
+3. O worker carrega a intenção sob lock e, quando existe `deliver_before`, lê o
+   relógio depois do lock e revalida o prazo sob um novo lock imediatamente antes
+   do provider. Uma leitura final antes de `MailService.send` fecha a janela do
+   commit sem manter transação aberta durante I/O externo.
 4. Intenção cujo prazo foi atingido vira `CANCELED` e encerra as tentativas do
    BullMQ sem chamar o provider.
 5. O worker revalida chave, versão e parâmetros e o `MailService` delega ao

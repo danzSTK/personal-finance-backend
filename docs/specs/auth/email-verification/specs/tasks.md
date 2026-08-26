@@ -142,6 +142,8 @@ related:
 - [x] 106. Criar/atualizar E2E de status e headers; cobrir cinco resends manuais e ausência de contagem automática na integração Redis real.
 - [x] 107. Atualizar Swagger e documentação de integração, configuração, notifications e templates.
 - [x] 108. Rodar format, lint, build, unitários, integração e E2E aplicáveis.
+- [x] 109. Revalidar `deliver_before` sob lock imediatamente antes do provider e testar expiração entre preparo e despacho.
+- [x] 110. Serializar `retryAfterSeconds: null` nas formas disponível e já verificada e atualizar contrato E2E/documentação.
 
 ### Fora De Escopo
 
@@ -149,7 +151,7 @@ related:
 
 ## Notas De Execução
 
-- Node.js 22; format check, lint check, typecheck, build e 99 suítes unitárias (392 testes) passaram.
+- Node.js 22; format check, lint check, typecheck, build e 99 suítes unitárias (393 testes) passaram.
 - As 3 suítes E2E (12 testes) passaram, incluindo status, `Cache-Control`, `Retry-After` e contrato de erro do resend.
 - As 11 suítes de integração passaram contra Redis, PostgreSQL, BullMQ e worker reais; a migration nova foi validada em `up/down/up`.
 - Não foram adicionadas dependências nem alterações de pipeline; Testcontainers e o job de integração existentes cobrem a entrega.

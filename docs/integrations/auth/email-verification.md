@@ -75,6 +75,7 @@ Disponível (`200`):
   "object": "email_verification.resend_status.available",
   "status": "AVAILABLE",
   "available": true,
+  "retryAfterSeconds": null,
   "manualResendsUsed": 2,
   "manualResendsRemaining": 3,
   "manualResendLimit": 5,
@@ -114,7 +115,8 @@ Para usuário ativo (`200`):
 {
   "object": "email_verification.resend_status.already_verified",
   "status": "ALREADY_VERIFIED",
-  "available": false
+  "available": false,
+  "retryAfterSeconds": null
 }
 ```
 
@@ -138,8 +140,10 @@ na forma bloqueada. Estado Redis indisponível ou inválido retorna
 O `202 QUEUED` representa uma intenção persistida, não a confirmação de entrega pelo provider. A API grava `email_messages` e tenta adicionar o job; o envio é executado somente pelo worker.
 
 Intenções de verificação possuem `deliver_before`, calculado cinco minutos antes
-da expiração do token. Ao atingir esse prazo, o worker cancela a intenção sem
-chamar o provider e encerra as tentativas restantes do BullMQ.
+da expiração do token. O worker lê o relógio depois do lock inicial e revalida o
+prazo sob lock e novamente no instante anterior à chamada do provider, sem manter
+transação aberta durante I/O externo. Ao atingir esse prazo, cancela a intenção
+sem chamar o provider e encerra as tentativas restantes do BullMQ.
 
 Se o PostgreSQL confirmar a intenção e o Redis BullMQ estiver indisponível, o
 reconciliador do worker reenfileira mensagens `PENDING` ou `FAILED_RETRYABLE`

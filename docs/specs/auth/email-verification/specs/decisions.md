@@ -383,6 +383,12 @@ Quando `deliver_before <= now`, marcar `email_messages` como `CANCELED` antes de
 retornar um resultado terminal. O processor lança `UnrecoverableError` para o
 BullMQ mover o job a failed sem usar as tentativas restantes.
 
+O instante deve ser lido depois da aquisição do lock. Intenções com deadline são
+revalidadas sob um novo lock imediatamente antes do provider, pois o preparo ou a
+espera transacional podem atravessar `deliver_before`. Depois do commit dessa
+revalidação, uma última leitura antecede `MailService.send`; se o prazo cruzou, o
+cancelamento volta ao lock. A chamada externa nunca mantém a transação aberta.
+
 Reason:
 Não houve falha do provider; a mensagem perdeu utilidade. O estado SQL terminal
 impede o reconciliador de reenfileirar, enquanto o estado failed no BullMQ dá
@@ -401,6 +407,10 @@ Criar `GET /auth/email-verification/resend/status`, autenticado. O endpoint reto
 `200` com formas `AVAILABLE`, `BLOCKED` ou `ALREADY_VERIFIED`; quando bloqueado,
 repete o mesmo valor em `retryAfterSeconds` e `Retry-After` e usa
 `Cache-Control: no-store`.
+
+As formas `AVAILABLE` e `ALREADY_VERIFIED` preservam o campo
+`retryAfterSeconds` explicitamente como `null`; somente a forma `BLOCKED` usa um
+inteiro positivo e emite o header.
 
 Reason:
 O frontend precisa bloquear consumo inválido e sincronizar seu contador local sem

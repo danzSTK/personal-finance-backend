@@ -9,9 +9,11 @@
 
 ## Comportamentos comprovados
 
-- status disponível retorna contadores, `Cache-Control: no-store` e não retorna
-  `Retry-After`;
+- status disponível retorna contadores, `retryAfterSeconds: null`,
+  `Cache-Control: no-store` e não retorna o header `Retry-After`;
 - status bloqueado retorna causa operacional, contador e header sincronizado;
+- status já verificado retorna a forma terminal com `retryAfterSeconds: null` e
+  sem o header `Retry-After`;
 - resend aceito retorna `202` e DTO próprio;
 - bloqueio do resend retorna `429`, código estável, detalhes e `Retry-After`.
 
