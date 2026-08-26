@@ -8,7 +8,7 @@ dependem de Docker ou serviços persistentes. Elas executam no job
 | ------------------------------------------- | ------------------------------------------ | ------------------- |
 | [app](./app.md)                             | contrato `GET /`                           | nenhuma             |
 | [change-password](./change-password.md)     | contrato HTTP da alteração de senha        | nenhuma             |
+| [email-verification-resend](./email-verification-resend.md) | contrato HTTP de resend/status de verificação | nenhuma |
 
 Se um E2E passar a exigir PostgreSQL, Redis ou outro serviço real, reclassifique o
 cenário como integração ou atualize previamente a arquitetura e a pipeline.
-

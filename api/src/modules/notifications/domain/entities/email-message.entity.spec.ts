@@ -29,6 +29,7 @@ const makeEmailMessage = (): EmailMessage =>
       processingAt: null,
       sentAt: null,
       failedAt: null,
+      deliverBefore: null,
     },
     'email-message-1',
   );
@@ -66,6 +67,7 @@ describe('EmailMessage', () => {
             processingAt: null,
             sentAt: null,
             failedAt: null,
+            deliverBefore: null,
           },
           'email-message-1',
         ),
@@ -90,6 +92,7 @@ describe('EmailMessage', () => {
             processingAt: null,
             sentAt: null,
             failedAt: null,
+            deliverBefore: null,
           },
           'email-message-1',
         ),

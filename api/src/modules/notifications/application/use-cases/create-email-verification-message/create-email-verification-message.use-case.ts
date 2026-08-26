@@ -90,6 +90,7 @@ export class CreateEmailVerificationMessageUseCase {
         processingAt: null,
         sentAt: null,
         failedAt: null,
+        deliverBefore: input.deliverBefore,
       },
       randomUUID(),
     );

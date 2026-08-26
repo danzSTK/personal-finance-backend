@@ -1,4 +1,5 @@
 import { RESPONSE_OBJECT_TYPES } from '@/common/models/constants';
+import { EmailVerificationResendStatus } from '@/modules/auth/domain/constants/email-verification.constants';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class EmailVerificationResendResponseDto {
@@ -7,10 +8,15 @@ export class EmailVerificationResendResponseDto {
   })
   object: typeof RESPONSE_OBJECT_TYPES.EMAIL_VERIFICATION_RESEND = RESPONSE_OBJECT_TYPES.EMAIL_VERIFICATION_RESEND;
 
-  @ApiProperty({ enum: ['QUEUED', 'ALREADY_VERIFIED'], example: 'QUEUED' })
-  status!: 'QUEUED' | 'ALREADY_VERIFIED';
+  @ApiProperty({
+    enum: [EmailVerificationResendStatus.QUEUED, EmailVerificationResendStatus.ALREADY_VERIFIED],
+    example: EmailVerificationResendStatus.QUEUED,
+  })
+  status!: typeof EmailVerificationResendStatus.QUEUED | typeof EmailVerificationResendStatus.ALREADY_VERIFIED;
 
-  static fromStatus(status: 'QUEUED' | 'ALREADY_VERIFIED'): EmailVerificationResendResponseDto {
+  static fromStatus(
+    status: typeof EmailVerificationResendStatus.QUEUED | typeof EmailVerificationResendStatus.ALREADY_VERIFIED,
+  ): EmailVerificationResendResponseDto {
     const dto = new EmailVerificationResendResponseDto();
     dto.status = status;
 

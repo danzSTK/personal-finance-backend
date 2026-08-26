@@ -6,7 +6,7 @@ import {
   SendEmailMessageJobPayload,
 } from '@/modules/notifications/infrastructure/queues/email-job.constants';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import { Job, UnrecoverableError } from 'bullmq';
 import { QueueConfig } from '@/config/queue.config';
 
 describe('EmailMessageProcessor', () => {
@@ -35,7 +35,7 @@ describe('EmailMessageProcessor', () => {
 
   describe('process', () => {
     it('executes the send use case with only emailMessageId from the job payload', async () => {
-      execute.mockResolvedValue({ status: EmailMessageStatus.SENT, sent: true });
+      execute.mockResolvedValue({ status: EmailMessageStatus.SENT, sent: true, unrecoverable: false });
 
       await processor.process({
         id: 'job-1',
@@ -48,7 +48,11 @@ describe('EmailMessageProcessor', () => {
     });
 
     it('logs when the job completes without sending the email', async () => {
-      execute.mockResolvedValue({ status: EmailMessageStatus.FAILED_PERMANENT, sent: false });
+      execute.mockResolvedValue({
+        status: EmailMessageStatus.FAILED_PERMANENT,
+        sent: false,
+        unrecoverable: false,
+      });
 
       await processor.process({
         id: 'job-1',
@@ -68,6 +72,24 @@ describe('EmailMessageProcessor', () => {
           data: { emailMessageId: 'email-message-1' },
         } as Job<SendEmailMessageJobPayload>),
       ).rejects.toThrow('Unsupported notifications email job');
+    });
+
+    it('throws UnrecoverableError after the use case persisted a terminal deadline result', async () => {
+      execute.mockResolvedValue({
+        status: EmailMessageStatus.CANCELED,
+        sent: false,
+        unrecoverable: true,
+      });
+
+      await expect(
+        processor.process({
+          id: 'job-1',
+          name: EmailJobNames.SEND_EMAIL_MESSAGE,
+          data: { emailMessageId: 'email-message-1' },
+        } as Job<SendEmailMessageJobPayload>),
+      ).rejects.toBeInstanceOf(UnrecoverableError);
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(warnLogger).not.toHaveBeenCalled();
     });
   });
 });

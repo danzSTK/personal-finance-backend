@@ -10,7 +10,7 @@ import {
   EmailTemplateVersion,
 } from '@/modules/notifications/domain/templates/email-template.contract';
 
-const makeEmailMessage = (): EmailMessage =>
+const makeEmailMessage = (deliverBefore: Date | null = null): EmailMessage =>
   EmailMessage.reconstitute(
     {
       type: EmailMessageType.WELCOME,
@@ -35,6 +35,7 @@ const makeEmailMessage = (): EmailMessage =>
       processingAt: null,
       sentAt: null,
       failedAt: null,
+      deliverBefore,
       createdAt: new Date('2026-01-01T10:00:00.000Z'),
       updatedAt: new Date('2026-01-01T10:00:00.000Z'),
     },
@@ -77,6 +78,10 @@ describe('SendEmailMessageUseCase', () => {
     useCase = new SendEmailMessageUseCase(emailMessageRepository, mailService, dataSource);
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe('execute', () => {
     it('sends the email through MailService and marks the message as sent', async () => {
       const emailMessage = makeEmailMessage();
@@ -98,7 +103,7 @@ describe('SendEmailMessageUseCase', () => {
           'X-Danfy-Email-Message-Id': 'email-message-1',
         },
       });
-      expect(result).toEqual({ status: EmailMessageStatus.SENT, sent: true });
+      expect(result).toEqual({ status: EmailMessageStatus.SENT, sent: true, unrecoverable: false });
       expect(emailMessage.status).toBe(EmailMessageStatus.SENT);
       expect(emailMessage.providerMessageId).toBe('brevo-message-1');
       expect(emailMessage.provider).toBe('brevo');
@@ -126,7 +131,7 @@ describe('SendEmailMessageUseCase', () => {
 
       const result = await useCase.execute({ emailMessageId: 'email-message-1' });
 
-      expect(result).toEqual({ status: EmailMessageStatus.FAILED_PERMANENT, sent: false });
+      expect(result).toEqual({ status: EmailMessageStatus.FAILED_PERMANENT, sent: false, unrecoverable: false });
       expect(emailMessage.status).toBe(EmailMessageStatus.FAILED_PERMANENT);
       expect(emailMessage.attemptsCount).toBe(1);
       expect(emailMessage.lastErrorCode).toBe('MAIL_INVALID_PAYLOAD');
@@ -152,6 +157,7 @@ describe('SendEmailMessageUseCase', () => {
           processingAt: null,
           sentAt: null,
           failedAt: null,
+          deliverBefore: null,
           createdAt: validMessage.createdAt,
           updatedAt: validMessage.updatedAt,
         },
@@ -162,7 +168,7 @@ describe('SendEmailMessageUseCase', () => {
 
       const result = await useCase.execute({ emailMessageId: emailMessage.id });
 
-      expect(result).toEqual({ status: EmailMessageStatus.FAILED_PERMANENT, sent: false });
+      expect(result).toEqual({ status: EmailMessageStatus.FAILED_PERMANENT, sent: false, unrecoverable: false });
       expect(emailMessage.lastErrorCode).toBe('EMAIL_TEMPLATE_PARAMS_INVALID');
       expect(sendMail).not.toHaveBeenCalled();
     });
@@ -189,7 +195,60 @@ describe('SendEmailMessageUseCase', () => {
 
       const result = await useCase.execute({ emailMessageId: 'email-message-1' });
 
-      expect(result).toEqual({ status: EmailMessageStatus.SENT, sent: true });
+      expect(result).toEqual({ status: EmailMessageStatus.SENT, sent: true, unrecoverable: false });
+      expect(sendMail).not.toHaveBeenCalled();
+    });
+
+    it('cancels a message at the exact delivery deadline without calling MailService', async () => {
+      const deadline = new Date('2026-01-01T10:10:00.000Z');
+      const emailMessage = makeEmailMessage(deadline);
+      findByIdForUpdate.mockResolvedValue(emailMessage);
+      saveEmailMessage.mockImplementation(message => Promise.resolve(message));
+
+      const result = await useCase.execute({ emailMessageId: emailMessage.id, now: deadline });
+
+      expect(result).toEqual({
+        status: EmailMessageStatus.CANCELED,
+        sent: false,
+        unrecoverable: true,
+      });
+      expect(emailMessage.lastErrorCode).toBe('EMAIL_MESSAGE_DELIVERY_DEADLINE_EXCEEDED');
+      expect(sendMail).not.toHaveBeenCalled();
+    });
+
+    it('allows provider dispatch one millisecond before the delivery deadline', async () => {
+      const deadline = new Date('2026-01-01T10:10:00.000Z');
+      const emailMessage = makeEmailMessage(deadline);
+      findByIdForUpdate.mockResolvedValue(emailMessage);
+      saveEmailMessage.mockImplementation(message => Promise.resolve(message));
+      sendMail.mockResolvedValue({ provider: 'brevo', messageId: 'provider-1', accepted: 1 });
+
+      await expect(
+        useCase.execute({ emailMessageId: emailMessage.id, now: new Date(deadline.getTime() - 1) }),
+      ).resolves.toMatchObject({ sent: true, unrecoverable: false });
+      expect(sendMail).toHaveBeenCalledTimes(1);
+    });
+
+    it('revalidates the deadline after locking and cancels when it expires before provider dispatch', async () => {
+      const deadline = new Date('2026-01-01T10:10:00.000Z');
+      const emailMessage = makeEmailMessage(deadline);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(deadline.getTime() - 2)
+        .mockReturnValueOnce(deadline.getTime() - 1)
+        .mockReturnValue(deadline.getTime());
+      findByIdForUpdate.mockResolvedValue(emailMessage);
+      saveEmailMessage.mockImplementation(message => Promise.resolve(message));
+
+      const result = await useCase.execute({ emailMessageId: emailMessage.id });
+
+      expect(result).toEqual({
+        status: EmailMessageStatus.CANCELED,
+        sent: false,
+        unrecoverable: true,
+      });
+      expect(findByIdForUpdate).toHaveBeenCalledTimes(3);
+      expect(emailMessage.lastErrorCode).toBe('EMAIL_MESSAGE_DELIVERY_DEADLINE_EXCEEDED');
       expect(sendMail).not.toHaveBeenCalled();
     });
   });

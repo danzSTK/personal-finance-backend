@@ -2,9 +2,11 @@ import { EmailMessageStatus } from '@/modules/notifications/domain/constants/ema
 
 export interface SendEmailMessageUseCaseInput {
   emailMessageId: string;
+  now?: Date;
 }
 
 export interface SendEmailMessageUseCaseOutput {
   status: EmailMessageStatus;
   sent: boolean;
+  unrecoverable: boolean;
 }

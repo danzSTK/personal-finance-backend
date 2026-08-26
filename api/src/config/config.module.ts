@@ -4,6 +4,10 @@ import notificationsConfig from '@/config/notifications.config';
 import objectStorageConfig from '@/config/object-storage.config';
 import queueConfig from '@/config/queue.config';
 import workerConfig from '@/config/worker.config';
+import {
+  EMAIL_VERIFICATION_MAX_COOLDOWN_SECONDS,
+  EMAIL_VERIFICATION_MINIMUM_USABLE_TOKEN_SECONDS,
+} from '@/modules/auth/domain/constants/email-verification.constants';
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import Joi from 'joi';
@@ -26,6 +30,18 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
 
   if (Number(value.WORKER_HEARTBEAT_INTERVAL_MS) >= Number(value.WORKER_HEARTBEAT_TTL_MS)) {
     return 'WORKER_HEARTBEAT_INTERVAL_MS must be lower than WORKER_HEARTBEAT_TTL_MS';
+  }
+
+  return null;
+};
+
+export const getEmailVerificationConfigInvariantError = (value: Record<string, unknown>): string | null => {
+  const tokenTtlSeconds = Number(value.EMAIL_VERIFICATION_TOKEN_TTL_MINUTES) * 60;
+  const minimumTokenTtlSeconds =
+    EMAIL_VERIFICATION_MAX_COOLDOWN_SECONDS + EMAIL_VERIFICATION_MINIMUM_USABLE_TOKEN_SECONDS;
+
+  if (tokenTtlSeconds < minimumTokenTtlSeconds) {
+    return `EMAIL_VERIFICATION_TOKEN_TTL_MINUTES must preserve at least ${minimumTokenTtlSeconds} seconds for cooldown and useful delivery`;
   }
 
   return null;
@@ -203,8 +219,6 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
         NOTIFICATIONS_EMAIL_PREFERENCES_PATH: Joi.string().trim().pattern(/^\//).default('/settings/email-preferences'),
         NOTIFICATIONS_EMAIL_VERIFICATION_PATH: Joi.string().trim().pattern(/^\//).default('/verification-email'),
         EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: Joi.number().integer().min(1).default(15),
-        EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES: Joi.number().integer().min(1).default(60),
-        EMAIL_VERIFICATION_DAILY_LIMIT: Joi.number().integer().min(1).default(5),
         SUPPORT_URL: Joi.when('MAIL_ENABLED', {
           is: true,
           then: Joi.string().uri().required(),
@@ -303,6 +317,11 @@ export const getWorkerConfigInvariantError = (value: Record<string, unknown>): s
           otherwise: Joi.string().uri().optional(),
         }),
       }).custom((value: Record<string, unknown>, helpers) => {
+        const emailVerificationInvariantError = getEmailVerificationConfigInvariantError(value);
+        if (emailVerificationInvariantError) {
+          return helpers.message({ custom: emailVerificationInvariantError });
+        }
+
         const invariantError = getWorkerConfigInvariantError(value);
         if (invariantError) {
           return helpers.message({ custom: invariantError });

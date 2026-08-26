@@ -23,6 +23,7 @@ export interface EmailMessageProps {
   processingAt: Date | null;
   sentAt: Date | null;
   failedAt: Date | null;
+  deliverBefore: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -97,6 +98,10 @@ export class EmailMessage {
     return this.props.failedAt;
   }
 
+  get deliverBefore(): Date | null {
+    return this.props.deliverBefore;
+  }
+
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -125,6 +130,10 @@ export class EmailMessage {
       this.props.status === EmailMessageStatus.PROCESSING ||
       this.props.status === EmailMessageStatus.FAILED_RETRYABLE
     );
+  }
+
+  hasReachedDeliveryDeadline(now = new Date()): boolean {
+    return this.props.deliverBefore !== null && this.props.deliverBefore.getTime() <= now.getTime();
   }
 
   markProcessing(now = new Date()): void {
@@ -178,7 +187,7 @@ export class EmailMessage {
     this.props.updatedAt = now;
   }
 
-  cancel(now = new Date()): void {
+  cancel(errorCode?: string, errorMessage?: string, now = new Date()): void {
     if (this.props.status === EmailMessageStatus.SENT) {
       throw new InvalidEmailMessageError('Cannot cancel an email message that was already sent.');
     }
@@ -188,6 +197,12 @@ export class EmailMessage {
     }
 
     this.props.status = EmailMessageStatus.CANCELED;
+    this.props.lastErrorCode = errorCode
+      ? EmailMessage.truncate(errorCode, EmailMessageLimits.lastErrorCodeMaxLength)
+      : this.props.lastErrorCode;
+    this.props.lastErrorMessage = errorMessage
+      ? EmailMessage.truncate(errorMessage, EmailMessageLimits.lastErrorMessageMaxLength)
+      : this.props.lastErrorMessage;
     this.props.processingAt = null;
     this.props.updatedAt = now;
   }
@@ -268,6 +283,10 @@ export class EmailMessage {
       Array.isArray(this.props.templateParams)
     ) {
       throw new InvalidEmailMessageError('Template params must be an object.');
+    }
+
+    if (this.props.deliverBefore && this.props.deliverBefore.getTime() <= this.props.createdAt.getTime()) {
+      throw new InvalidEmailMessageError('Email delivery deadline must be after creation.');
     }
   }
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Migration Rollout"
+  short_description: "Planeja migrations compatíveis com rollback"
+  default_prompt: "Use $migration-rollout para planejar esta migration com expand, migrate e contract."

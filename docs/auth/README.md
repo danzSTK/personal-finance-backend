@@ -57,6 +57,12 @@ Para documentação de consumo HTTP, use [Integração Auth](../integrations/aut
 - [Scripts Lua](./change-password/lua-scripts.md)
 - [Notificações](./change-password/notifications.md)
 
+### Verificação de e-mail
+
+- [Índice](./email-verification/index.md)
+- [Chaves Redis](./email-verification/redis-keys.md)
+- [Scripts Lua](./email-verification/lua-scripts.md)
+
 ### Referência
 
 - [Endpoints](./reference/endpoints.md)

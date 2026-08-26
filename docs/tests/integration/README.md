@@ -9,6 +9,8 @@ Todas as suítes `api/test/*.integration-spec.ts` executam pelo comando agregado
 | [api-worker-flow](./api-worker-flow.md) | 1 | 1 | 1 | não | API + worker |
 | [bullmq-redis](./bullmq-redis.md) | não | não | 1 | não | não |
 | [email-template-registry-postgres](./email-template-registry-postgres.md) | 1 | não | não | não | não |
+| [email-verification-redis](./email-verification-redis.md) | não | 1 | não | não | não |
+| [email-verification-resend-postgres](./email-verification-resend-postgres.md) | 1 | não | não | não | não |
 | [outbox-postgres](./outbox-postgres.md) | 1 | não | não | não | não |
 | [password-change-flow](./password-change-flow.md) | 1 | 1 | não | não | não |
 | [password-change-postgres](./password-change-postgres.md) | 1 | não | não | não | não |
@@ -24,4 +26,3 @@ npm run test:integration
 ```
 
 Filtros por arquivo não substituem esse comando na validação final ou na CI.
-

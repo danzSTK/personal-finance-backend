@@ -1,5 +1,6 @@
 import {
   EmailVerificationChallengeLimits,
+  EmailVerificationChallengeOrigin,
   EmailVerificationPurpose,
 } from '@/modules/auth/domain/constants/email-verification.constants';
 import { USER_EMAIL_MAX_LENGTH } from '@/common/models/constants';
@@ -10,10 +11,15 @@ import { Check, Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedCo
 @Index('idx_email_verification_challenges_token', ['purpose', 'tokenHash'])
 @Index('idx_email_verification_challenges_email_purpose_created_at', ['email', 'purpose', 'createdAt'])
 @Index('idx_email_verification_challenges_user_purpose_created_at', ['userId', 'purpose', 'createdAt'])
+@Index('UQ_email_verification_challenges_automatic_user_purpose', ['userId', 'purpose'], {
+  unique: true,
+  where: `"origin" = 'AUTOMATIC'`,
+})
 @Index('idx_email_verification_challenges_unconsumed_expiration', ['purpose', 'expiresAt'], {
   where: '"consumed_at" IS NULL',
 })
 @Check('CHK_email_verification_challenges_purpose', `"purpose" IN ('EMAIL_VERIFICATION')`)
+@Check('CHK_email_verification_challenges_origin', `"origin" IN ('AUTOMATIC', 'MANUAL_RESEND', 'LEGACY_UNKNOWN')`)
 @Check('CHK_email_verification_challenges_token_hash_length', `length("token_hash") = 64`)
 @Check('CHK_email_verification_challenges_expiration', `"expires_at" > "created_at"`)
 @Check(
@@ -32,6 +38,9 @@ export class EmailVerificationChallengeOrmEntity {
 
   @Column({ type: 'varchar', length: EmailVerificationChallengeLimits.purposeMaxLength })
   purpose!: EmailVerificationPurpose;
+
+  @Column({ type: 'varchar', length: EmailVerificationChallengeLimits.originMaxLength })
+  origin!: EmailVerificationChallengeOrigin;
 
   @Column({ name: 'token_hash', type: 'varchar', length: EmailVerificationChallengeLimits.tokenHashLength })
   tokenHash!: string;

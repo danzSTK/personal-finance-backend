@@ -75,8 +75,88 @@ related:
 - [x] 62. Criar migration incremental para alinhar `email_verification_challenges.email` com `varchar(255)`.
 - [x] 63. Liberar `AuthController` para usuários `PENDING_EMAIL_VERIFICATION`.
 
+## Issue #76 - Política De Reenvio E Prazo De Entrega
+
+### Spec E Contratos
+
+- [x] 64. Atualizar requirements com cooldown exponencial, limite manual, Redis, deadline e rota de status.
+- [x] 65. Atualizar design com arquitetura, contratos HTTP, Redis/Lua, schema, falhas e testes.
+- [x] 66. Registrar todas as decisões e alternativas aprovadas em `decisions.md`.
+- [x] 67. Documentar chaves Redis e cada script Lua planejado.
+- [x] 68. Revisar e aprovar `requirements.md`, `design.md` e esta lista antes de iniciar código.
+
+### Constantes E Policy
+
+- [x] 69. Centralizar limite 5, janela 24h, cooldown inicial 60s, máximo 600s, janela útil 300s e TTL de mutação.
+- [x] 70. Remover `EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES` e `EMAIL_VERIFICATION_DAILY_LIMIT` da configuração, validação, `.env`, `.env.exemple` e docs.
+- [x] 71. Adicionar invariante de bootstrap entre TTL do token, cooldown máximo e janela útil mínima.
+- [x] 72. Criar policy pura e tipada para cálculo de cooldown, limite, restrição efetiva e retry.
+
+### PostgreSQL E Domínio
+
+- [x] 73. Adicionar `origin` ao domínio, ORM entity e mapper de challenge usando const object e união literal.
+- [x] 74. Adicionar `deliverBefore` nullable ao domínio, ORM entity e mapper de `EmailMessage`.
+- [x] 75. Criar migration incremental com backfill `LEGACY_UNKNOWN`, constraints e unique partial do automático.
+- [x] 76. Atualizar `docs/database/schema.md` na mesma alteração da migration, cobrindo uma nova coluna em cada tabela.
+- [x] 77. Revisar SQL gerado e executar migration `up/down/up` em ambiente de teste.
+
+### Redis E Lua
+
+- [x] 78. Adicionar as chaves de email verification ao `CacheKeys` com hash tag `{userId}`.
+- [x] 79. Criar a porta `IEmailVerificationResendStateStore` com uniões discriminadas explícitas.
+- [x] 80. Implementar e documentar `LOAD_EMAIL_VERIFICATION_RESEND_STATE_SCRIPT`.
+- [x] 81. Implementar e documentar `BEGIN_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`.
+- [x] 82. Implementar e documentar `COMPLETE_EMAIL_VERIFICATION_LOGICAL_SEND_SCRIPT`.
+- [x] 83. Implementar e documentar `ABORT_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`.
+- [x] 84. Implementar o adapter Redis com validação estrita de todos os retornos Lua.
+- [x] 85. Registrar store e dependências no módulo auth sem `forwardRef()` ou dependência circular.
+
+### Casos De Uso E Envio
+
+- [x] 86. Refatorar criação de challenge para declarar `AUTOMATIC` ou `MANUAL_RESEND` e remover queries SQL de policy temporal.
+- [x] 87. Tornar o envio automático idempotente por usuário/purpose e registrar cooldown sem consumir limite manual.
+- [x] 88. Refatorar resend para begin/commit/abort Redis ao redor da transação PostgreSQL.
+- [x] 89. Calcular e persistir `deliver_before` ao criar intenção de verificação.
+- [x] 90. Cancelar intenção cujo prazo foi atingido antes de chamar o provider.
+- [x] 91. Fazer o processor lançar `UnrecoverableError` somente depois de persistir o estado terminal.
+- [x] 92. Garantir que o reconciliador continue ignorando `CANCELED`.
+
+### Endpoint De Status E Erros
+
+- [x] 93. Criar `GetEmailVerificationResendStatusUseCase` sem mutação de negócio.
+- [x] 94. Criar os três response DTOs `available`, `blocked` e `already_verified`, cada um com `object` próprio.
+- [x] 95. Adicionar `GET /auth/email-verification/resend/status` com JWT, Swagger e `Cache-Control: no-store`.
+- [x] 96. Escrever `Retry-After` no status somente quando bloqueado.
+- [x] 97. Migrar cooldown e limite diário para `RetryAfterApplicationError`.
+- [x] 98. Adicionar `EMAIL_VERIFICATION_OPERATION_PENDING` e `EMAIL_VERIFICATION_STATE_UNAVAILABLE` e mapear no filtro global.
+- [x] 99. Atualizar `docs/integrations/errors.md`, referências auth e integração frontend.
+
+### Testes E Validação
+
+- [x] 100. Testar policy nos limites exatos de cooldown, teto, janela móvel e limite manual.
+- [x] 101. Testar use cases de resend/status para disponível, bloqueios, ativo, chave ausente e Redis indisponível.
+- [x] 102. Testar scripts e adapter contra Redis real, incluindo concorrência e PTTL.
+- [x] 103. Testar migration/constraints/índice partial e mappers PostgreSQL.
+- [x] 104. Testar deadline antes, no instante e depois do limite sem chamar provider indevidamente.
+- [x] 105. Testar estado terminal SQL e `UnrecoverableError` no processor.
+- [x] 106. Criar/atualizar E2E de status e headers; cobrir cinco resends manuais e ausência de contagem automática na integração Redis real.
+- [x] 107. Atualizar Swagger e documentação de integração, configuração, notifications e templates.
+- [x] 108. Rodar format, lint, build, unitários, integração e E2E aplicáveis.
+- [x] 109. Revalidar `deliver_before` sob lock imediatamente antes do provider e testar expiração entre preparo e despacho.
+- [x] 110. Serializar `retryAfterSeconds: null` nas formas disponível e já verificada e atualizar contrato E2E/documentação.
+- [x] 111. Criar o contrato arquitetural e a skill `migration-rollout` para migrations em fases e review N/N+1.
+- [x] 112. Manter default temporário de `origin`, atualizar schema e testar escrita compatível com code N.
+- [x] 113. Implementar/documentar `RENEW_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT` e a porta tipada.
+- [x] 114. Renovar a barreira em checkpoints transacionais e testar token perdido/Redis indisponível com rollback.
+- [x] 115. Rodar validação da skill, migration direcionada, Redis/Lua, unitários, integração e E2E aplicáveis.
+
+### Fora De Escopo
+
+- Prioridade de jobs/e-mails será tratada em feature separada e não faz parte das tarefas acima.
+
 ## Notas De Execução
 
-- `npm run lint`, `npm run build` e `npm run test -- --runInBand` passaram com Node.js 22.22.2.
-- `npm run test:e2e` foi executado, mas falhou antes de iniciar a app porque `test/jest-e2e.json` não resolve imports `@/`.
-- Há testes novos para `EmailVerificationChallenge`, `EmailVerificationStatusGuard` e o handler de welcome que ignora `PENDING_EMAIL_VERIFICATION`; testes de use cases, repository/migration e fluxo E2E completo seguem pendentes.
+- Node.js 22; format check, lint check, typecheck, build e 99 suítes unitárias (393 testes) passaram.
+- As 3 suítes E2E (12 testes) passaram, incluindo status, `Cache-Control`, `Retry-After` e contrato de erro do resend.
+- As 11 suítes de integração passaram contra Redis, PostgreSQL, BullMQ e worker reais; a migration nova foi validada em `up/down/up`.
+- Não foram adicionadas dependências nem alterações de pipeline; Testcontainers e o job de integração existentes cobrem a entrega.

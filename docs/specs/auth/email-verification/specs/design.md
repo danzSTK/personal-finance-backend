@@ -6,551 +6,595 @@ status: current
 related:
   - ./requirements.md
   - ./decisions.md
+  - ../../../../auth/email-verification/redis-keys.md
+  - ../../../../auth/email-verification/lua-scripts.md
   - ../../../../auth/reference/endpoints.md
-  - ../../../../events/user-created.md
-  - ../../../../notifications/email-templates/README.md
+  - ../../../../integrations/auth/email-verification.md
+  - ../../../../notifications/README.md
+  - ../../../../notifications/email-templates/email-verification.md
   - ../../../../database/schema.md
 ---
 
 # Design - Email Verification
 
-## Arquitetura
+## Objetivo Técnico
 
-Esta feature fica centrada em `auth`, com alterações coordenadas em `users`, `notifications`, `shared/guards` e `shared/outbox`.
+Manter `email_verification_challenges` responsável pela autorização do token e
+mover cooldown, janela móvel e coordenação concorrente do resend para uma
+projeção operacional Redis. O fluxo deve persistir a origem do challenge,
+impedir a entrega tardia de links sem uma janela mínima de uso e expor um
+endpoint autenticado de status para o frontend.
+
+## Requisitos Não Funcionais
+
+- Decisões de cooldown e limite devem exigir uma única avaliação atômica no
+  Redis, sem consultas repetidas ao PostgreSQL no caminho quente.
+- Duas requisições concorrentes do mesmo usuário não podem confirmar dois
+  resends lógicos.
+- Ausência de chaves Redis é fail-open e inicializa estado vazio;
+  indisponibilidade técnica do Redis é fail-closed antes de qualquer escrita
+  manual no PostgreSQL.
+- Um commit PostgreSQL nunca pode ser desfeito por falha posterior do Redis ou
+  do BullMQ.
+- Tokens, URLs de verificação, parâmetros de template e mutation tokens não
+  podem aparecer em logs, erros ou respostas.
+- O status deve ser barato para consultas pontuais do frontend, mas não é
+  projetado para polling por segundo.
+- Alterações das constantes de consumo exigem revisão de código e spec.
+
+## Arquitetura
 
 ```mermaid
 flowchart TD
-  Signup["POST /auth/sign-up"] --> CreateUser["CreateUserUseCase\nstatus=PENDING_EMAIL_VERIFICATION"]
-  CreateUser --> UserCreated["outbox: user.created"]
-  UserCreated --> VerifyHandler["CreateEmailVerificationChallengeOnUserCreatedHandler"]
-  UserCreated --> WelcomeCreated["EnqueueWelcomeEmailOnUserCreatedHandler"]
-  VerifyHandler --> Challenge[("email_verification_challenges")]
-  VerifyHandler --> EmailMessages[("email_messages")]
-  EmailMessages --> Queue["notifications.email"]
-  Confirm["POST /auth/email-verification/confirm"] --> Consume["ConfirmEmailVerificationUseCase"]
-  Consume --> Active["users.status=ACTIVE"]
-  Consume --> VerifiedEvent["outbox: user.email.verified"]
-  VerifiedEvent --> WelcomeVerified["EnqueueWelcomeEmailOnUserEmailVerifiedHandler"]
-  WelcomeCreated --> EmailMessages
-  WelcomeVerified --> EmailMessages
+  Client["Frontend"] --> Status["GET resend/status"]
+  Client --> Resend["POST resend"]
+  Resend --> Begin["Lua: evaluate-and-begin"]
+  Status --> Load["Lua: load-state"]
+  Begin --> Redis[("Redis policy state")]
+  Load --> Redis
+  Begin --> Tx["PostgreSQL transaction"]
+  Tx --> Challenge[("email_verification_challenges\norigin")]
+  Tx --> Intent[("email_messages\ndeliver_before")]
+  Tx --> Complete["Lua: complete-logical-send"]
+  Tx -. rollback .-> Abort["Lua: abort-mutation"]
+  Complete --> Redis
+  Abort --> Redis
+  Intent --> Queue["BullMQ notifications.email"]
+  Queue --> Worker["EmailMessageProcessor"]
+  Worker --> Deadline{"deliver_before > now?"}
+  Deadline -->|sim| Provider["MailService / provider"]
+  Deadline -->|não| Cancel["CANCELED + UnrecoverableError"]
 ```
 
-## Camadas e Módulos
+O envio automático percorre a mesma transação de challenge/intenção, persiste
+`origin=AUTOMATIC` e chama `complete-logical-send` com cooldown de 60 segundos,
+sem inserir membro no contador manual.
+
+## Camadas E Módulos
 
 ### Auth
 
-Auth será o dono do fluxo de verificação:
+Auth continua dono da política de verificação:
 
 ```text
 api/src/modules/auth/
 ├── application/
 │   ├── errors/
+│   ├── ports/
+│   │   └── email-verification-resend-state-store.interface.ts
 │   └── use-cases/
 │       ├── confirm-email-verification/
 │       ├── create-email-verification-challenge/
+│       ├── get-email-verification-resend-status/
 │       └── resend-email-verification/
 ├── domain/
-│   ├── entities/
-│   │   └── email-verification-challenge.entity.ts
-│   ├── repositories/
-│   │   └── email-verification-challenge.repository.interface.ts
-│   └── value-objects/
-│       └── email-verification-token.value-object.ts
+│   ├── constants/email-verification.constants.ts
+│   ├── entities/email-verification-challenge.entity.ts
+│   ├── policies/email-verification-resend.policy.ts
+│   ├── repositories/email-verification-challenge.repository.interface.ts
+│   └── value-objects/email-verification-token.value-object.ts
 ├── infrastructure/
+│   ├── cache/
+│   │   ├── redis-email-verification-resend-state-store.ts
+│   │   └── scripts/
 │   ├── mappers/
 │   └── persistence/
-├── presentation/
-│   ├── dto/
-│   └── http/
-└── auth.module.ts
+└── presentation/
+    ├── dto/
+    └── http/auth.controller.ts
 ```
 
-O módulo `auth` já possui controllers e use cases de autenticação. A feature deve seguir a estrutura existente sem criar um módulo top-level novo.
-
-### Users
-
-Alterações necessárias:
-
-- adicionar `PENDING_EMAIL_VERIFICATION` em `UserStatus`;
-- adicionar método de domínio para ativar usuário pendente, por exemplo `markEmailVerified()`;
-- criar `UserEmailVerifiedEvent`;
-- criar hydrator do evento e registrar em `UsersEventsModule`/`OutboxRehydratorsModule`;
-- não alterar OAuth Google nesta feature.
+- A policy codifica fórmula e precedência como regra pura e não conhece Redis,
+  TypeORM, Nest ou HTTP; os scripts aplicam a mesma regra sobre o estado atômico.
+- A store retorna uniões discriminadas para estado disponível, bloqueado e
+  pendente; falhas técnicas são convertidas em erro de aplicação específico.
+- Controllers permanecem finos; `Retry-After` de erros é serializado pelo filtro
+  global e o header do endpoint de status é escrito pela apresentação a partir
+  do resultado do use case.
 
 ### Notifications
 
-Alterações necessárias:
+Notifications continua dono da intenção e da entrega:
 
-- adicionar `EmailMessageType.EMAIL_VERIFICATION`;
-- adicionar `EmailTemplateKey.EMAIL_VERIFICATION`;
-- adicionar use case para criar intenção de e-mail de verificação;
-- criar handler para `user.created` que cria challenge e e-mail quando o status for pendente;
-- alterar handler de welcome em `user.created` para ignorar `PENDING_EMAIL_VERIFICATION`;
-- criar handler para `user.email.verified` que chama o fluxo de welcome existente;
-- documentar o novo template.
+- `EmailMessage` ganha `deliverBefore: Date | null`.
+- A intenção de verificação recebe o prazo já calculado; o worker não importa o
+  repository de auth nem consulta challenges.
+- `SendEmailMessageUseCase` torna a intenção `CANCELED` quando o prazo foi
+  atingido e retorna um resultado terminal sanitizado.
+- `EmailMessageProcessor` converte esse resultado em `UnrecoverableError`, pois
+  BullMQ é uma preocupação de infraestrutura.
+- O reconciliador não seleciona mensagens `CANCELED`.
 
-## Status e Autorização
+Não será criada dependência circular `notifications -> auth`. Prioridades de
+jobs são uma feature separada.
 
-### Status
+## Constantes Centrais
 
-Novo valor:
-
-```text
-PENDING_EMAIL_VERIFICATION
-```
-
-Banco:
-
-```sql
-ALTER TABLE "users" DROP CONSTRAINT "CHK_users_status";
-ALTER TABLE "users"
-  ADD CONSTRAINT "CHK_users_status"
-  CHECK ("status" IN ('PENDING_PROFILE', 'PENDING_EMAIL_VERIFICATION', 'ACTIVE', 'BLOCKED'));
-```
-
-### Guard global
-
-Criar um guard global depois de `JwtAuthGuard`, por exemplo:
+As regras ficam em `email-verification.constants.ts` como valores versionados:
 
 ```text
-EmailVerificationStatusGuard
+EMAIL_VERIFICATION_MANUAL_RESEND_LIMIT = 5
+EMAIL_VERIFICATION_MANUAL_RESEND_WINDOW_SECONDS = 86_400
+EMAIL_VERIFICATION_INITIAL_COOLDOWN_SECONDS = 60
+EMAIL_VERIFICATION_MAX_COOLDOWN_SECONDS = 600
+EMAIL_VERIFICATION_MINIMUM_USABLE_TOKEN_SECONDS = 300
+EMAIL_VERIFICATION_MUTATION_TTL_SECONDS = 30
 ```
 
-Comportamento:
-
-- se rota for pública, permite;
-- se não houver `request.user`, permite e deixa o guard de auth decidir;
-- se `user.status !== PENDING_EMAIL_VERIFICATION`, permite;
-- se a rota tiver metadata de liberação, permite;
-- caso contrário, lança erro `EmailVerificationRequiredError`.
-
-Decorator:
+O cooldown confirmado depois de um envio é:
 
 ```text
-@AllowPendingEmailVerification()
+automatic: 60
+manual: min(60 * 2 ^ manualResendsUsedAfterSend, 600)
 ```
 
-Metadata:
+| Envio lógico confirmado | Contagem manual após envio |             Próximo cooldown |
+| ----------------------- | -------------------------: | ---------------------------: |
+| automático inicial      |                          0 |                         60 s |
+| manual 1                |                          1 |                        120 s |
+| manual 2                |                          2 |                        240 s |
+| manual 3                |                          3 |                        480 s |
+| manual 4                |                          4 |                        600 s |
+| manual 5                |                          5 | 600 s, além do limite diário |
+
+`EMAIL_VERIFICATION_TOKEN_TTL_MINUTES` permanece configuração do tempo do token,
+mas o bootstrap deve rejeitar valores que violem:
 
 ```text
-ALLOW_PENDING_EMAIL_VERIFICATION_KEY
+tokenTtlSeconds >= 600 + 300
 ```
 
-Rotas a marcar:
+As variáveis `EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES` e
+`EMAIL_VERIFICATION_DAILY_LIMIT` deixam de existir.
 
-- `AuthController`, porque endpoints de autenticação e sessão são essenciais para usuários pendentes;
-- `GET /users/me`;
-
-`POST /auth/email-verification/confirm` permanece `@IsPublic()`.
-
-## Endpoints
+## Contrato HTTP
 
 ### POST /auth/email-verification/confirm
 
-Auth: público.
-
-Body:
-
-```json
-{
-  "token": "token-completo-da-url"
-}
-```
-
-Response `200`:
-
-```json
-{
-  "object": "email_verification.confirmation",
-  "status": "VERIFIED"
-}
-```
-
-Regras:
-
-- DTO valida `token` como string não vazia e com tamanho máximo documentado;
-- controller não lê usuário da sessão;
-- use case valida hash, expiração e consumo;
-- confirmação bem-sucedida grava evento `user.email.verified`.
+- Público.
+- Recebe `{ "token": "..." }`.
+- Retorna `200 email_verification.confirmation` quando confirmado.
+- Mantém os códigos atuais de token inválido, expirado e usuário bloqueado.
 
 ### POST /auth/email-verification/resend
 
-Auth: `JwtAuthGuard` + `@AllowPendingEmailVerification()`.
+- Autenticado por cookie/JWT e liberado para
+  `PENDING_EMAIL_VERIFICATION`.
+- Body vazio; `userId` e e-mail vêm da identidade autenticada.
+- Retorna `202 email_verification.resend` com `QUEUED` depois do commit da
+  intenção, ainda que o enqueue imediato falhe e dependa do reconciliador.
+- Usuário `ACTIVE` retorna `200 ALREADY_VERIFIED` sem tocar Redis ou banco.
+- Cooldown, limite diário e mutação concorrente retornam `429` com o mesmo
+  `retryAfterSeconds` inteiro positivo no body e em `Retry-After`.
+- Redis indisponível antes da transação retorna
+  `503 EMAIL_VERIFICATION_STATE_UNAVAILABLE` e não cria intenção.
+- Se o commit SQL ocorreu e a finalização Redis falhar, a API preserva o sucesso
+  `202`; retornar erro induziria repetição de uma mutação já confirmada.
 
-Body: vazio.
+### GET /auth/email-verification/resend/status
 
-Response `202`:
+- Autenticado por cookie/JWT e liberado para usuário pendente.
+- Não recebe body, e-mail ou `userId` arbitrário.
+- Retorna `200` para estados disponíveis, bloqueados ou já verificados.
+- Retorna `503 EMAIL_VERIFICATION_STATE_UNAVAILABLE` quando o Redis não pode
+  responder para um usuário pendente.
+- Define `Cache-Control: no-store`.
+- Define `Retry-After` somente na forma bloqueada.
+
+O endpoint usa uma união de response DTOs; cada forma possui seu próprio
+`object`, conforme o contrato da plataforma.
+
+Disponível:
 
 ```json
 {
-  "object": "email_verification.resend",
-  "status": "QUEUED"
+  "object": "email_verification.resend_status.available",
+  "status": "AVAILABLE",
+  "available": true,
+  "retryAfterSeconds": null,
+  "manualResendsUsed": 2,
+  "manualResendsRemaining": 3,
+  "manualResendLimit": 5,
+  "windowSeconds": 86400,
+  "lastLogicalSendAt": "2026-08-25T12:00:00.000Z"
 }
 ```
 
-Se usuário já estiver `ACTIVE`, resposta `200` idempotente:
+Bloqueado:
+
+```http
+HTTP/1.1 200 OK
+Retry-After: 91
+Cache-Control: no-store
+```
 
 ```json
 {
-  "object": "email_verification.resend",
-  "status": "ALREADY_VERIFIED"
+  "object": "email_verification.resend_status.blocked",
+  "status": "BLOCKED",
+  "available": false,
+  "blockedBy": "COOLDOWN",
+  "retryAfterSeconds": 91,
+  "manualResendsUsed": 2,
+  "manualResendsRemaining": 3,
+  "manualResendLimit": 5,
+  "windowSeconds": 86400,
+  "lastLogicalSendAt": "2026-08-25T12:00:00.000Z"
 }
 ```
 
-Regras:
+`blockedBy` aceita `COOLDOWN`, `DAILY_LIMIT` ou `OPERATION_PENDING`. Quando mais
+de uma restrição estiver ativa, representa a que produzir o maior
+`retryAfterSeconds`.
 
-- usa `@CurrentUser()`;
-- não aceita `email` nem `userId` no body;
-- aplica cooldown/limite em transação;
-- cria challenge novo e nova intenção de e-mail quando permitido.
+Já verificado:
 
-## Data Model
-
-### Tabela `email_verification_challenges`
-
-```text
-id uuid primary key
-user_id uuid not null
-email varchar(255) not null
-purpose varchar(50) not null
-token_hash varchar(64) not null
-expires_at timestamptz not null
-consumed_at timestamptz null
-created_at timestamptz not null default now()
+```json
+{
+  "object": "email_verification.resend_status.already_verified",
+  "status": "ALREADY_VERIFIED",
+  "available": false,
+  "retryAfterSeconds": null
+}
 ```
 
-Constraints:
+O frontend consulta o endpoint na entrada da tela, após um resend, ao recuperar
+foco/conectividade e quando seu contador local chegar a zero. Polling contínuo
+por segundo fica fora do contrato recomendado.
+
+## Modelo PostgreSQL
+
+### email_verification_challenges.origin
+
+Nova coluna:
 
 ```text
-PK_email_verification_challenges
-FK_email_verification_challenges_user -> users.id ON DELETE CASCADE
-CHK_email_verification_challenges_purpose
-  purpose IN ('EMAIL_VERIFICATION')
-CHK_email_verification_challenges_token_hash_length
-  length(token_hash) = 64
-CHK_email_verification_challenges_expiration
-  expires_at > created_at
-CHK_email_verification_challenges_consumed_after_created
-  consumed_at IS NULL OR consumed_at >= created_at
+origin varchar(30) not null default 'LEGACY_UNKNOWN'
 ```
 
-Índices:
+Valores:
 
 ```text
-idx_email_verification_challenges_token
-  (purpose, token_hash)
-
-idx_email_verification_challenges_email_purpose_created_at
-  (email, purpose, created_at DESC)
-
-idx_email_verification_challenges_user_purpose_created_at
-  (user_id, purpose, created_at DESC)
-
-idx_email_verification_challenges_unconsumed_expiration
-  (purpose, expires_at)
-  WHERE consumed_at IS NULL
+AUTOMATIC
+MANUAL_RESEND
+LEGACY_UNKNOWN
 ```
 
-Racional:
+- `AUTOMATIC` identifica o challenge inicial criado por `user.created`.
+- `MANUAL_RESEND` identifica uma solicitação autenticada do usuário.
+- `LEGACY_UNKNOWN` existe para backfill e para inserts feitos por code N durante
+  rollback; code N+1 nunca o declara explicitamente.
+- `CHK_email_verification_challenges_origin` restringe os valores.
+- Um índice partial unique em `(user_id, purpose)` para
+  `origin = 'AUTOMATIC'` garante um único challenge automático inicial, inclusive
+  sob retry de outbox.
 
-- `(purpose, token_hash)` sustenta confirmação por token;
-- `(email, purpose, created_at DESC)` sustenta cooldown e limite 24h;
-- `(user_id, purpose, created_at DESC)` sustenta consultas operacionais do usuário autenticado;
-- índice parcial de não consumidos ajuda limpeza futura e diagnósticos.
-- `email` é validado e normalizado pelo value object compartilhado `Email`, usando as mesmas regras do e-mail principal do usuário.
+Estratégia da migration:
 
-### Token
+1. adicionar `origin` nullable;
+2. preencher registros existentes com `LEGACY_UNKNOWN`;
+3. tornar a coluna `NOT NULL`;
+4. criar a check constraint;
+5. criar o índice partial unique para origem automática;
+6. manter temporariamente `DEFAULT 'LEGACY_UNKNOWN'` para que code N continue
+   inserindo depois da migration durante rollback;
+7. remover o default somente em nova migration de contract quando
+   `DB-COMPAT-001` cumprir seu gate em `docs/architecture/compatibility.md`.
 
-Geração:
+Matriz de rollout:
 
-- `crypto.randomBytes(32)`;
-- token serializado em base64url;
-- `token_hash = sha256(token).hex`.
+| Combinação                   | Resultado                                   |
+| ---------------------------- | ------------------------------------------- |
+| code N antes da migration    | compatível                                  |
+| code N depois da migration   | compatível pelo default temporário          |
+| code N+1 antes da migration  | incompatível; expand deve executar primeiro |
+| code N+1 depois da migration | compatível e grava origem explícita         |
 
-Persistência:
+Os índices históricos por `email + purpose + created_at` podem permanecer para
+diagnóstico. Eles deixam de ser a autoridade de cooldown/limite e sua remoção só
+deve ocorrer após medição de uso em alteração técnica separada.
 
-- nunca salvar token em claro;
-- nunca logar token;
-- não incluir token em metadata de `email_messages`, logs ou erros.
+### email_messages.deliver_before
 
-TTL:
+Nova coluna:
 
 ```text
-15 minutos
+deliver_before timestamptz null
 ```
 
-### Configuração
+- `null` significa que a intenção não possui prazo funcional de início de
+  entrega.
+- Para verificação, o valor é
+  `challenge.expires_at - EMAIL_VERIFICATION_MINIMUM_USABLE_TOKEN_SECONDS`.
+- `CHK_email_messages_deliver_before` garante
+  `deliver_before IS NULL OR deliver_before > created_at`.
+- Não será criado índice: o worker carrega a mensagem pelo id e o reconciliador
+  já filtra pelo estado/idade. Um índice sem consulta correspondente só
+  aumentaria custo de escrita.
 
-Adicionar config de verification:
+A migration altera exatamente essas duas tabelas. Na mesma tarefa,
+`docs/database/schema.md` deve documentar colunas, constraint e índice. O
+documento de schema atual não deve antecipar migration ainda não aplicada.
+
+## Modelo Redis
+
+O escopo operacional é o `userId`, porque resend e status são autenticados e
+pertencem à conta. Todas as chaves usam a hash tag `{userId}`:
 
 ```text
-EMAIL_VERIFICATION_TOKEN_TTL_MINUTES=15
-EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES=60
-EMAIL_VERIFICATION_DAILY_LIMIT=5
-NOTIFICATIONS_EMAIL_VERIFICATION_PATH=/verification-email
-BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID=<id-do-template-na-brevo>
+auth:email-verification:{userId}:manual-resends
+auth:email-verification:{userId}:cooldown
+auth:email-verification:{userId}:last-send
+auth:email-verification:{userId}:pending
 ```
 
-`BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID` é o mapping de infraestrutura para a
-referência lógica `email-verification:v1`. Ele é obrigatório no worker quando o
-envio real estiver habilitado com Brevo. Em ambiente local/teste pode ser usado
-o provider noop.
+| Chave            | Tipo   | Conteúdo                                            | TTL                                 |
+| ---------------- | ------ | --------------------------------------------------- | ----------------------------------- |
+| `manual-resends` | ZSET   | `challengeId -> logicalSendAtMs`                    | até o resend mais novo sair de 24 h |
+| `cooldown`       | STRING | `logicalSendAtMs`                                   | cooldown calculado do último envio  |
+| `last-send`      | STRING | JSON sanitizado com instante, origem e challenge id | 24 h                                |
+| `pending`        | STRING | mutation token opaco                                | 30 s                                |
+
+Não existe marcador `initialized`: ausência parcial ou total é deliberadamente
+interpretada como estado vazio. O script de leitura remove membros vencidos do
+ZSET antes de contar.
+
+## Contratos TypeScript
+
+Usar `as const` e uniões discriminadas, sem `enum` e sem `any`:
+
+```ts
+type EmailVerificationResendRestriction =
+  | "COOLDOWN"
+  | "DAILY_LIMIT"
+  | "OPERATION_PENDING";
+
+type BeginResendMutationResult =
+  | { kind: "ACQUIRED"; mutationToken: string; manualResendsUsed: number }
+  | {
+      kind: "BLOCKED";
+      blockedBy: EmailVerificationResendRestriction;
+      retryAfterSeconds: number;
+      manualResendsUsed: number;
+    };
+```
+
+O adapter Redis valida tamanho, posição e valores retornados pelos scripts antes
+de convertê-los. Resposta inesperada é indisponibilidade técnica, nunca
+autorização implícita.
+
+## Scripts Lua
+
+Os scripts completos são documentados em
+[`docs/auth/email-verification/lua-scripts.md`](../../../../auth/email-verification/lua-scripts.md).
+O conjunto planejado é:
+
+1. `LOAD_EMAIL_VERIFICATION_RESEND_STATE_SCRIPT`: usado pelo GET de status;
+   limpa a janela, lê contadores/PTTLs e retorna a restrição efetiva.
+2. `BEGIN_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`: usado antes da transação do
+   POST; avalia janela/cooldown/pending e adquire a barreira com `SET NX PX`.
+3. `RENEW_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`: usado depois de esperas
+   transacionais; renova o TTL apenas quando o mutation token ainda é o dono.
+4. `COMPLETE_EMAIL_VERIFICATION_LOGICAL_SEND_SCRIPT`: usado após commit manual ou
+   automático; registra estado, calcula cooldown e libera somente a barreira do
+   dono.
+5. `ABORT_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`: usado no rollback/erro antes
+   do commit; remove `pending` apenas quando o mutation token confere.
+
+Todos permanecem curtos, determinísticos, sem I/O externo e recebem o horário da
+aplicação para testes reproduzíveis. Constantes são passadas em `ARGV`; não são
+duplicadas como números mágicos no Lua.
 
 ## Fluxos
 
-### Sign-up por credenciais
+### Envio Automático
 
-1. `SignUpUseCase` valida duplicidade como hoje.
-2. Cria usuário com `status=PENDING_EMAIL_VERIFICATION`.
-3. `User.create()` registra `user.created`.
-4. `CreateUserUseCase` salva usuário e outbox na mesma transação.
-5. `SignUpUseCase` gera tokens e cookies.
-6. Frontend chama `GET /users/me` e lê `PENDING_EMAIL_VERIFICATION`.
-7. Handler de `user.created` cria challenge e enfileira e-mail de verificação.
+1. `user.created` pendente chega ao handler.
+2. A transação cria ou recupera idempotentemente o único challenge automático e
+   sua intenção de e-mail.
+3. O challenge persiste `origin=AUTOMATIC`.
+4. A intenção persiste `deliver_before=expiresAt-300s`.
+5. Depois do commit, `complete-logical-send` grava `last-send` e cooldown de 60s,
+   sem inserir no ZSET manual.
+6. O producer tenta enfileirar; falha é recuperada pelo reconciliador.
 
-### Google OAuth
+### Resend Manual
 
-O fluxo Google OAuth não será alterado nesta feature. Qualquer decisão sobre `ACTIVE` ou `PENDING_PROFILE` em OAuth deve ficar para spec futura.
+1. O use case bloqueia/valida o usuário autenticado.
+2. `begin-mutation` limpa a janela, avalia restrições e adquire `pending`.
+3. Se bloqueado, o use case lança o `RetryAfterApplicationError` específico.
+4. Se adquirido, a transação PostgreSQL bloqueia o usuário e executa
+   `renew-mutation` depois do lock e depois de cada operação assíncrona anterior
+   ao commit. Token perdido ou Redis indisponível causa rollback.
+5. Com a posse renovada, cria challenge `MANUAL_RESEND` e intenção com
+   `deliver_before`.
+6. Depois do commit, `complete-logical-send` adiciona o challenge ao ZSET, calcula
+   o cooldown com a nova contagem, atualiza `last-send` e libera a barreira.
+7. O producer tenta enfileirar e a API retorna `202`.
+8. Em rollback, `abort-mutation` libera a barreira do dono.
 
-### Confirmação
+### Consulta De Status
 
-1. Frontend recebe rota `/verification-email?token=<token>`.
-2. Frontend envia `POST /auth/email-verification/confirm`.
-3. Use case calcula hash.
-4. Busca challenge por `purpose + token_hash`.
-5. Valida expiração/consumo.
-6. Em transação, bloqueia usuário e challenge.
-7. Atualiza usuário para `ACTIVE`, consome challenge e grava `user.email.verified`.
-8. Handler de notification cria welcome email idempotente.
+1. Usuário ativo retorna `ALREADY_VERIFIED` sem Redis.
+2. Usuário pendente executa `load-state`.
+3. Chaves ausentes produzem `AVAILABLE`, contagem zero e último envio nulo.
+4. Restrições retornam a maior espera efetiva.
+5. Controller serializa a forma do DTO, `Cache-Control` e `Retry-After` opcional.
 
-### Resend
+### Entrega No Worker
 
-1. Usuário autenticado chama `POST /auth/email-verification/resend`.
-2. Guard permite porque rota tem decorator.
-3. Use case usa `CurrentUser`.
-4. Se usuário `ACTIVE`, retorna `ALREADY_VERIFIED`.
-5. Se usuário pendente, verifica cooldown e limite.
-6. Cria novo challenge e nova intenção de e-mail.
+1. O processor carrega e bloqueia a intenção; o primeiro `now` é lido somente
+   depois que o lock foi adquirido.
+2. Para intenções com prazo, o use case adquire novamente o lock e lê um novo
+   `now` imediatamente antes do provider.
+3. Depois do commit, uma leitura final imediatamente antes de `MailService.send`
+   fecha a janela sem manter uma transação aberta durante I/O externo; se o prazo
+   cruzou, o cancelamento retorna ao lock.
+4. `null` ou prazo futuro na leitura final seguem o envio normal.
+5. Prazo atingido marca a intenção `CANCELED` com código interno sanitizado.
+6. O processor lança `UnrecoverableError`; BullMQ move o job para failed sem
+   consumir as tentativas restantes.
+7. O reconciliador ignora a intenção terminal.
 
-## Eventos
+## Erros E Contrato De Retry
 
-### Alteração em `user.created`
+| Código                                    | HTTP | Retry-After | Uso                                     |
+| ----------------------------------------- | ---: | ----------- | --------------------------------------- |
+| `EMAIL_VERIFICATION_REQUIRED`             |  403 | não         | pendente acessou recurso bloqueado      |
+| `EMAIL_VERIFICATION_TOKEN_INVALID`        |  400 | não         | token inválido                          |
+| `EMAIL_VERIFICATION_TOKEN_EXPIRED`        |  410 | não         | token expirado                          |
+| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE`      |  429 | sim         | cooldown ainda ativo                    |
+| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` |  429 | sim         | cinco resends manuais na janela         |
+| `EMAIL_VERIFICATION_OPERATION_PENDING`    |  429 | sim         | outra mutação possui a barreira         |
+| `EMAIL_VERIFICATION_STATE_UNAVAILABLE`    |  503 | não         | Redis indisponível ou resposta inválida |
+| `EMAIL_VERIFICATION_USER_BLOCKED`         |  409 | não         | confirmação de usuário bloqueado        |
 
-Contrato atual já inclui `status` e `email`, suficiente para ramificar.
+Os três erros `429` herdam de `RetryAfterApplicationError`. O filtro global
+serializa `details.retryAfterSeconds` e o header. A expiração de
+`deliver_before` é resultado interno do worker e não é mapeada para HTTP.
 
-Handlers:
+## Consistência E Falhas
 
-- verification handler só age quando `status=PENDING_EMAIL_VERIFICATION`;
-- welcome handler ignora quando `status=PENDING_EMAIL_VERIFICATION`;
-- demais handlers de onboarding técnico continuam como estão.
+| Falha                                | Resultado                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| Redis indisponível antes do resend   | `503`, nenhuma escrita SQL                                                |
+| Chaves Redis ausentes                | estado vazio, operação permitida                                          |
+| Concorrente durante `pending`        | `429` com PTTL da barreira                                                |
+| Rollback SQL                         | `abort-mutation`; TTL é fallback                                          |
+| Commit SQL e falha no complete Redis | intenção preservada, `202`, barreira expira e estado pode reiniciar vazio |
+| Commit SQL e falha no enqueue        | reconciliador reenfileira a intenção                                      |
+| Retry de `user.created`              | unique parcial impede segundo automático                                  |
+| Worker recebe intenção fora do prazo | intenção cancelada, provider não chamado, job unrecoverable               |
 
-### Novo `user.email.verified`
-
-Produtor: `users`, chamado pelo use case de confirmação em auth depois de alterar o aggregate de usuário.
-
-Payload:
-
-```json
-{
-  "userId": "uuid",
-  "email": "user@example.com"
-}
-```
-
-Metadados:
-
-```text
-eventName=user.email.verified
-eventVersion=1
-aggregateType=User
-aggregateId=<userId>
-deduplicationKey=user.email.verified:<userId>
-```
-
-Consumidor inicial:
-
-- `notifications`: enfileirar welcome email idempotente.
-
-## Notifications
-
-### Verification Email
-
-Novo template:
-
-```text
-template_key=email-verification
-type=EMAIL_VERIFICATION
-trigger=user.created + resend
-```
-
-Params:
-
-```json
-{
-  "first_name": "Daniel",
-  "verification_url": "https://app.danfy.com/verification-email?token=<token>",
-  "expires_in_minutes": 15,
-  "support_url": "https://..."
-}
-```
-
-Idempotência:
-
-- verification e-mail não deve ser idempotente apenas por usuário, porque resend precisa criar novas mensagens;
-- usar chave por challenge:
-
-```text
-email:verification:challenge:<challengeId>
-```
-
-Welcome:
-
-- manter chave atual `email:welcome:user:<userId>`;
-- isso garante que welcome não duplica se `user.email.verified` for reprocessado.
-
-## Erros HTTP
-
-Adicionar application errors e mapear no `AppExceptionFilter`:
-
-| Código                                    | HTTP | Uso                                                                                     |
-| ----------------------------------------- | ---: | --------------------------------------------------------------------------------------- |
-| `EMAIL_VERIFICATION_REQUIRED`             |  403 | usuário pendente tentou acessar rota não liberada                                       |
-| `EMAIL_VERIFICATION_TOKEN_INVALID`        |  400 | token ausente, malformado, inexistente ou challenge consumido sem idempotência possível |
-| `EMAIL_VERIFICATION_TOKEN_EXPIRED`        |  410 | challenge existe, mas expirou                                                           |
-| `EMAIL_VERIFICATION_COOLDOWN_ACTIVE`      |  429 | resend antes de 60 minutos                                                              |
-| `EMAIL_VERIFICATION_DAILY_LIMIT_EXCEEDED` |  429 | mais de 5 envios em 24 horas                                                            |
-| `EMAIL_VERIFICATION_USER_BLOCKED`         |  409 | tentativa de confirmar usuário bloqueado                                                |
-
-Não expor:
-
-- token;
-- token hash;
-- raw SQL;
-- stack trace;
-- payload bruto do provider de e-mail.
+Essa feature aceita deliberadamente que perda de estado Redis reinicie a
+política. A origem no PostgreSQL preserva auditoria, mas não existe hidratação no
+caminho quente desta entrega.
 
 ## Segurança
 
-Controles:
+- Escopo Redis e queries usam `userId` do JWT/evento, nunca body arbitrário.
+- Mutation token não aparece em log ou resposta.
+- Scripts compare-and-delete impedem operação antiga de remover barreira nova.
+- `last-send` não contém e-mail, token ou URL.
+- Status não expõe challenge id, e-mail, causa interna do Redis ou provider.
+- `Cache-Control: no-store` evita cache intermediário de estado do usuário.
 
-- token aleatório de alta entropia;
-- hash determinístico do token no banco;
-- confirmação por `POST`;
-- resend autenticado;
-- resend deriva usuário do JWT;
-- cooldown e limite por `email + purpose`;
-- guard global deny-by-default para pendentes;
-- tokens não aparecem em logs nem em `email_messages.metadata`;
-- queries por token e contagem usam parâmetros TypeORM/query builder, sem interpolação.
+## Migration E Schema
 
-Ataques mitigados:
+Criar uma única migration incremental para:
 
-- prefetch/crawler confirmando link via GET;
-- usuário pendente acessando recursos de produto;
-- spam por resend;
-- token em claro vazado pelo banco;
-- enumeração de e-mail no resend;
-- duplicidade por retries de outbox.
+1. adicionar e preencher `email_verification_challenges.origin`;
+2. criar `CHK_email_verification_challenges_origin`;
+3. criar unique partial do challenge automático;
+4. adicionar `email_messages.deliver_before`;
+5. criar `CHK_email_messages_deliver_before`;
+6. atualizar ORM entities e mappers;
+7. atualizar `docs/database/schema.md` na mesma tarefa.
 
-## Concorrência e Consistência
+Não modificar migrations aplicadas. Não há necessidade de função ou trigger
+novo.
 
-Confirmação:
+## Estratégia De Testes
 
-- usar transação;
-- bloquear challenge e usuário com `pessimistic_write`;
-- revalidar `consumed_at`, `expires_at` e status dentro da transação;
-- gravar `user.email.verified` na outbox com o mesmo `EntityManager`.
+### Domain E Policy
 
-Resend:
-
-- usar transação;
-- usar lock no usuário autenticado ou advisory lock transacional por `email + purpose`;
-- contar challenges dos últimos 24h dentro da transação;
-- buscar último challenge para cooldown dentro da transação.
-
-Handler de `user.created`:
-
-- precisa ser idempotente sob retry;
-- se cooldown impedir duplicata imediata do mesmo evento, tratar como sucesso operacional sem relançar erro para outbox quando a duplicata for causada por retry.
-
-## Impacto No Banco e Migrations
-
-Criar migration para:
-
-1. atualizar `CHK_users_status`;
-2. criar `email_verification_challenges`;
-3. criar constraints e índices;
-4. não criar nova função `set_updated_at()`, pois a tabela não usa `updated_at` nesta spec.
-
-Atualizar `docs/database/schema.md` na mesma tarefa.
-
-## Testes
-
-### Domain
-
-- `EmailVerificationChallenge.create()` valida purpose, hash, expiração e consumo.
-- `EmailVerificationChallenge.consume()` preenche `consumed_at` e é idempotente quando apropriado.
-- `User.markEmailVerified()` só altera de `PENDING_EMAIL_VERIFICATION` para `ACTIVE`.
+- origem aceita no create e legado somente no reconstitute;
+- sequência exata `60, 120, 240, 480, 600, 600`;
+- limites exatos em `59/60`, `119/120`, `599/600` segundos;
+- janela móvel em `24h - 1ms`, `24h` e `24h + 1ms`;
+- limite manual ignora automático;
+- policy escolhe a maior espera quando existem múltiplas restrições.
 
 ### Application
 
-- sign-up credentials cria pendente e gera tokens.
-- Google OAuth permanece sem alteração funcional.
-- confirm token válido ativa usuário e grava evento.
-- confirm token expirado falha.
-- confirm token inválido falha.
-- confirm usuário bloqueado falha.
-- resend para pendente cria novo challenge.
-- resend antes de 60 minutos falha.
-- resend acima de 5 em 24h falha.
-- resend para ativo retorna idempotente.
+- resend disponível persiste entidade de domínio com `MANUAL_RESEND`;
+- bloqueios lançam erros específicos com retry inteiro;
+- estado ausente permite e inicializa;
+- Redis indisponível impede transação;
+- usuário ativo não consulta Redis;
+- falha SQL chama abort; commit seguido de falha Redis não desfaz sucesso;
+- status retorna cada forma da união sem mutar contadores.
 
-### Guards
+### Redis/Lua
 
-- usuário pendente bloqueia rota protegida sem decorator.
-- usuário pendente acessa rota com decorator.
-- usuário ativo acessa rota protegida normalmente.
-- rota pública continua pública.
+- testes de unidade do adapter com respostas válidas e inválidas;
+- integração com Redis real para atomicidade, PTTL, pruning e compare-and-delete;
+- duas reservas concorrentes resultam em uma aquisição;
+- complete manual é idempotente pelo `challengeId`;
+- complete automático não entra no ZSET e não encurta cooldown maior existente;
+- todas as chaves permanecem no mesmo hash slot.
 
-### Notifications
+### PostgreSQL
 
-- `user.created` pendente cria verification e não welcome.
-- `user.created` ativo cria welcome e não verification.
-- `user.email.verified` cria welcome.
-- idempotência de welcome por usuário.
-- verification email usa idempotency key por challenge.
+- migration sobe e reverte preservando dados;
+- legado recebe `LEGACY_UNKNOWN`;
+- constraint rejeita origem inválida;
+- unique parcial rejeita dois automáticos e aceita múltiplos manuais;
+- `deliver_before` aceita null/futuro e rejeita prazo anterior/igual à criação;
+- mappers preservam `Instant`.
 
-### Infrastructure
+Não existe query de otimização nova que justifique `EXPLAIN ANALYZE` nesta etapa;
+qualquer novo acesso por lote deve ser analisado com dados representativos antes
+de adicionar índice.
 
-- repository salva e reconstitui challenge.
-- queries de cooldown/limite usam `email + purpose + created_at`.
-- migration cria constraints/índices esperados.
+### Notifications/BullMQ
 
-### E2E
+- intenção de verification calcula `deliver_before` corretamente;
+- `deliver_before = now` cancela sem chamar MailService;
+- `deliver_before = now + 1ms` pode seguir;
+- prazo que vence entre o preparo inicial e a revalidação cancela sem chamar
+  MailService;
+- intenção sem prazo preserva o comportamento atual;
+- estado SQL fica terminal antes de `UnrecoverableError`;
+- tentativas restantes não são consumidas e o reconciliador não reenfileira.
 
-- sign-up retorna perfil pendente e cookies.
-- pendente consegue `GET /users/me`.
-- pendente não consegue criar recurso financeiro.
-- pendente consegue resend.
-- confirmação pública via POST ativa usuário.
-- após confirmação, rota protegida deixa de retornar `EMAIL_VERIFICATION_REQUIRED`.
+### HTTP/E2E
 
-## Documentação
+- status exige autenticação e usa o usuário do JWT;
+- três response DTOs possuem `object` próprio;
+- status bloqueado retorna `200`, body e `Retry-After` iguais;
+- status disponível/ativo retorna `retryAfterSeconds: null` e não retorna o
+  header `Retry-After`;
+- resend bloqueado retorna `429` com body/header;
+- Redis indisponível retorna `503` sem intenção persistida;
+- fluxo completo cobre automático, cinco manuais, janela móvel e confirmação.
 
-Atualizar:
+Testes não usam `setTimeout`; relógio é injetado ou timestamps são passados aos
+casos de uso/scripts.
 
-- `docs/auth/flows/sign-up.md`;
-- `docs/auth/flows/sign-in.md`;
-- `docs/auth/flows/google-login.md`;
-- `docs/auth/reference/endpoints.md`;
-- `docs/auth/reference/error-codes.md`;
-- `docs/integrations/auth/sign-up.md`;
-- `docs/integrations/auth/get-me.md`;
-- novo `docs/integrations/auth/email-verification.md`;
-- `docs/events/README.md`;
-- novo `docs/events/user-email-verified.md`;
-- `docs/events/events-map.canvas`;
-- `docs/notifications/email-templates/README.md`;
-- novo `docs/notifications/email-templates/email-verification.md`;
-- `docs/database/schema.md`;
-- `docs/integrations/errors.md`.
+## Documentação Afetada
+
+- `docs/specs/auth/email-verification/specs/{requirements,design,tasks,decisions}.md`;
+- `docs/auth/email-verification/{index,redis-keys,lua-scripts}.md`;
+- `docs/auth/reference/{endpoints,error-codes,throttling}.md`;
+- `docs/integrations/auth/email-verification.md`;
+- `docs/integrations/errors.md`;
+- `docs/configuration.md`, `.env` e `.env.exemple`;
+- `docs/notifications/README.md`;
+- `docs/notifications/email-templates/email-verification.md`;
+- `docs/notifications/email-templates/template-model.md`;
+- `docs/database/schema.md` junto da migration;
+- Swagger decorators e response DTOs do `AuthController`.
+
+O catálogo de prioridade de e-mails não faz parte desta spec e deve ser tratado
+em feature separada.

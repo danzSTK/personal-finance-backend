@@ -18,6 +18,7 @@ import { Check, Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn,
 @Check('CHK_email_messages_attempts_count', `"attempts_count" >= 0`)
 @Check('CHK_email_messages_template_version', `"template_version" >= 1`)
 @Check('CHK_email_messages_template_params_object', `jsonb_typeof("template_params") = 'object'`)
+@Check('CHK_email_messages_deliver_before', `"deliver_before" IS NULL OR "deliver_before" > "created_at"`)
 export class EmailMessageOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -69,6 +70,9 @@ export class EmailMessageOrmEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   failed_at: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  deliver_before: Date | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;

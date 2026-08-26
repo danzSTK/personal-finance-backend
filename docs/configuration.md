@@ -109,8 +109,6 @@ Use credenciais com privilégio mínimo e acesso somente aos buckets necessário
 | `NODE_ENV`                                   | Default     | `development`                    | ambiente `development`, `production` ou `test`  |
 | `NOTIFICATIONS_EMAIL_VERIFICATION_PATH`      | Default     | `/verification-email`            | rota do frontend usada no link de verificação   |
 | `EMAIL_VERIFICATION_TOKEN_TTL_MINUTES`       | Default     | `15`                             | validade do token de verificação                |
-| `EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES` | Default     | `60`                             | cooldown entre desafios de verificação          |
-| `EMAIL_VERIFICATION_DAILY_LIMIT`             | Default     | `5`                              | limite diário de desafios por e-mail            |
 | `SUPPORT_URL`                                | Condicional | `http://localhost:5173/support`¹ | link de suporte incluído nas mensagens          |
 
 ¹ `SUPPORT_URL` é obrigatória quando `MAIL_ENABLED=true`. O default só é aplicado quando o envio está desabilitado.

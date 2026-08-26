@@ -1,6 +1,7 @@
 import { AccountType, CategoryType } from '@/common/models/enums';
 
 const passwordChangeScope = (userId: string) => `auth:password-change:{${userId}}`;
+const emailVerificationScope = (userId: string) => `auth:email-verification:{${userId}}`;
 
 export const CacheKeys = {
   users: {
@@ -17,6 +18,12 @@ export const CacheKeys = {
 
     userSessions: (userId: string) => `auth:sessions:${userId}`,
     googleLinkState: (state: string) => `auth:google-link:${state}`,
+    emailVerification: {
+      manualResends: (userId: string): string => `${emailVerificationScope(userId)}:manual-resends`,
+      cooldown: (userId: string): string => `${emailVerificationScope(userId)}:cooldown`,
+      lastSend: (userId: string): string => `${emailVerificationScope(userId)}:last-send`,
+      pending: (userId: string): string => `${emailVerificationScope(userId)}:pending`,
+    },
     passwordChange: {
       failures: (userId: string) => `${passwordChangeScope(userId)}:failures`,
       block: (userId: string) => `${passwordChangeScope(userId)}:block`,
