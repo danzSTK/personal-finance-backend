@@ -62,6 +62,13 @@ export abstract class IEmailVerificationResendStateStore {
   ): Promise<BeginEmailVerificationResendMutationResult>;
 
   /**
+   * Extends the short-lived mutation barrier only while `mutationToken` remains
+   * its owner. A missing barrier or ownership change is a technical failure and
+   * must prevent the surrounding SQL transaction from committing.
+   */
+  abstract renewMutation(userId: string, mutationToken: string): Promise<void>;
+
+  /**
    * Records a SQL-confirmed logical send idempotently, updates the last-send
    * snapshot and cooldown, counts manual origins in the 24-hour window and
    * releases the caller's mutation barrier when a token is provided.

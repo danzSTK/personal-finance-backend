@@ -65,12 +65,17 @@ describe('RedisEmailVerificationResendStateStore', () => {
 
   describe('mutations', () => {
     it('parses acquisition and validates complete/abort acknowledgements', async () => {
-      evalScript.mockResolvedValueOnce([0, 0]).mockResolvedValueOnce([0, 1, 1_000, 1_000]).mockResolvedValueOnce([1]);
+      evalScript
+        .mockResolvedValueOnce([0, 0])
+        .mockResolvedValueOnce([1])
+        .mockResolvedValueOnce([0, 1, 1_000, 1_000])
+        .mockResolvedValueOnce([1]);
 
       await expect(store.beginMutation('user-1', 'mutation-1', new Date())).resolves.toEqual({
         kind: EmailVerificationResendMutationKind.ACQUIRED,
         manualResendsUsed: 0,
       });
+      await expect(store.renewMutation('user-1', 'mutation-1')).resolves.toBeUndefined();
       await expect(
         store.completeLogicalSend({
           userId: 'user-1',
@@ -82,6 +87,12 @@ describe('RedisEmailVerificationResendStateStore', () => {
         }),
       ).resolves.toBeUndefined();
       await expect(store.abortMutation('user-1', 'mutation-1')).resolves.toBeUndefined();
+    });
+
+    it('rejects renewal after the mutation owner was lost', async () => {
+      evalScript.mockResolvedValue([0]);
+
+      await expect(store.renewMutation('user-1', 'stale-token')).rejects.toThrow('ownership was lost');
     });
 
     it('rejects a technical Lua status instead of authorizing the mutation', async () => {

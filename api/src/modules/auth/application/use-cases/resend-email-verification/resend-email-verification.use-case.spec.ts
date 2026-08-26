@@ -79,6 +79,7 @@ describe('ResendEmailVerificationUseCase', () => {
         kind: EmailVerificationResendMutationKind.ACQUIRED,
         manualResendsUsed: 0,
       }),
+      renewMutation: jest.fn().mockResolvedValue(undefined),
       completeLogicalSend: jest.fn(() => {
         callOrder.push('redis-completed');
         return Promise.resolve();
@@ -110,6 +111,11 @@ describe('ResendEmailVerificationUseCase', () => {
     expect(createChallenge.execute).toHaveBeenCalledWith(
       expect.objectContaining({ origin: EmailVerificationChallengeOrigin.MANUAL_RESEND }),
     );
+    expect(resendStateStore.renewMutation).toHaveBeenCalledTimes(3);
+    const renewalToken = resendStateStore.renewMutation.mock.calls[0]?.[1];
+    expect(resendStateStore.renewMutation).toHaveBeenNthCalledWith(1, 'user-1', renewalToken);
+    expect(resendStateStore.renewMutation).toHaveBeenNthCalledWith(2, 'user-1', renewalToken);
+    expect(resendStateStore.renewMutation).toHaveBeenNthCalledWith(3, 'user-1', renewalToken);
     expect(createMessage.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         challengeId: 'challenge-1',
@@ -161,6 +167,30 @@ describe('ResendEmailVerificationUseCase', () => {
     expect(resendStateStore.abortMutation).toHaveBeenCalledWith('user-1', expect.any(String));
     expect(resendStateStore.completeLogicalSend).not.toHaveBeenCalled();
     expect(producer.enqueueEmailMessage).not.toHaveBeenCalled();
+  });
+
+  it('rolls back before writing when the barrier expired while waiting for the user lock', async () => {
+    resendStateStore.renewMutation.mockRejectedValue(new Error('mutation ownership lost'));
+
+    await expect(useCase.execute({ userId: 'user-1' })).rejects.toBeInstanceOf(EmailVerificationStateUnavailableError);
+
+    expect(resendStateStore.renewMutation).toHaveBeenCalledTimes(1);
+    expect(createChallenge.execute).not.toHaveBeenCalled();
+    expect(createMessage.execute).not.toHaveBeenCalled();
+    expect(resendStateStore.abortMutation).toHaveBeenCalledWith('user-1', expect.any(String));
+  });
+
+  it('rolls back prior writes when ownership is lost during the transaction', async () => {
+    resendStateStore.renewMutation
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('mutation ownership lost'));
+
+    await expect(useCase.execute({ userId: 'user-1' })).rejects.toBeInstanceOf(EmailVerificationStateUnavailableError);
+
+    expect(createChallenge.execute).toHaveBeenCalledTimes(1);
+    expect(createMessage.execute).not.toHaveBeenCalled();
+    expect(resendStateStore.completeLogicalSend).not.toHaveBeenCalled();
+    expect(resendStateStore.abortMutation).toHaveBeenCalledWith('user-1', expect.any(String));
   });
 
   it('rechecks the user under lock and aborts when verification completed concurrently', async () => {

@@ -4,13 +4,14 @@
 
 - Arquivo: `api/test/email-verification-redis.integration-spec.ts`
 - Categoria: integração.
-- Objetivo: validar os quatro scripts Lua e o store Redis real do reenvio.
+- Objetivo: validar os cinco scripts Lua e o store Redis real do reenvio.
 - Fora de escopo: PostgreSQL, NestJS, BullMQ e provider de e-mail.
 
 ## Comportamentos comprovados
 
 - chaves ausentes representam estado disponível e vazio;
 - somente uma reserva concorrente adquire a barreira;
+- somente o dono renova a barreira e a renovação restaura o TTL integral;
 - automático cria cooldown sem consumir o limite manual;
 - challenge manual repetido é idempotente e cinco challenges bloqueiam o sexto;
 - somente o mutation token proprietário remove `pending`.
@@ -50,4 +51,4 @@ npm run test:integration
 ## Quando atualizar
 
 Atualizar quando mudarem scripts, chaves, constantes, PTTL, contratos de retorno,
-idempotência, ownership da barreira ou provisionamento.
+idempotência, aquisição/renovação/ownership da barreira ou provisionamento.

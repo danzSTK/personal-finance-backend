@@ -90,6 +90,8 @@ export class ResendEmailVerificationUseCase {
           throw new EmailVerificationRequiredError();
         }
 
+        await this.renewMutation(user.id, mutationToken);
+
         const challengeResult = await this.createChallengeUseCase.execute({
           userId: user.id,
           email: user.email.value,
@@ -97,6 +99,8 @@ export class ResendEmailVerificationUseCase {
           now,
           options: { manager },
         });
+
+        await this.renewMutation(user.id, mutationToken);
 
         const messageResult = await this.createEmailVerificationMessageUseCase.execute({
           userId: user.id,
@@ -106,6 +110,8 @@ export class ResendEmailVerificationUseCase {
           deliverBefore: this.deliveryDeadline(challengeResult.challenge.expiresAt),
           options: { manager },
         });
+
+        await this.renewMutation(user.id, mutationToken);
 
         return {
           status: EmailVerificationResendStatus.QUEUED,
@@ -164,6 +170,14 @@ export class ResendEmailVerificationUseCase {
       await this.resendStateStore.abortMutation(userId, mutationToken);
     } catch {
       this.logger.warn('Email verification resend mutation could not be released; TTL will recover it.');
+    }
+  }
+
+  private async renewMutation(userId: string, mutationToken: string): Promise<void> {
+    try {
+      await this.resendStateStore.renewMutation(userId, mutationToken);
+    } catch {
+      throw new EmailVerificationStateUnavailableError();
     }
   }
 

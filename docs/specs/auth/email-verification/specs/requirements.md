@@ -116,7 +116,7 @@ Rotas públicas continuam públicas. A confirmação é pública porque o token 
 ### Challenge e token
 
 - Cada challenge deve ter purpose `EMAIL_VERIFICATION`.
-- Cada challenge deve persistir `origin` como `AUTOMATIC`, `MANUAL_RESEND` ou `LEGACY_UNKNOWN` para registros anteriores à migration.
+- Cada challenge deve persistir `origin` como `AUTOMATIC`, `MANUAL_RESEND` ou `LEGACY_UNKNOWN`; este último cobre o backfill e writes da imagem anterior durante a janela de rollback.
 - O token completo deve ser enviado somente no link do e-mail.
 - O banco deve armazenar apenas `token_hash`, nunca o token em claro.
 - O token deve expirar 15 minutos após criação.
@@ -384,4 +384,6 @@ THE SYSTEM SHALL usar constantes centrais versionadas para limite, janela, coold
 - Welcome email é enviado após `user.email.verified`.
 - Erros novos estão mapeados no filtro global e documentados.
 - A migration adiciona exatamente uma coluna em `email_verification_challenges` e uma em `email_messages`, e `docs/database/schema.md` documenta ambas no mesmo conjunto de mudanças.
+- Depois da migration, a imagem anterior que omite `origin` deve continuar criando challenges durante rollback; um default SQL temporário `LEGACY_UNKNOWN` deve permanecer até o contract registrado em `DB-COMPAT-001` ser liberado.
+- Uma mutação manual deve renovar e comprovar a posse da barreira Redis depois de cada espera relevante dentro da transação; perda da posse ou falha de renovação deve causar rollback antes do commit.
 - Todos os scripts Lua da feature possuem documentação de objetivo, chaves, argumentos, retorno, atomicidade, momento de chamada e falhas.

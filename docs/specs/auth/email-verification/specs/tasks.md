@@ -144,6 +144,11 @@ related:
 - [x] 108. Rodar format, lint, build, unitários, integração e E2E aplicáveis.
 - [x] 109. Revalidar `deliver_before` sob lock imediatamente antes do provider e testar expiração entre preparo e despacho.
 - [x] 110. Serializar `retryAfterSeconds: null` nas formas disponível e já verificada e atualizar contrato E2E/documentação.
+- [x] 111. Criar o contrato arquitetural e a skill `migration-rollout` para migrations em fases e review N/N+1.
+- [x] 112. Manter default temporário de `origin`, atualizar schema e testar escrita compatível com code N.
+- [x] 113. Implementar/documentar `RENEW_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT` e a porta tipada.
+- [x] 114. Renovar a barreira em checkpoints transacionais e testar token perdido/Redis indisponível com rollback.
+- [x] 115. Rodar validação da skill, migration direcionada, Redis/Lua, unitários, integração e E2E aplicáveis.
 
 ### Fora De Escopo
 

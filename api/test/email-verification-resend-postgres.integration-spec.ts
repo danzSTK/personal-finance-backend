@@ -67,6 +67,11 @@ describe('Email verification resend PostgreSQL migration', () => {
     await expect(
       dataSource.query(`SELECT "origin" FROM "email_verification_challenges" WHERE "id" = $1`, [legacyId]),
     ).resolves.toEqual([{ origin: 'LEGACY_UNKNOWN' }]);
+    const codeNChallengeId = randomUUID();
+    await insertChallengeFromCodeN(codeNChallengeId, randomUUID());
+    await expect(
+      dataSource.query(`SELECT "origin" FROM "email_verification_challenges" WHERE "id" = $1`, [codeNChallengeId]),
+    ).resolves.toEqual([{ origin: 'LEGACY_UNKNOWN' }]);
     await expect(insertChallenge(randomUUID(), randomUUID(), 'INVALID_ORIGIN')).rejects.toMatchObject({
       driverError: { constraint: 'CHK_email_verification_challenges_origin' },
     });
@@ -120,6 +125,16 @@ describe('Email verification resend PostgreSQL migration', () => {
         VALUES ($1, $2, 'EMAIL_VERIFICATION', $3)
       `,
       [id, userId, origin],
+    );
+  };
+
+  const insertChallengeFromCodeN = async (id: string, userId: string): Promise<void> => {
+    await dataSource.query(
+      `
+        INSERT INTO "email_verification_challenges" ("id", "user_id", "purpose")
+        VALUES ($1, $2, 'EMAIL_VERIFICATION')
+      `,
+      [id, userId],
     );
   };
 

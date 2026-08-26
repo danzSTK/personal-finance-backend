@@ -300,7 +300,8 @@ Status: accepted
 Decision:
 Adicionar `email_verification_challenges.origin` com `AUTOMATIC`,
 `MANUAL_RESEND` e `LEGACY_UNKNOWN`. Novos challenges usam somente as duas
-primeiras origens; legado é preenchido na migration.
+primeiras origens; legado é preenchido na migration ou pelo default temporário
+quando code N escreve durante rollback.
 
 Reason:
 Origem é procedência do fato, útil para auditoria, idempotência e diagnóstico,
@@ -470,3 +471,40 @@ camadas e dificultam refactors seguros.
 Impact:
 As strings aparecem diretamente apenas na declaração central e nos exemplos de
 documentação. Novos estados exigem uma alteração explícita no catálogo tipado.
+
+## DEC-028 - origin mantém default até o contract de compatibilidade
+
+Status: accepted
+
+Decision:
+Manter `DEFAULT 'LEGACY_UNKNOWN'` na expansão de `origin`, mesmo que code N+1
+sempre grave uma origem explícita. Registrar o shim como `DB-COMPAT-001` em
+`docs/architecture/compatibility.md` e removê-lo somente em nova migration.
+
+Reason:
+Migrations precedem a ativação e não são revertidas automaticamente. Code N omite
+a coluna; sem default, rollback da aplicação quebraria inserts com `NOT NULL`.
+
+Impact:
+O banco aceita temporariamente inserts legados. O contract fica bloqueado até
+code N sair da janela de rollback e deve remover exatamente o default, sem editar
+a migration já aplicada.
+
+## DEC-029 - A barreira de resend é renovada em checkpoints transacionais
+
+Status: accepted
+
+Decision:
+Adicionar um script compare-and-`PEXPIRE` que renova `pending` somente quando o
+mutation token ainda é o dono. O resend o executa depois do lock PostgreSQL e
+depois de cada operação assíncrona relevante antes do commit.
+
+Reason:
+Um TTL fixo pode expirar durante espera pelo row lock ou durante uma operação SQL.
+Renovar depois de cada espera detecta token perdido antes da próxima escrita ou
+do commit, sem criar timers concorrentes ou manter uma task em background.
+
+Impact:
+Ausência da chave, token divergente, retorno inválido ou Redis indisponível falha
+fechado com rollback e `EMAIL_VERIFICATION_STATE_UNAVAILABLE`. A renovação final
+restaura o TTL de 30 segundos para cobrir commit e `complete-logical-send`.

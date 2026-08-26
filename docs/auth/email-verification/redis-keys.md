@@ -74,7 +74,9 @@ ao armazenado, evitando regressão por handlers atrasados.
 ## pending
 
 - Criada com `SET key mutationToken NX PX 30000`.
-- Somente o token dono pode removê-la no complete ou abort.
+- Somente o token dono pode renovar seu TTL ou removê-la no complete/abort.
+- O POST renova a barreira depois do row lock e de cada operação assíncrona
+  relevante da transação; chave ausente ou token divergente causa rollback.
 - Concorrentes recebem o PTTL arredondado para cima como `Retry-After`.
 - O TTL libera a operação se o processo morrer.
 

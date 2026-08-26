@@ -269,7 +269,7 @@ por segundo fica fora do contrato recomendado.
 Nova coluna:
 
 ```text
-origin varchar(30) not null
+origin varchar(30) not null default 'LEGACY_UNKNOWN'
 ```
 
 Valores:
@@ -282,7 +282,8 @@ LEGACY_UNKNOWN
 
 - `AUTOMATIC` identifica o challenge inicial criado por `user.created`.
 - `MANUAL_RESEND` identifica uma solicitação autenticada do usuário.
-- `LEGACY_UNKNOWN` existe somente para backfill; novas criações não podem usá-lo.
+- `LEGACY_UNKNOWN` existe para backfill e para inserts feitos por code N durante
+  rollback; code N+1 nunca o declara explicitamente.
 - `CHK_email_verification_challenges_origin` restringe os valores.
 - Um índice partial unique em `(user_id, purpose)` para
   `origin = 'AUTOMATIC'` garante um único challenge automático inicial, inclusive
@@ -295,7 +296,19 @@ Estratégia da migration:
 3. tornar a coluna `NOT NULL`;
 4. criar a check constraint;
 5. criar o índice partial unique para origem automática;
-6. não manter default SQL, obrigando novas escritas a declarar a origem.
+6. manter temporariamente `DEFAULT 'LEGACY_UNKNOWN'` para que code N continue
+   inserindo depois da migration durante rollback;
+7. remover o default somente em nova migration de contract quando
+   `DB-COMPAT-001` cumprir seu gate em `docs/architecture/compatibility.md`.
+
+Matriz de rollout:
+
+| Combinação                   | Resultado                                   |
+| ---------------------------- | ------------------------------------------- |
+| code N antes da migration    | compatível                                  |
+| code N depois da migration   | compatível pelo default temporário          |
+| code N+1 antes da migration  | incompatível; expand deve executar primeiro |
+| code N+1 depois da migration | compatível e grava origem explícita         |
 
 Os índices históricos por `email + purpose + created_at` podem permanecer para
 diagnóstico. Eles deixam de ser a autoridade de cooldown/limite e sua remoção só
@@ -380,10 +393,12 @@ O conjunto planejado é:
    limpa a janela, lê contadores/PTTLs e retorna a restrição efetiva.
 2. `BEGIN_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`: usado antes da transação do
    POST; avalia janela/cooldown/pending e adquire a barreira com `SET NX PX`.
-3. `COMPLETE_EMAIL_VERIFICATION_LOGICAL_SEND_SCRIPT`: usado após commit manual ou
+3. `RENEW_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`: usado depois de esperas
+   transacionais; renova o TTL apenas quando o mutation token ainda é o dono.
+4. `COMPLETE_EMAIL_VERIFICATION_LOGICAL_SEND_SCRIPT`: usado após commit manual ou
    automático; registra estado, calcula cooldown e libera somente a barreira do
    dono.
-4. `ABORT_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`: usado no rollback/erro antes
+5. `ABORT_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT`: usado no rollback/erro antes
    do commit; remove `pending` apenas quando o mutation token confere.
 
 Todos permanecem curtos, determinísticos, sem I/O externo e recebem o horário da
@@ -408,12 +423,15 @@ duplicadas como números mágicos no Lua.
 1. O use case bloqueia/valida o usuário autenticado.
 2. `begin-mutation` limpa a janela, avalia restrições e adquire `pending`.
 3. Se bloqueado, o use case lança o `RetryAfterApplicationError` específico.
-4. Se adquirido, a transação PostgreSQL bloqueia o usuário e cria challenge
-   `MANUAL_RESEND` mais intenção com `deliver_before`.
-5. Depois do commit, `complete-logical-send` adiciona o challenge ao ZSET, calcula
+4. Se adquirido, a transação PostgreSQL bloqueia o usuário e executa
+   `renew-mutation` depois do lock e depois de cada operação assíncrona anterior
+   ao commit. Token perdido ou Redis indisponível causa rollback.
+5. Com a posse renovada, cria challenge `MANUAL_RESEND` e intenção com
+   `deliver_before`.
+6. Depois do commit, `complete-logical-send` adiciona o challenge ao ZSET, calcula
    o cooldown com a nova contagem, atualiza `last-send` e libera a barreira.
-6. O producer tenta enfileirar e a API retorna `202`.
-7. Em rollback, `abort-mutation` libera a barreira do dono.
+7. O producer tenta enfileirar e a API retorna `202`.
+8. Em rollback, `abort-mutation` libera a barreira do dono.
 
 ### Consulta De Status
 

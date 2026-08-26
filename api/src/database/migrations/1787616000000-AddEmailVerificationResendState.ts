@@ -4,7 +4,9 @@ export class AddEmailVerificationResendState1787616000000 implements MigrationIn
   name = 'AddEmailVerificationResendState1787616000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "email_verification_challenges" ADD "origin" varchar(30)`);
+    await queryRunner.query(
+      `ALTER TABLE "email_verification_challenges" ADD "origin" varchar(30) DEFAULT 'LEGACY_UNKNOWN'`,
+    );
     await queryRunner.query(`
       UPDATE "email_verification_challenges"
       SET "origin" = 'LEGACY_UNKNOWN'

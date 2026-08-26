@@ -151,7 +151,7 @@ Representa desafios de confirmação de e-mail. O token em claro nunca é persis
 | `user_id` | `uuid` | `not null` | Usuário dono do challenge. |
 | `email` | `varchar(255)` | `not null` | E-mail que receberá o link de verificação, validado pelas mesmas regras do e-mail principal do usuário. |
 | `purpose` | `varchar(50)` | `not null` | Finalidade do challenge. Inicialmente `EMAIL_VERIFICATION`. |
-| `origin` | `varchar(30)` | `not null` | Origem persistida: `AUTOMATIC`, `MANUAL_RESEND` ou `LEGACY_UNKNOWN` para registros anteriores à política. |
+| `origin` | `varchar(30)` | `not null default 'LEGACY_UNKNOWN'` | Origem persistida: `AUTOMATIC`, `MANUAL_RESEND` ou `LEGACY_UNKNOWN`; o default temporário preserva code N conforme `DB-COMPAT-001`. |
 | `token_hash` | `varchar(64)` | `not null` | SHA-256 hexadecimal do token. |
 | `expires_at` | `timestamptz` | `not null` | Instante em que o token deixa de ser válido. |
 | `consumed_at` | `timestamptz` | `nullable` | Instante de consumo do challenge. |
@@ -181,7 +181,8 @@ Representa desafios de confirmação de e-mail. O token em claro nunca é persis
 
 ### Observações
 
-- Novas criações declaram `AUTOMATIC` ou `MANUAL_RESEND`; `LEGACY_UNKNOWN` é reservado à reconstituição de linhas anteriores à migration.
+- Code N+1 declara `AUTOMATIC` ou `MANUAL_RESEND`; `LEGACY_UNKNOWN` representa linhas de backfill ou inserts feitos pela imagem anterior durante rollback.
+- O default `LEGACY_UNKNOWN` é um shim de rollback ativo. Não removê-lo antes do gate e da migration de contract definidos em `docs/architecture/compatibility.md#db-compat-001---default-legado-de-email_verification_challengesorigin`.
 - A tabela representa token, expiração, consumo e auditoria. Cooldown, janela móvel e barreira concorrente são estado operacional no Redis.
 
 ## `password_change_events`

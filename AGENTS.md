@@ -186,6 +186,8 @@ Use `@/` imports for project code. Do not use `src/*` imports.
 
 Always create a TypeORM migration for schema changes:
 
+Before planning, creating, generating, reviewing, or running a migration, use the repository skill `migration-rollout`. Its `expand -> migrate -> contract` workflow, `docs/database/migration-rollout.md`, and `docs/architecture/compatibility.md` are mandatory for migration work.
+
 Before creating, generating, or running any migration, read `docs/database/schema.md` and the relevant existing migrations to understand current tables, indexes, triggers, functions, enums, and naming conventions. Reuse existing database objects when appropriate; do not create duplicate functions/triggers or introduce overlapping infrastructure objects.
 
 1. Modify the ORM entity.
@@ -214,6 +216,8 @@ When reviewing a change, treat the most specific applicable documentation as the
 - `docs/architecture.md` for system-wide boundaries and dependency direction.
 - `docs/specs/**/specs/requirements.md`, `design.md`, and `decisions.md` for feature behavior, design, and accepted trade-offs.
 - `docs/database/schema.md` for the current database model and database-level invariants.
+- `docs/database/migration-rollout.md` for the mandatory expand/migrate/contract construction process.
+- `docs/architecture/compatibility.md` for active N/N+1 rollout contracts and deferred cleanup.
 - `docs/errors/README.md`, `docs/events/README.md`, and `docs/notifications/README.md` for platform contracts.
 - `docs/platform/queue-infrastructure.md` and `docs/platform/worker-operations.md` for queue and worker reliability.
 - `docs/integrations/` for consumer-facing HTTP contracts, and each domain's `reference/invariants.md` when present for business invariants.
@@ -267,6 +271,14 @@ If code contradicts an applicable documented decision in a way that can affect c
 - **Violation:** Report happy-path-only coverage, mocks that bypass the behavior under review, missing boundary or concurrent scenarios, or assertions that do not observe the public/domain consequence.
 - **Consequence:** The suite can stay green while the exact regression risk introduced by the pull request remains untested.
 - **Safe path:** Keep domain tests pure, mock ports in use-case tests, use integration tests for PostgreSQL/Redis/BullMQ semantics, and use E2E tests for HTTP contracts and global error translation. Avoid timing-dependent tests.
+
+### Migration rollout compatibility
+
+- **Context:** A pull request adds or changes a migration that drops or renames an object, adds `NOT NULL`, changes an enum or check constraint, changes a persisted format, introduces a new required value, or removes a compatibility shim.
+- **Invariant:** The migration has an explicit `expand -> migrate -> contract` rollout. It answers whether code N works after the migration and whether code N+1 works before and after it. Because production migrations are not reverted automatically, the expanded schema must preserve the image eligible for rollback.
+- **Violation:** Report a migration that makes code N fail after migration, assumes an atomic migration-and-code switch, combines expansion and contract cleanup in the same rollback window, or removes a default/dual-read/dual-write compatibility mechanism without satisfying its recorded removal gate.
+- **Consequence:** A deploy or application rollback can break writes, reads, startup, or workers while the database remains on the newer schema, causing an outage that green CI on code N+1 does not reveal.
+- **Safe path:** Apply `migration-rollout`, split incompatible changes into separate releases, record the N/N+1 matrix and exact deferred cleanup in `docs/architecture/compatibility.md`, and execute the contract migration only after the previous image is no longer a supported rollback target.
 
 ## Code Style
 

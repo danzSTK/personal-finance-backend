@@ -10,6 +10,8 @@
 ## Comportamentos comprovados
 
 - registros anteriores recebem `LEGACY_UNKNOWN`;
+- inserts equivalentes a code N continuam funcionando depois da migration e
+  recebem o default `LEGACY_UNKNOWN`;
 - origem inválida é rejeitada;
 - unique partial permite vários manuais e somente um automático por
   usuário/finalidade;
@@ -50,4 +52,4 @@ npm run test:integration
 ## Quando atualizar
 
 Atualizar quando mudarem migration, coluna, backfill, constraint, índice,
-estratégia de rollback ou imagem PostgreSQL.
+estratégia expand/migrate/contract, rollback ou imagem PostgreSQL.

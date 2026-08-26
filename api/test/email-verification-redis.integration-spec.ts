@@ -133,4 +133,18 @@ describe('Email verification Redis state integration', () => {
       kind: EmailVerificationResendStatus.AVAILABLE,
     });
   });
+
+  it('renews only the owned pending barrier and restores its full TTL', async () => {
+    const userId = randomUUID();
+    const ownerToken = randomUUID();
+    const pendingKey = CacheKeys.auth.emailVerification.pending(userId);
+
+    await store.beginMutation(userId, ownerToken, new Date());
+    await client!.pexpire(pendingKey, 1_000);
+    await expect(store.renewMutation(userId, ownerToken)).resolves.toBeUndefined();
+    await expect(client!.pttl(pendingKey)).resolves.toBeGreaterThan(29_000);
+
+    await expect(store.renewMutation(userId, randomUUID())).rejects.toThrow('ownership was lost');
+    await expect(client!.get(pendingKey)).resolves.toBe(ownerToken);
+  });
 });

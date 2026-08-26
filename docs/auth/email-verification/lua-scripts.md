@@ -56,15 +56,17 @@ enfileirar depois.
             429 + Retry-After  SET pending
                                NX PX 30s
                                    │
-                                   ▼
-                         ┌──────────────────┐
-                         │ transação SQL    │
-                         │                  │
-                         │ cria challenge   │
-                         │ MANUAL_RESEND    │
-                         │ cria intenção    │
-                         │ deliver_before   │
-                         └────────┬─────────┘
+                           ▼
+                         ┌──────────────────────┐
+                         │ transação SQL        │
+                         │                      │
+                         │ lock user            │
+                         │ RENEW                 │
+                         │ cria challenge       │
+                         │ RENEW                 │
+                         │ cria intenção         │
+                         │ RENEW                 │
+                         └──────────┬───────────┘
                                   │
                               commitou?
                               ╱       ╲
@@ -245,6 +247,59 @@ O mutation token nunca volta no array; o chamador já possui seu valor local.
 `ACQUIRED` autoriza iniciar a transação, não consome contador e não inicia
 cooldown. Somente o complete após commit registra o envio lógico.
 
+## RENEW_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT
+
+### Quando É Chamado
+
+Chamado por `ResendEmailVerificationUseCase` dentro da transação PostgreSQL:
+
+1. depois de adquirir e validar o row lock do usuário;
+2. depois de criar o challenge;
+3. depois de criar a intenção e imediatamente antes do commit.
+
+Cada chamada ocorre depois de uma espera assíncrona que poderia consumir o TTL.
+
+### Objetivo
+
+Comprovar que a operação ainda possui `pending` e restaurar atomicamente seu TTL
+de 30 segundos. A renovação impede que uma transação atrasada confirme writes
+depois que outra requisição adquiriu a barreira expirada.
+
+### KEYS
+
+```text
+KEYS[1] pending
+```
+
+### ARGV
+
+```text
+ARGV[1] mutationToken
+ARGV[2] mutationTtlMs          # 30_000
+```
+
+### Transição Atômica
+
+1. Lê `pending`.
+2. Se a chave estiver ausente ou o valor não for `mutationToken`, não altera a
+   chave e retorna perda de ownership.
+3. Se for o dono, executa `PEXPIRE pending mutationTtlMs`.
+4. Retorna sucesso apenas quando o TTL foi renovado.
+
+### Retorno Lógico
+
+```text
+[1] # ownership confirmado e TTL renovado
+[0] # chave ausente, token divergente ou renovação não aplicada
+```
+
+### Falhas E Concorrência
+
+O token nunca aparece no retorno nem em logs. `[0]`, resposta malformada, timeout
+ou desconexão fazem o adapter falhar; o use case traduz para
+`EMAIL_VERIFICATION_STATE_UNAVAILABLE`, aborta compare-and-delete e a transação
+PostgreSQL faz rollback. Token antigo nunca renova nem remove a barreira atual.
+
 ## COMPLETE_EMAIL_VERIFICATION_LOGICAL_SEND_SCRIPT
 
 ### Quando É Chamado
@@ -358,13 +413,13 @@ segundos é a recuperação final e impede bloqueio permanente.
 
 ## Matriz De Chamadas
 
-| Fluxo                 | load     | begin | complete     | abort       |
-| --------------------- | -------- | ----- | ------------ | ----------- |
-| GET status pendente   | sim      | não   | não          | não         |
-| POST resend permitido | não      | sim   | após commit  | em rollback |
-| POST resend bloqueado | não      | sim   | não          | não         |
-| envio automático      | não      | não   | após commit  | não         |
-| retry após commit SQL | opcional | não   | pode repetir | não         |
+| Fluxo                 | load     | begin | renew             | complete     | abort       |
+| --------------------- | -------- | ----- | ----------------- | ------------ | ----------- |
+| GET status pendente   | sim      | não   | não               | não          | não         |
+| POST resend permitido | não      | sim   | 3 checkpoints SQL | após commit  | em rollback |
+| POST resend bloqueado | não      | sim   | não               | não          | não         |
+| envio automático      | não      | não   | não               | após commit  | não         |
+| retry após commit SQL | opcional | não   | não               | pode repetir | não         |
 
 ## Testes Obrigatórios
 
@@ -372,6 +427,8 @@ segundos é a recuperação final e impede bloqueio permanente.
 - limites exatos de PTTL e janela móvel;
 - maior restrição e desempate estável;
 - duas chamadas begin concorrentes;
+- renew do dono restaura o TTL;
+- renew ausente ou de token antigo falha sem alterar a barreira;
 - complete manual repetido;
 - complete automático sem ZSET;
 - complete atrasado sem reiniciar cooldown;

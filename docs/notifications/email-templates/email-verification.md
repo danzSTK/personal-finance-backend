@@ -40,7 +40,8 @@ Cada challenge gera no máximo uma intenção. Um reenvio cria outro challenge.
 
 O challenge automático inicial é idempotente por usuário e purpose. Challenges
 registram `origin=AUTOMATIC` ou `MANUAL_RESEND`; registros anteriores à migration
-recebem `LEGACY_UNKNOWN` apenas para auditoria.
+e inserts feitos pela imagem anterior durante rollback recebem `LEGACY_UNKNOWN`
+para auditoria e compatibilidade.
 
 ## Parâmetros V1
 

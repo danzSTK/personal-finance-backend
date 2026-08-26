@@ -22,6 +22,7 @@ import { ABORT_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT } from '@/modules/auth/
 import { BEGIN_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT } from '@/modules/auth/infrastructure/cache/scripts/begin-email-verification-resend-mutation.script';
 import { COMPLETE_EMAIL_VERIFICATION_LOGICAL_SEND_SCRIPT } from '@/modules/auth/infrastructure/cache/scripts/complete-email-verification-logical-send.script';
 import { LOAD_EMAIL_VERIFICATION_RESEND_STATE_SCRIPT } from '@/modules/auth/infrastructure/cache/scripts/load-email-verification-resend-state.script';
+import { RENEW_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT } from '@/modules/auth/infrastructure/cache/scripts/renew-email-verification-resend-mutation.script';
 import { Injectable } from '@nestjs/common';
 
 type RedisScriptValue = string | number | null;
@@ -122,6 +123,25 @@ export class RedisEmailVerificationResendStateStore implements IEmailVerificatio
     }
 
     throw new Error('Invalid email verification resend mutation status from Redis.');
+  }
+
+  /** Renews the pending barrier with compare-and-expire semantics and rejects missing or stale ownership. */
+  async renewMutation(userId: string, mutationToken: string): Promise<void> {
+    const rawResult = await this.redis
+      .getClient()
+      .eval(
+        RENEW_EMAIL_VERIFICATION_RESEND_MUTATION_SCRIPT,
+        1,
+        CacheKeys.auth.emailVerification.pending(userId),
+        mutationToken,
+        milliseconds(EMAIL_VERIFICATION_MUTATION_TTL_SECONDS),
+      );
+    const values = this.parseArray(rawResult, 'renew mutation');
+
+    this.assertLength(values, 1, 'renew mutation');
+    if (this.parseInteger(values[0], 'renew mutation status') !== 1) {
+      throw new Error('Email verification resend mutation ownership was lost.');
+    }
   }
 
   /** Finalizes a committed logical send atomically and validates every field returned by Redis. */
