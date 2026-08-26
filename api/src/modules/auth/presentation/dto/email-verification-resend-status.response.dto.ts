@@ -50,6 +50,9 @@ export class EmailVerificationResendStatusAvailableResponseDto extends EmailVeri
   @ApiProperty({ example: true })
   available: true = true as const;
 
+  @ApiProperty({ type: Number, nullable: true, example: null })
+  retryAfterSeconds: null = null;
+
   static fromResult(
     result: Extract<GetEmailVerificationResendStatusOutput, { status: typeof EmailVerificationResendStatus.AVAILABLE }>,
   ): EmailVerificationResendStatusAvailableResponseDto {
@@ -99,6 +102,9 @@ export class EmailVerificationResendStatusAlreadyVerifiedResponseDto {
 
   @ApiProperty({ example: false })
   available: false = false as const;
+
+  @ApiProperty({ type: Number, nullable: true, example: null })
+  retryAfterSeconds: null = null;
 }
 
 export type EmailVerificationResendStatusResponseDto =

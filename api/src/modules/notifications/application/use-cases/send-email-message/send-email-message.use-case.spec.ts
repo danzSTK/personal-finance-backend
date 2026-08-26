@@ -78,6 +78,10 @@ describe('SendEmailMessageUseCase', () => {
     useCase = new SendEmailMessageUseCase(emailMessageRepository, mailService, dataSource);
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe('execute', () => {
     it('sends the email through MailService and marks the message as sent', async () => {
       const emailMessage = makeEmailMessage();
@@ -223,6 +227,29 @@ describe('SendEmailMessageUseCase', () => {
         useCase.execute({ emailMessageId: emailMessage.id, now: new Date(deadline.getTime() - 1) }),
       ).resolves.toMatchObject({ sent: true, unrecoverable: false });
       expect(sendMail).toHaveBeenCalledTimes(1);
+    });
+
+    it('revalidates the deadline after locking and cancels when it expires before provider dispatch', async () => {
+      const deadline = new Date('2026-01-01T10:10:00.000Z');
+      const emailMessage = makeEmailMessage(deadline);
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(deadline.getTime() - 2)
+        .mockReturnValueOnce(deadline.getTime() - 1)
+        .mockReturnValue(deadline.getTime());
+      findByIdForUpdate.mockResolvedValue(emailMessage);
+      saveEmailMessage.mockImplementation(message => Promise.resolve(message));
+
+      const result = await useCase.execute({ emailMessageId: emailMessage.id });
+
+      expect(result).toEqual({
+        status: EmailMessageStatus.CANCELED,
+        sent: false,
+        unrecoverable: true,
+      });
+      expect(findByIdForUpdate).toHaveBeenCalledTimes(3);
+      expect(emailMessage.lastErrorCode).toBe('EMAIL_MESSAGE_DELIVERY_DEADLINE_EXCEEDED');
+      expect(sendMail).not.toHaveBeenCalled();
     });
   });
 });

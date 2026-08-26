@@ -37,8 +37,8 @@ export class SendEmailMessageUseCase {
   ) {}
 
   async execute(input: SendEmailMessageUseCaseInput): Promise<SendEmailMessageUseCaseOutput> {
-    const prepared = await this.prepareMessage(input.emailMessageId, input.now ?? new Date());
-    const emailMessage = prepared.emailMessage;
+    const prepared = await this.prepareMessage(input.emailMessageId, input.now);
+    let emailMessage = prepared.emailMessage;
 
     if (prepared.deliveryDeadlineExceeded) {
       return {
@@ -56,12 +56,63 @@ export class SendEmailMessageUseCase {
       };
     }
 
+    let templateParams: Record<string, unknown>;
+
     try {
-      const templateParams = EmailTemplateContractRegistry.parse(
+      templateParams = EmailTemplateContractRegistry.parse(
         emailMessage.templateKey,
         emailMessage.templateVersion,
         emailMessage.templateParams,
       );
+    } catch (error) {
+      return await this.handleFailure(input.emailMessageId, error);
+    }
+
+    if (emailMessage.deliverBefore !== null) {
+      const revalidated = await this.revalidateDeliveryDeadline(input.emailMessageId, input.now);
+      emailMessage = revalidated.emailMessage;
+
+      if (revalidated.deliveryDeadlineExceeded) {
+        return {
+          status: emailMessage.status,
+          sent: false,
+          unrecoverable: true,
+        };
+      }
+
+      if (!emailMessage.canBeProcessed) {
+        return {
+          status: emailMessage.status,
+          sent: emailMessage.status === EmailMessageStatus.SENT,
+          unrecoverable: false,
+        };
+      }
+
+      const dispatchNow = this.currentTime(input.now);
+
+      if (emailMessage.hasReachedDeliveryDeadline(dispatchNow)) {
+        const expiredBeforeDispatch = await this.revalidateDeliveryDeadline(input.emailMessageId, dispatchNow);
+        emailMessage = expiredBeforeDispatch.emailMessage;
+
+        if (expiredBeforeDispatch.deliveryDeadlineExceeded) {
+          return {
+            status: emailMessage.status,
+            sent: false,
+            unrecoverable: true,
+          };
+        }
+
+        if (!emailMessage.canBeProcessed) {
+          return {
+            status: emailMessage.status,
+            sent: emailMessage.status === EmailMessageStatus.SENT,
+            unrecoverable: false,
+          };
+        }
+      }
+    }
+
+    try {
       const result = await this.mailService.send({
         to: [
           {
@@ -89,22 +140,11 @@ export class SendEmailMessageUseCase {
         unrecoverable: false,
       };
     } catch (error) {
-      const failure = this.toFailure(error);
-      const failedMessage = await this.markFailed(input.emailMessageId, failure);
-
-      if (failure.retryable) {
-        throw failure.cause;
-      }
-
-      return {
-        status: failedMessage.status,
-        sent: false,
-        unrecoverable: false,
-      };
+      return await this.handleFailure(input.emailMessageId, error);
     }
   }
 
-  private async prepareMessage(emailMessageId: string, now: Date): Promise<PreparedEmailMessage> {
+  private async prepareMessage(emailMessageId: string, fixedNow?: Date): Promise<PreparedEmailMessage> {
     return await this.dataSource.transaction(async manager => {
       const emailMessage = await this.findMessageForUpdate(emailMessageId, manager);
 
@@ -112,12 +152,10 @@ export class SendEmailMessageUseCase {
         return { emailMessage, deliveryDeadlineExceeded: false };
       }
 
+      const now = this.currentTime(fixedNow);
+
       if (emailMessage.hasReachedDeliveryDeadline(now)) {
-        emailMessage.cancel(
-          EmailMessageFailureCode.DELIVERY_DEADLINE_EXCEEDED,
-          'Email delivery deadline was reached before provider dispatch.',
-          now,
-        );
+        this.cancelForDeliveryDeadline(emailMessage, now);
 
         return {
           emailMessage: await this.emailMessageRepository.save(emailMessage, { manager }),
@@ -132,6 +170,41 @@ export class SendEmailMessageUseCase {
         deliveryDeadlineExceeded: false,
       };
     });
+  }
+
+  private async revalidateDeliveryDeadline(emailMessageId: string, fixedNow?: Date): Promise<PreparedEmailMessage> {
+    return await this.dataSource.transaction(async manager => {
+      const emailMessage = await this.findMessageForUpdate(emailMessageId, manager);
+
+      if (!emailMessage.canBeProcessed || emailMessage.deliverBefore === null) {
+        return { emailMessage, deliveryDeadlineExceeded: false };
+      }
+
+      const now = this.currentTime(fixedNow);
+
+      if (!emailMessage.hasReachedDeliveryDeadline(now)) {
+        return { emailMessage, deliveryDeadlineExceeded: false };
+      }
+
+      this.cancelForDeliveryDeadline(emailMessage, now);
+
+      return {
+        emailMessage: await this.emailMessageRepository.save(emailMessage, { manager }),
+        deliveryDeadlineExceeded: true,
+      };
+    });
+  }
+
+  private cancelForDeliveryDeadline(emailMessage: EmailMessage, now: Date): void {
+    emailMessage.cancel(
+      EmailMessageFailureCode.DELIVERY_DEADLINE_EXCEEDED,
+      'Email delivery deadline was reached before provider dispatch.',
+      now,
+    );
+  }
+
+  private currentTime(fixedNow?: Date): Date {
+    return fixedNow ?? new Date(Date.now());
   }
 
   private async markSent(
@@ -154,6 +227,21 @@ export class SendEmailMessageUseCase {
 
       return await this.emailMessageRepository.save(emailMessage, { manager });
     });
+  }
+
+  private async handleFailure(emailMessageId: string, error: unknown): Promise<SendEmailMessageUseCaseOutput> {
+    const failure = this.toFailure(error);
+    const failedMessage = await this.markFailed(emailMessageId, failure);
+
+    if (failure.retryable) {
+      throw failure.cause;
+    }
+
+    return {
+      status: failedMessage.status,
+      sent: false,
+      unrecoverable: false,
+    };
   }
 
   private async findMessageForUpdate(emailMessageId: string, manager: EntityManager): Promise<EmailMessage> {

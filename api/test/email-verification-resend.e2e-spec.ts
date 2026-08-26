@@ -114,6 +114,7 @@ describe('Email verification resend HTTP contract (e2e)', () => {
       object: 'email_verification.resend_status.available',
       status: EmailVerificationResendStatus.AVAILABLE,
       available: true,
+      retryAfterSeconds: null,
       manualResendsUsed: 0,
       manualResendsRemaining: 5,
       manualResendLimit: 5,
@@ -162,6 +163,7 @@ describe('Email verification resend HTTP contract (e2e)', () => {
       object: 'email_verification.resend_status.already_verified',
       status: EmailVerificationResendStatus.ALREADY_VERIFIED,
       available: false,
+      retryAfterSeconds: null,
     });
     expect(response.headers['retry-after']).toBeUndefined();
     expect(response.headers['cache-control']).toBe('no-store');
