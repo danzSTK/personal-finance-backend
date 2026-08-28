@@ -713,7 +713,7 @@ Usar uma única imagem versionada. O Dockerfile continua multi-stage e deve:
 - conter `dist/main.js`, `dist/worker.js` e health command;
 - executar como usuário não root;
 - não conter `.env` ou secrets;
-- manter Node.js 22;
+- manter Node.js 24;
 - permitir override do command por serviço.
 
 ### Compose

@@ -156,7 +156,7 @@ related:
 
 ## Notas De Execução
 
-- Node.js 22; format check, lint check, typecheck, build e 99 suítes unitárias (393 testes) passaram.
+- Na validação original em Node.js 22, format check, lint check, typecheck, build e 99 suítes unitárias (393 testes) passaram.
 - As 3 suítes E2E (12 testes) passaram, incluindo status, `Cache-Control`, `Retry-After` e contrato de erro do resend.
 - As 11 suítes de integração passaram contra Redis, PostgreSQL, BullMQ e worker reais; a migration nova foi validada em `up/down/up`.
 - Não foram adicionadas dependências nem alterações de pipeline; Testcontainers e o job de integração existentes cobrem a entrega.

@@ -99,7 +99,7 @@ Decision:
 Instalar explicitamente o npm 11.18.0 no estagio final da imagem, antes da troca para o usuario nao-root.
 
 Reason:
-O npm 10.9.8 fornecido pelo `node:22-alpine` contem dependencias com vulnerabilidades High e Critical corrigiveis. O runtime ainda precisa do npm para comandos operacionais existentes, incluindo migrations e verificacao de saude do worker.
+A versao de npm fornecida pela imagem base nao e adotada automaticamente como baseline de seguranca. O runtime ainda precisa do npm para comandos operacionais existentes, incluindo migrations e verificacao de saude do worker, e a versao 11.18.0 foi validada com `node:24-alpine`.
 
 Impact:
 A versao do npm passa a ser independente da versao incluida na imagem base e deve ser atualizada de forma deliberada quando necessario.

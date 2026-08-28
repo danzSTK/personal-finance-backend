@@ -61,7 +61,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
 
 # "defaults.run" vale para steps que usam "run".
 # Nao afeta actions declaradas com "uses" nem os caminhos passados em "with".
@@ -84,7 +84,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # setup-node instala/seleciona o Node 22 e configura o cache de downloads
+      # setup-node instala/seleciona o Node 24 e configura o cache de downloads
       # do npm. Ele nao guarda node_modules entre jobs.
       - name: Setup Node.js
         uses: actions/setup-node@v6

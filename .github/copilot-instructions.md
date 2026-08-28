@@ -4,7 +4,7 @@
 Multi-tenant personal finance API built with NestJS, TypeScript, PostgreSQL, and Redis. Implements Clean Architecture with DDD principles.
 
 **Stack:**
-- Node.js 22 + NestJS 11
+- Node.js 24 + NestJS 11
 - PostgreSQL (via TypeORM 0.3)
 - Redis (cache + session management)
 - Docker Compose for local development

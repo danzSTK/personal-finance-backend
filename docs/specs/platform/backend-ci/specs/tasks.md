@@ -4,7 +4,7 @@
 - [x] 2. Medir o baseline de formatacao, lint, typecheck, build e testes.
 - [x] 3. Corrigir a tipagem dos testes que impedia o `typecheck`.
 - [x] 4. Criar workflow com jobs de qualidade, testes e integracao.
-- [x] 5. Configurar Node.js 22, cache npm, permissoes e concorrencia.
+- [x] 5. Configurar Node.js 24, cache npm, permissoes e concorrencia.
 - [x] 6. Excluir alteracoes somente de documentacao dos gatilhos automaticos.
 - [x] 7. Criar exemplo didatico comentado em `docs/platform/`.
 - [x] 8. Abrir o workflow em uma draft PR contra `develop` e corrigir a configuracao exigida pelo job de testes.
