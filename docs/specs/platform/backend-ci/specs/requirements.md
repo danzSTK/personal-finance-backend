@@ -7,7 +7,7 @@ Criar a primeira fase da automacao associada a issue 38: uma pipeline de integra
 ## Contexto
 
 - Issue de origem: GitHub #38.
-- O backend usa Node.js 22, NestJS, Jest, PostgreSQL, Redis e Testcontainers.
+- O backend usa Node.js 24, NestJS, Jest, PostgreSQL, Redis e Testcontainers.
 - O deploy automatizado, a infraestrutura NGINX e os respectivos rollbacks permanecem em fases posteriores.
 
 ## Escopo

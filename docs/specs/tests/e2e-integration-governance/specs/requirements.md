@@ -136,7 +136,7 @@ Cada cenário deve:
 
 O novo teste deve depender somente de:
 
-- Node.js 22 e dependências do `api/package-lock.json`;
+- Node.js 24 e dependências do `api/package-lock.json`;
 - Docker acessível ao Testcontainers;
 - imagem `postgres:16-alpine`;
 - imagem `redis:7-alpine`.
