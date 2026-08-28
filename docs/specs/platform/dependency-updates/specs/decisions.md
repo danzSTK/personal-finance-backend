@@ -77,3 +77,55 @@ O GitHub ignora labels customizadas inexistentes em vez de falhar a criação da
 
 Impact:
 As PRs ficam classificadas pelo ecossistema conforme `.github/dependabot.yml`.
+
+## DEC-007 - Adotar Node.js 24 Active LTS
+
+Status: accepted
+
+Decision:
+Migrar o backend de Node.js 22 para Node.js 24 e não aceitar a atualização automática direta para Node.js 26 nesta etapa.
+
+Reason:
+Node.js 24 é a linha Active LTS adequada ao runtime de produção. Node.js 26 ainda está na fase Current, enquanto `geoip-lite` 2.x já exige Node.js 24 como mínimo.
+
+Impact:
+Desenvolvimento local, engine npm, CI, builder e imagem de produção precisam mudar de forma coordenada para Node.js 24.
+
+## DEC-008 - Integrar Runtime E Geoip Na Mesma Mudança
+
+Status: accepted
+
+Decision:
+Atualizar `geoip-lite` para 2.x e `ip-address` para uma versão corrigida na mesma pull request que migra o runtime para Node.js 24.
+
+Reason:
+A atualização npm falha com `EBADENGINE` em Node.js 22. Separar as mudanças criaria um estado intermediário que não instala ou manteria os alerts abertos sem necessidade.
+
+Impact:
+As PRs automáticas de Node.js 26 e de `geoip-lite` serão substituídas por uma PR manual baseada em `develop`, validada como uma única unidade de compatibilidade.
+
+## DEC-009 - Tratar Alerts Pela Branch Padrão
+
+Status: accepted
+
+Decision:
+Usar a API de Dependabot Alerts como fonte do estado de segurança, considerando que os alerts refletem o dependency graph da branch padrão.
+
+Reason:
+Correções integradas somente em `develop` não encerram os alerts enquanto o lockfile corrigido não chegar à branch padrão e o GitHub não reprocessar o grafo.
+
+Impact:
+A validação em `develop` confirma a árvore corrigida localmente; o fechamento automático do alert é conferido novamente após a promoção para a branch padrão.
+
+## DEC-010 - Aceitar A Resolução Transitiva De ip-address 10.5
+
+Status: accepted
+
+Decision:
+Manter a faixa declarada por `geoip-lite` 2.0.3 e aceitar `ip-address` 10.5.0 como resolução transitiva do lockfile.
+
+Reason:
+A PR automática antiga resolvia 10.4.0, mas a instalação limpa atual seleciona 10.5.0. Essa versão remove dependências de runtime, corrige o contrato de falha de `Address6.fromURL`, possui commit assinado, integridade no registry e proveniência SLSA verificada por `npm audit signatures`.
+
+Impact:
+O lockfile registra `ip-address` 10.5.0 sem adicionar uma dependência direta desnecessária. Atualizações futuras continuam sob a faixa controlada por `geoip-lite`.

@@ -40,7 +40,7 @@ Os quatro jobs são independentes. Uma falha não esconde o resultado das outras
 
 ## 1. Quality
 
-O job usa Node.js 22, instala dependências com `npm ci` e executa:
+O job usa Node.js 24, instala dependências com `npm ci` e executa:
 
 ```text
 format:check -> lint:check -> typecheck -> build

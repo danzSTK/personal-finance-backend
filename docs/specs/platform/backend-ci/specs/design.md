@@ -12,7 +12,7 @@ A CI fica em um workflow separado do futuro CD. O arquivo `.github/workflows/bac
 ## Runner E Dependencias
 
 - Runner: `ubuntu-24.04`, necessario para Docker/Testcontainers.
-- Runtime da aplicacao: Node.js 22.
+- Runtime da aplicacao: Node.js 24.
 - Instalacao deterministica: `npm ci` com `api/package-lock.json`.
 - Cache: downloads do npm configurados por `actions/setup-node`.
 - Diretorio de execucao dos comandos: `api/`.

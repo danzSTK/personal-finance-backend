@@ -29,8 +29,8 @@ A stack é composta por:
 
 | Serviço         | Tecnologia           | Função                                               |
 | --------------- | -------------------- | ---------------------------------------------------- |
-| API             | NestJS (Node.js 22)  | HTTP, casos de uso, producers e escrita da outbox    |
-| Worker          | NestJS (Node.js 22)  | Outbox, eventos, reconciliação e jobs BullMQ         |
+| API             | NestJS (Node.js 24)  | HTTP, casos de uso, producers e escrita da outbox    |
+| Worker          | NestJS (Node.js 24)  | Outbox, eventos, reconciliação e jobs BullMQ         |
 | Banco de dados  | PostgreSQL 16 no RDS | Persistência de dados externa ao Compose             |
 | Cache e sessões | Redis 7              | Cache, sessões e rate limit                          |
 | Filas           | Redis 7              | Backend dedicado do BullMQ com política `noeviction` |

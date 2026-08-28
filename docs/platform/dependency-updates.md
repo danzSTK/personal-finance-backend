@@ -91,6 +91,37 @@ Não publique detalhes exploráveis da vulnerabilidade em uma issue. Siga a [Pol
 
 CI verde confirma o comportamento coberto pelos testes, mas não substitui a leitura do changelog nem a análise operacional.
 
+## Atualizações Acopladas Ao Runtime
+
+O runtime suportado atualmente é Node.js 24 LTS. Uma dependência que eleve seu engine mínimo não deve ser integrada enquanto desenvolvimento local, `package.json`, CI e imagem de produção permanecerem em uma major anterior.
+
+```text
+dependência exige nova major do Node.js
+                  |
+                  v
+escolher uma linha LTS suportada
+                  |
+                  v
+alinhar .nvmrc + engines + CI + Docker
+                  |
+                  v
+regenerar o lockfile nessa major
+                  |
+                  v
+validar testes + integração + container smoke
+```
+
+Quando não existir estado intermediário instalável, substitua as PRs automáticas isoladas por uma única PR manual baseada em `develop`. A mudança deve:
+
+- preferir uma linha Active LTS a uma linha Current para o runtime de produção;
+- atualizar os dois estágios do Dockerfile, a Backend CI, `.nvmrc` e o engine npm;
+- regenerar o lockfile com a nova major ativa;
+- revisar breaking changes e proveniência das dependências resolvidas;
+- preservar e testar os adapters que encapsulam bibliotecas externas;
+- atualizar a documentação operacional e as specs de plataforma afetadas.
+
+A migração de Node.js 22 para Node.js 24 foi realizada junto de `geoip-lite` 2.0.3 porque essa versão exige Node.js `>=24.0.0`. O lockfile resolveu `ip-address` 10.5.0, versão corrigida e com proveniência verificada. Node.js 26 foi rejeitado enquanto permanecia na fase Current.
+
 ## Labels e commits
 
 | Origem         | Prefixo          | Labels                           |

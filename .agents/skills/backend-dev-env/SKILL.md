@@ -11,7 +11,7 @@ Run the API locally in watch mode. Do not start the API container for normal dev
 
 The backend is sustained by:
 
-- NestJS API on Node.js 22.
+- NestJS API on Node.js 24.
 - PostgreSQL 16 in Docker.
 - Redis 7 Alpine in Docker.
 - Root `.env` loaded from commands run inside `api/`.
@@ -41,8 +41,8 @@ npm --version
 
 Expected version source:
 
-- `api/.nvmrc` contains `22`.
-- `package.json` requires Node `^22.0.0` and npm `>=10.0.0`.
+- `api/.nvmrc` contains `24`.
+- `package.json` requires Node `>=24.0.0 <25` and npm `>=10.0.0`.
 
 Validate before starting watch when practical:
 

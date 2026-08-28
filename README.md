@@ -44,8 +44,8 @@
   </a>
   <a href="https://nodejs.org/">
     <img
-      src="https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&amp;logoColor=white"
-      alt="Node.js 22"
+      src="https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&amp;logoColor=white"
+      alt="Node.js 24"
     />
   </a>
   <a href="./LICENSE">
@@ -211,7 +211,7 @@ Refresh tokens são rotacionados a cada uso. O desenho permite listar sessões, 
 
 ### Aplicação
 
-- **Node.js 22:** runtime da API, do worker e dos comandos operacionais;
+- **Node.js 24:** runtime LTS da API, do worker e dos comandos operacionais;
 - **TypeScript 5:** linguagem principal com tipagem estática;
 - **NestJS 11:** framework da aplicação, injeção de dependências e composição dos processos;
 - **TypeORM 0.3:** persistência relacional, repositories e migrations;
