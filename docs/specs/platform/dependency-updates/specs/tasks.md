@@ -15,5 +15,5 @@
 - [x] 13. Preservar e testar o contrato do `GeoIpLiteProvider`.
 - [x] 14. Atualizar documentação operacional, specs relacionadas e instruções de desenvolvimento.
 - [x] 15. Validar instalação limpa, qualidade, testes, integração, E2E e imagem de produção.
-- [ ] 16. Abrir e integrar a pull request em `develop`, substituindo as PRs automáticas incompatíveis.
-- [ ] 17. Conferir o estado do dependency graph e dos Dependabot Alerts após a integração.
+- [x] 16. Abrir e integrar a pull request em `develop`, substituindo as PRs automáticas incompatíveis.
+- [x] 17. Conferir o estado do dependency graph e dos Dependabot Alerts após a integração.
