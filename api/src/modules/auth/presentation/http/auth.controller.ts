@@ -77,6 +77,7 @@ import {
 } from '../dto/email-verification-resend-status.response.dto';
 import { EmailVerificationResendResponseDto } from '../dto/email-verification-resend.response.dto';
 import { LinkEmailProviderDto } from '../dto/link-email-provider.dto';
+import { LinkEmailProviderResponseDto } from '../dto/link-email-provider.response.dto';
 import { LoginEmailDto } from '../dto/login-email.dto';
 import { PasswordChangeStatusResponseDto } from '../dto/password-change-status.response.dto';
 import { RegisterDto } from '../dto/register.dto';
@@ -553,18 +554,14 @@ export class AuthController {
   @ApiCookieAuth('accessToken')
   @ApiOperation({
     summary: 'Vincular provider de email ao usuário autenticado',
-    description: 'Permite que um usuário autenticado adicione email/senha como método de login à sua conta.',
+    description:
+      'Permite adicionar senha como método de login para o e-mail principal da conta. O campo email legado é ignorado.',
   })
   @ApiBody({ type: LinkEmailProviderDto })
   @ApiResponse({
     status: 200,
     description: 'Provider de email vinculado com sucesso',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'Email provider linked successfully' },
-      },
-    },
+    type: LinkEmailProviderResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Token inválido ou expirado', type: PlatformErrorResponseDto })
   @ApiResponse({
@@ -575,16 +572,13 @@ export class AuthController {
   async linkEmailProvider(
     @CurrentUser() user: User,
     @Body() linkEmailProviderDto: LinkEmailProviderDto,
-    @CurrentSessionInfo() sessionInfo: SessionMetadata,
-  ) {
+  ): Promise<LinkEmailProviderResponseDto> {
     await this.linkEmailProviderUseCase.execute({
       userId: user.id,
-      email: linkEmailProviderDto.email,
       password: linkEmailProviderDto.password,
-      sessionMetadata: sessionInfo,
     });
 
-    return { message: 'Email provider linked successfully' };
+    return new LinkEmailProviderResponseDto();
   }
 
   /**

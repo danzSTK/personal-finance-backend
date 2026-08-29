@@ -58,20 +58,20 @@ Erros de DTO usam `VALIDATION_ERROR`.
 
 ## Códigos Globais
 
-| Code                             | Status | Quando                                                    |
-| -------------------------------- | -----: | --------------------------------------------------------- |
-| `VALIDATION_ERROR`               |  `400` | Body/query/params falham na validação de DTO              |
-| `UNAUTHORIZED`                   |  `401` | Guard/autenticação rejeitou uma request sem sessão válida |
-| `TOO_MANY_REQUESTS`              |  `429` | Throttling rejeitou requests acima do limite da rota      |
-| `PASSWORD_BYTE_LIMIT_EXCEEDED`   |  `400` | Defesa interna rejeitou senha acima de 72 bytes UTF-8     |
-| `INTERNAL_SERVER_ERROR`          |  `500` | Erro inesperado; mensagem interna não é exposta           |
+| Code                           | Status | Quando                                                    |
+| ------------------------------ | -----: | --------------------------------------------------------- |
+| `VALIDATION_ERROR`             |  `400` | Body/query/params falham na validação de DTO              |
+| `UNAUTHORIZED`                 |  `401` | Guard/autenticação rejeitou uma request sem sessão válida |
+| `TOO_MANY_REQUESTS`            |  `429` | Throttling rejeitou requests acima do limite da rota      |
+| `PASSWORD_BYTE_LIMIT_EXCEEDED` |  `400` | Defesa interna rejeitou senha acima de 72 bytes UTF-8     |
+| `INTERNAL_SERVER_ERROR`        |  `500` | Erro inesperado; mensagem interna não é exposta           |
 
 ## Auth And Sessions
 
 | Code                                      | Status | Quando                                                                  |
 | ----------------------------------------- | -----: | ----------------------------------------------------------------------- |
 | `AUTH_PROVIDER_ALREADY_LINKED`            |  `409` | Usuário já possui provider de auth daquele tipo                         |
-| `AUTH_PROVIDER_LINKED_TO_ANOTHER_USER`    |  `409` | Provider externo já pertence a outro usuário                            |
+| `AUTH_PROVIDER_LINKED_TO_ANOTHER_USER`    |  `409` | Identificador do provider já pertence a outro usuário                   |
 | `INVALID_ACCESS_TOKEN`                    |  `401` | Access token ausente, inválido ou inconsistente                         |
 | `INVALID_REFRESH_TOKEN`                   |  `401` | Refresh token ausente, inválido, expirado ou inconsistente              |
 | `POTENTIAL_SESSION_HIJACKING`             |  `401` | Refresh token aponta para sessão inexistente e o backend revoga sessões |

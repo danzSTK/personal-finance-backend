@@ -1,168 +1,168 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { DataSource, EntityManager } from 'typeorm';
-import { LinkEmailProviderUseCase } from './link-email-provider.use-case';
-import { FindUserByIdUseCase } from '@/modules/users/application/use-cases/find-user-by-id/find-user-by-id.use-case';
-import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
-import { IHashService, SessionMetadata } from '@/common/models/interfaces';
-import { AuthProviderType } from '@/common/models/enums';
-import { User } from '@/modules/users/domain/entities/user.entity';
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Email } from '@/common/domain/value-objects/email.value-object';
-import { UserStatus } from '@/common/models/enums';
-import { AuthProviderAlreadyLinkedError } from '@/modules/auth/application/errors';
-import { UserEmailAlreadyExistsError, UserNotFoundError } from '@/modules/users/application/errors';
+import { AuthProviderType, UserStatus } from '@/common/models/enums';
+import { IHashService } from '@/common/models/interfaces';
+import {
+  AuthProviderAlreadyLinkedError,
+  AuthProviderLinkedToAnotherUserError,
+} from '@/modules/auth/application/errors';
+import { UserNotFoundError } from '@/modules/users/application/errors';
+import { User } from '@/modules/users/domain/entities/user.entity';
+import { IUserRepository } from '@/modules/users/domain/repositories/user.respository.interface';
+import { HashedPassword } from '@/modules/users/domain/value-objects/hashed-password.value-object';
+import { Test, TestingModule } from '@nestjs/testing';
+import { randomUUID } from 'node:crypto';
+import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
+import { LinkEmailProviderUseCase } from './link-email-provider.use-case';
 
 describe('LinkEmailProviderUseCase', () => {
   let useCase: LinkEmailProviderUseCase;
-  let findUserByIdUseCase: FindUserByIdUseCase;
-  let userRepository: IUserRepository;
-  let hashService: IHashService;
+  let userRepository: jest.Mocked<IUserRepository>;
+  let hashService: jest.Mocked<IHashService>;
+  let manager: EntityManager;
 
-  const defaultSessionMetadata: SessionMetadata = {
-    browser: 'Chrome',
-    os: 'Linux',
-    device: 'Desktop',
-    ip: '127.0.0.1',
-    location: 'Local',
-    loginAt: new Date().toISOString(),
-  };
-  const addAuthProviderMock = jest.fn();
-
-  const mockUser = {
-    id: 'user-id',
-    email: Email.create('user@example.com'),
-    status: UserStatus.ACTIVE,
-    firstName: 'Test',
-    lastName: 'User',
-    userName: null,
-    authProviders: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    addAuthProvider: addAuthProviderMock,
-  } as unknown as User;
+  const createUser = (email = 'principal@example.com'): User =>
+    User.reconstitute(
+      {
+        userName: null,
+        firstName: 'Test',
+        lastName: 'User',
+        email: Email.create(email),
+        status: UserStatus.PENDING_PROFILE,
+        avatarAssetId: null,
+        authProviders: [],
+        createdAt: new Date('2026-08-28T12:00:00.000Z'),
+        updatedAt: new Date('2026-08-28T12:00:00.000Z'),
+      },
+      randomUUID(),
+    );
 
   beforeEach(async () => {
-    const mockDataSource = {
-      transaction: jest.fn(
-        async (callback: (manager: EntityManager) => Promise<unknown>): Promise<unknown> =>
-          callback({} as EntityManager),
-      ),
+    manager = {} as EntityManager;
+    const repositoryMock = {
+      findById: jest.fn(),
+      findByIdForUpdate: jest.fn(),
+      findCredentialVersionById: jest.fn(),
+      findByEmail: jest.fn(),
+      findByUserName: jest.fn(),
+      findByAuthProvider: jest.fn(),
+      usernameAlreadyExists: jest.fn(),
+      save: jest.fn(),
+    } as jest.Mocked<IUserRepository>;
+    const hashServiceMock = {
+      hash: jest.fn().mockResolvedValue('hashed-password'),
+      compare: jest.fn(),
+    } as jest.Mocked<IHashService>;
+    const dataSource = {
+      transaction: jest.fn(async (callback: (transactionManager: EntityManager) => Promise<void>) => callback(manager)),
     };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LinkEmailProviderUseCase,
-        {
-          provide: FindUserByIdUseCase,
-          useValue: {
-            execute: jest.fn(),
-          },
-        },
-
-        {
-          provide: IUserRepository,
-          useValue: {
-            findByAuthProvider: jest.fn(),
-            save: jest.fn(),
-          },
-        },
-        {
-          provide: IHashService,
-          useValue: {
-            hash: jest.fn(),
-          },
-        },
-        {
-          provide: DataSource,
-          useValue: mockDataSource,
-        },
+        { provide: IUserRepository, useValue: repositoryMock },
+        { provide: IHashService, useValue: hashServiceMock },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
-    useCase = module.get<LinkEmailProviderUseCase>(LinkEmailProviderUseCase);
-    findUserByIdUseCase = module.get<FindUserByIdUseCase>(FindUserByIdUseCase);
-    userRepository = module.get<IUserRepository>(IUserRepository);
-    hashService = module.get<IHashService>(IHashService);
+    useCase = module.get(LinkEmailProviderUseCase);
+    userRepository = module.get(IUserRepository);
+    hashService = module.get(IHashService);
+    jest.clearAllMocks();
+    hashService.hash.mockResolvedValue('hashed-password');
   });
 
   describe('execute', () => {
-    it('deve vincular um provider EMAIL ao usuário autenticado com sucesso', async () => {
-      const dto = {
-        userId: 'user-id',
-        email: 'newemail@example.com',
-        password: 'password123',
-        sessionMetadata: defaultSessionMetadata,
-      };
+    it('links EMAIL using only the persisted primary email', async () => {
+      const user = createUser();
+      const addAuthProvider = jest.spyOn(user, 'addAuthProvider');
+      userRepository.findByIdForUpdate.mockResolvedValue(user);
+      userRepository.findByAuthProvider.mockResolvedValue(null);
+      userRepository.save.mockResolvedValue(user);
 
-      const hashSpy = jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password');
-      const findByAuthProviderSpy = jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
-      const findUserByIdSpy = jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(mockUser);
-      const saveSpy = jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser);
+      await useCase.execute({ userId: user.id, password: 'password123' });
 
-      await useCase.execute(dto);
-
-      expect(hashSpy).toHaveBeenCalledWith('password123');
-      expect(findByAuthProviderSpy).toHaveBeenCalledWith(
+      expect(hashService.hash).toHaveBeenCalledWith('password123');
+      expect(userRepository.findByIdForUpdate).toHaveBeenCalledWith(user.id, { manager });
+      expect(userRepository.findByAuthProvider).toHaveBeenCalledWith(AuthProviderType.EMAIL, 'principal@example.com', {
+        manager,
+      });
+      expect(addAuthProvider).toHaveBeenCalledWith(
+        expect.any(String),
         AuthProviderType.EMAIL,
-        'newemail@example.com',
-        expect.any(Object),
+        'principal@example.com',
+        expect.any(HashedPassword),
       );
-      expect(findUserByIdSpy).toHaveBeenCalledWith('user-id', expect.any(Object));
-      expect(addAuthProviderMock).toHaveBeenCalled();
-      expect(saveSpy).toHaveBeenCalledWith(mockUser, expect.any(Object));
+      expect(userRepository.save).toHaveBeenCalledWith(user, { manager });
+      expect(user.email.value).toBe('principal@example.com');
+      expect(user.status).toBe(UserStatus.PENDING_PROFILE);
     });
 
-    it('deve lançar UserEmailAlreadyExistsError se o email já estiver registrado', async () => {
-      const dto = {
-        userId: 'user-id',
-        email: 'existing@example.com',
-        password: 'password123',
-        sessionMetadata: defaultSessionMetadata,
-      };
+    it('rejects a user that already has an EMAIL provider without replacing its password', async () => {
+      const user = createUser();
+      user.addAuthProvider(
+        randomUUID(),
+        AuthProviderType.EMAIL,
+        user.email.value,
+        HashedPassword.createFromHash('existing-hash'),
+      );
+      userRepository.findByIdForUpdate.mockResolvedValue(user);
 
-      const existingUser = { ...mockUser, id: 'other-user-id' } as User;
+      await expect(useCase.execute({ userId: user.id, password: 'password123' })).rejects.toBeInstanceOf(
+        AuthProviderAlreadyLinkedError,
+      );
 
-      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password');
-      jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(existingUser);
-
-      await expect(useCase.execute(dto)).rejects.toThrow(UserEmailAlreadyExistsError);
-      await expect(useCase.execute(dto)).rejects.toThrow('User with email "existing@example.com" already exists.');
+      expect(userRepository.findByAuthProvider).not.toHaveBeenCalled();
+      expect(userRepository.save).not.toHaveBeenCalled();
+      expect(user.getCredentialsAuthProvider()?.passwordHash.value).toBe('existing-hash');
     });
 
-    it('deve lançar AuthProviderAlreadyLinkedError se o usuário já possui provider EMAIL', async () => {
-      const dto = {
-        userId: 'user-id',
-        email: 'newemail@example.com',
-        password: 'password123',
-        sessionMetadata: defaultSessionMetadata,
-      };
+    it('rejects when the canonical email provider belongs to another user', async () => {
+      const user = createUser();
+      userRepository.findByIdForUpdate.mockResolvedValue(user);
+      userRepository.findByAuthProvider.mockResolvedValue(createUser('other@example.com'));
 
-      const userWithEmailProvider = {
-        ...mockUser,
-        authProviders: [{ provider: AuthProviderType.EMAIL }],
-      } as unknown as User;
+      await expect(useCase.execute({ userId: user.id, password: 'password123' })).rejects.toBeInstanceOf(
+        AuthProviderLinkedToAnotherUserError,
+      );
 
-      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password');
-      jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
-      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(userWithEmailProvider);
-
-      await expect(useCase.execute(dto)).rejects.toThrow(AuthProviderAlreadyLinkedError);
-      await expect(useCase.execute(dto)).rejects.toThrow('User already has a EMAIL provider.');
+      expect(userRepository.save).not.toHaveBeenCalled();
     });
 
-    it('deve lançar UserNotFoundError se o usuário não for encontrado', async () => {
-      const dto = {
-        userId: 'non-existent-user',
-        email: 'newemail@example.com',
-        password: 'password123',
-        sessionMetadata: defaultSessionMetadata,
-      };
+    it('rejects when the authenticated user no longer exists', async () => {
+      userRepository.findByIdForUpdate.mockResolvedValue(null);
 
-      jest.spyOn(hashService, 'hash').mockResolvedValue('hashed-password');
-      jest.spyOn(userRepository, 'findByAuthProvider').mockResolvedValue(null);
-      jest.spyOn(findUserByIdUseCase, 'execute').mockResolvedValue(null as unknown as User);
+      await expect(useCase.execute({ userId: randomUUID(), password: 'password123' })).rejects.toBeInstanceOf(
+        UserNotFoundError,
+      );
 
-      await expect(useCase.execute(dto)).rejects.toThrow(UserNotFoundError);
-      await expect(useCase.execute(dto)).rejects.toThrow('User not found.');
+      expect(userRepository.findByAuthProvider).not.toHaveBeenCalled();
+      expect(userRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('translates the known provider uniqueness race to a stable conflict', async () => {
+      const user = createUser();
+      const driverError = Object.assign(new Error('duplicate'), {
+        code: '23505',
+        constraint: 'UQ_auth_providers',
+      });
+      userRepository.findByIdForUpdate.mockResolvedValue(user);
+      userRepository.findByAuthProvider.mockResolvedValue(null);
+      userRepository.save.mockRejectedValue(new QueryFailedError('INSERT', [], driverError));
+
+      await expect(useCase.execute({ userId: user.id, password: 'password123' })).rejects.toBeInstanceOf(
+        AuthProviderLinkedToAnotherUserError,
+      );
+    });
+
+    it('does not hide an unknown persistence failure', async () => {
+      const user = createUser();
+      const failure = new Error('storage unavailable');
+      userRepository.findByIdForUpdate.mockResolvedValue(user);
+      userRepository.findByAuthProvider.mockResolvedValue(null);
+      userRepository.save.mockRejectedValue(failure);
+
+      await expect(useCase.execute({ userId: user.id, password: 'password123' })).rejects.toBe(failure);
     });
   });
 });
