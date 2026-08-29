@@ -11,6 +11,7 @@ export const RESPONSE_OBJECT_TYPES = {
   EMAIL_VERIFICATION_RESEND_STATUS_ALREADY_VERIFIED: 'email_verification.resend_status.already_verified',
   AUTH_PASSWORD_CHANGE: 'auth.password_change',
   AUTH_PASSWORD_CHANGE_STATUS: 'auth.password_change_status',
+  AUTH_PROVIDER_EMAIL_LINK: 'auth_provider.email_link',
 } as const;
 
 export type ResponseObjectType = (typeof RESPONSE_OBJECT_TYPES)[keyof typeof RESPONSE_OBJECT_TYPES];

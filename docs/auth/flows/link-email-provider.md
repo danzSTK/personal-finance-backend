@@ -15,14 +15,18 @@ Vincula credenciais de e-mail e senha a um usuário já autenticado.
 
 ## Fluxo
 
-1. Recebe `email` e `password` e valida o máximo de 72 bytes UTF-8 da senha.
-2. Verifica se já existe provider `EMAIL` com aquele e-mail.
-3. Carrega usuário autenticado.
-4. Impede vínculo duplicado caso o usuário já tenha provider `EMAIL`.
-5. Adiciona provider no domínio.
-6. Persiste em transação.
+1. Recebe `password` e valida o máximo de 72 bytes UTF-8. O campo legado
+   opcional `email` é aceito temporariamente e ignorado.
+2. Carrega com lock o usuário identificado pela sessão autenticada.
+3. Impede vínculo duplicado caso o usuário já tenha provider `EMAIL`.
+4. Usa exclusivamente `users.email` como identificador do provider.
+5. Verifica conflito com outro vínculo e adiciona o provider no domínio.
+6. Persiste em transação e traduz corridas de unicidade para conflito estável.
+
+O vínculo não altera o e-mail principal, status, sessões ou providers anteriores
+e não dispara verificação de e-mail.
 
 ## Erros
 
-- Provider já usado: `409 Conflict`.
-- Usuário já tem provider `EMAIL`: `409 Conflict`.
+- Provider já usado: `409 AUTH_PROVIDER_LINKED_TO_ANOTHER_USER`.
+- Usuário já tem provider `EMAIL`: `409 AUTH_PROVIDER_ALREADY_LINKED`.

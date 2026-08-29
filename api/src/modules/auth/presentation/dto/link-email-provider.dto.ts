@@ -1,23 +1,21 @@
-import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
+import { Allow, IsNotEmpty, IsString, Length } from 'class-validator';
 import { IsPasswordWithinUtf8ByteLimit } from '@/common/decorators/is-password-within-utf8-byte-limit.decorator';
-import { TrimAndLowerCase } from '@/common/decorators/normalize-string.decorator';
 import {
   USER_PASSWORD_MAX_LENGTH,
   USER_PASSWORD_MAX_UTF8_BYTES,
   USER_PASSWORD_MIN_LENGTH,
 } from '@/common/models/constants';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LinkEmailProviderDto {
-  @ApiProperty({
-    description: 'Endereço de e-mail válido',
+  @ApiPropertyOptional({
+    description: 'Campo legado depreciado. O valor é aceito temporariamente e ignorado.',
+    type: String,
     example: 'joao.silva@email.com',
-    format: 'email',
+    deprecated: true,
   })
-  @TrimAndLowerCase()
-  @IsString()
-  @IsEmail({}, { message: 'This email address is not a valid address.' })
-  email: string;
+  @Allow()
+  email?: unknown;
 
   @ApiProperty({
     description: `Senha do usuário, limitada simultaneamente a ${USER_PASSWORD_MAX_LENGTH} caracteres e ${USER_PASSWORD_MAX_UTF8_BYTES} bytes em UTF-8`,
