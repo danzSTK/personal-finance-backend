@@ -11,15 +11,14 @@ related:
   - ../../../../database/schema.md
   - ../../../../database/migration-rollout.md
   - ../../../../architecture/compatibility.md
-  - ../../email-verification/specs/design.md
 ---
 
 # Design - Link EMAIL Provider Ao E-mail Principal
 
 ## Estado
 
-Design proposto e ainda não aprovado para implementação. A seção de Google com
-e-mail não verificado permanece bloqueada pela decisão pendente `DEC-006`.
+Design aprovado para implementação em 2026-08-28. A procedência do e-mail Google
+foi separada na issue #90 e o fluxo OAuth permanece inalterado nesta entrega.
 
 ## Visão Geral
 
@@ -54,9 +53,8 @@ POST /auth/providers/link/email
   `unknown`, deixando explícito que nenhum valor é consumido.
 - Swagger marca `email` como `deprecated: true`, opcional e ignorado.
 - O controller repassa somente `userId` e `password` ao caso de uso.
-- `sessionMetadata` deve ser removido desse DTO de aplicação se continuar sem
-  uso; se alguma decisão de segurança passar a exigir contexto, a spec deve ser
-  atualizada antes.
+- `sessionMetadata` é removido desse DTO de aplicação porque não participa do
+  comportamento aprovado.
 - A resposta deve usar DTO próprio com `object` centralizado, sem retornar e-mail,
   hash ou provider interno.
 
@@ -166,107 +164,22 @@ internamente e retornam o contrato genérico sem SQL bruto.
 
 ## Contrato De Erros
 
-| Cenário                           | Código                                 |         HTTP | Observação                             |
-| --------------------------------- | -------------------------------------- | -----------: | -------------------------------------- |
-| Body/senha inválida               | `VALIDATION_ERROR`                     |          400 | Campo `password` em `details.fields`   |
-| Provider EMAIL já existe na conta | `AUTH_PROVIDER_ALREADY_LINKED`         |          409 | Não altera senha                       |
-| Provider pertence a outra conta   | `AUTH_PROVIDER_LINKED_TO_ANOTHER_USER` |          409 | Reuso recomendado                      |
-| Usuário autenticado não existe    | `USER_NOT_FOUND`                       |          404 | Sem persistência                       |
-| Google sem e-mail utilizável      | pendente                               | 401/redirect | Definir código e redirect em `DEC-006` |
+| Cenário                           | Código                                 | HTTP | Observação                           |
+| --------------------------------- | -------------------------------------- | ---: | ------------------------------------ |
+| Body/senha inválida               | `VALIDATION_ERROR`                     |  400 | Campo `password` em `details.fields` |
+| Provider EMAIL já existe na conta | `AUTH_PROVIDER_ALREADY_LINKED`         |  409 | Não altera senha                     |
+| Provider pertence a outra conta   | `AUTH_PROVIDER_LINKED_TO_ANOTHER_USER` |  409 | Reuso recomendado                    |
+| Usuário autenticado não existe    | `USER_NOT_FOUND`                       |  404 | Sem persistência                     |
 
 Controllers não traduzem erros de negócio. Application errors escapam para o
 filtro global. Nenhuma mensagem deve conter senha, hash, token, cookie ou SQL.
 
-## Google OAuth E Procedência Do E-mail
+## Google OAuth E Verificação De E-mail
 
-### Estado Atual
-
-`GoogleStrategy` lê `profile.emails?.[0].value`, falha antes do caso de uso quando
-o valor está ausente e não inspeciona `verified`.
-
-O tipo e o adapter instalados disponibilizam:
-
-```ts
-emails?: Array<{ value: string; verified: boolean }>;
-```
-
-Portanto, presença e confirmação pelo Google são sinais distintos.
-
-### Seleção Proposta
-
-Depois da aprovação de `DEC-006`, a estratégia deve selecionar explicitamente um
-item de `profile.emails` conforme a política decidida. Nunca deve apenas assumir
-que o primeiro endereço é confirmado.
-
-Para qualquer alternativa:
-
-- ausência de e-mail impede criação;
-- a normalização final continua no value object `Email`;
-- falha ocorre antes de `OAuthCallbackUseCase`;
-- testes comprovam ausência de usuário, provider, sessão, cookie e evento;
-- o callback de navegador recebe redirect funcional, não uma página JSON crua.
-
-## Como O E-mail Automático É Disparado Hoje
-
-```text
-OAuthCallbackUseCase ou SignUpUseCase
-  -> CreateUserUseCase
-      -> User.create()
-          -> registra UserCreatedEvent
-      -> salva User
-      -> OutboxWriteService.storeEvents() no mesmo EntityManager
-  -> commit PostgreSQL
-
-worker
-  -> OutboxProcessorService
-  -> UserCreatedEventHydrator
-  -> AppEventPublisher
-  -> EnqueueEmailVerificationOnUserCreatedHandler
-      -> se status != PENDING_EMAIL_VERIFICATION: retorna
-      -> cria challenge AUTOMATIC
-      -> cria email_messages na mesma transação
-      -> registra cooldown Redis
-      -> enfileira job BullMQ
-  -> EmailMessageProcessor envia pelo provider
-```
-
-Na confirmação:
-
-```text
-POST /auth/email-verification/confirm
-  -> lock challenge
-  -> lock user
-  -> challenge.consume()
-  -> user.markEmailVerified()
-      -> status ACTIVE
-      -> UserEmailVerifiedEvent
-  -> salva User + challenge + outbox no mesmo commit
-
-worker
-  -> publica user.email.verified
-  -> EnqueueWelcomeEmailOnUserEmailVerifiedHandler
-  -> cria intenção idempotente de welcome
-  -> enfileira e-mail
-```
-
-## Colisão Entre PENDING_PROFILE E PENDING_EMAIL_VERIFICATION
-
-O usuário criado pelo Google atualmente nasce `PENDING_PROFILE`. O usuário de
-credenciais não confirmado nasce `PENDING_EMAIL_VERIFICATION`.
-
-Se um Google com `verified = false` simplesmente nascer
-`PENDING_EMAIL_VERIFICATION`, a confirmação chama `markEmailVerified()` e o leva
-diretamente a `ACTIVE`. O estado anterior de perfil incompleto não é preservado.
-
-Alternativas a decidir:
-
-1. rejeitar Google não verificado e manter o modelo atual;
-2. definir precedência e transição explícita entre os dois status;
-3. separar estado de perfil e estado de verificação em propriedades distintas;
-4. adicionar um estado combinado, com custo crescente de máquina de estados.
-
-A spec não escolhe uma alternativa antes da resposta do responsável pelo
-produto.
+Nenhum arquivo do fluxo Google ou de email verification será alterado. A issue
+#90 concentra a análise de `emails[].verified`, estados pendentes, callback e
+eventos. O vínculo `EMAIL` somente reutiliza `users.email` e não dispara o fluxo
+automático de verificação.
 
 ## Dados Persistidos E Migrations
 
@@ -329,9 +242,9 @@ tarefa rastreável e coordenada com o único frontend consumidor.
 - O e-mail usado é relido sob lock, não confiado do token ou body.
 - Hash usa `IHashService` e limites compartilhados.
 - Segredos não entram em eventos, resposta ou logs.
-- Adicionar senha amplia os meios permanentes de acesso à conta. Exigir
-  reautenticação recente, revogar sessões ou enviar notificação permanece decisão
-  pendente e deve ser resolvido antes da implementação se entrar no escopo.
+- Esta entrega preserva a proteção atual do endpoint: access token válido, sem
+  reautenticação recente, revogação de sessões ou notificação. Endurecimento
+  adicional exige feature própria.
 
 ## Estratégia De Testes
 
@@ -363,30 +276,22 @@ tarefa rastreável e coordenada com o único frontend consumidor.
 
 ### E2E
 
-- usuário Google-only vincula com body novo;
-- body legado com e-mail diferente vincula ao principal;
-- `/users/me` passa a expor `EMAIL` e `GOOGLE`;
-- login posterior usa o e-mail principal;
-- e-mail legado alternativo não autentica;
-- erro de senha e conflitos seguem o contrato global.
+- request somente com senha retorna o response DTO identificado;
+- body legado com e-mail diferente é aceito sem chegar ao caso de uso;
+- campos desconhecidos e senha acima de 72 bytes são rejeitados;
+- conflitos seguem o contrato global.
 
-### Google/Evento
-
-- profile sem `emails` não chama `OAuthCallbackUseCase`;
-- profile verificado segue o fluxo aprovado;
-- profile não verificado segue `DEC-006` quando aceita;
-- caso a opção pendente reutilize verification, teste de integração comprova
-  outbox, challenge, intenção, confirmação e transição correta de status.
+O E2E deste projeto usa casos de uso mockados e comprova a borda HTTP. Vínculo,
+persistência, providers preservados, login real e concorrência são comprovados na
+suíte de integração PostgreSQL para não introduzir infraestrutura na categoria
+E2E.
 
 ## Documentação Impactada Na Implementação
 
 - `docs/auth/flows/link-email-provider.md`;
-- `docs/auth/flows/google-login.md`;
 - `docs/auth/concepts/auth-provider.md`;
 - `docs/integrations/auth/link-providers.md`;
-- `docs/integrations/auth/oauth-google.md`;
 - `docs/auth/reference/endpoints.md`;
 - `docs/auth/reference/error-codes.md`;
 - `docs/integrations/errors.md`, se houver código novo;
 - Swagger do controller e DTOs;
-- spec de email verification, caso Google não verificado passe a reutilizá-la.

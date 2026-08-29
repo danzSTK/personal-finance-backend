@@ -23,89 +23,80 @@ related:
      confirmação e `user.email.verified`.
 - [x] 5. Registrar a colisão entre `PENDING_PROFILE` e
      `PENDING_EMAIL_VERIFICATION` para contas Google.
-- [ ] 6. Decidir o comportamento quando o Google fornece e-mail com
-     `verified !== true`.
-- [ ] 7. Decidir se adicionar senha exige reautenticação recente, alteração de
-     sessões ou notificação de segurança.
-- [ ] 8. Revisar e aprovar explicitamente `requirements.md`, `design.md` e esta
+- [x] 6. Separar a verificação do e-mail Google na issue #90, preservando o fluxo
+     atual nesta entrega.
+- [x] 7. Preservar a segurança atual do endpoint, sem reautenticação recente,
+     alteração de sessões ou notificação adicional.
+- [x] 8. Revisar e aprovar explicitamente `requirements.md`, `design.md` e esta
      lista antes do código.
 
 ## Auditoria E Rollout
 
-- [ ] 9. Executar em ambiente autorizado a contagem sanitizada de providers
+- [x] 9. Executar em ambiente autorizado a contagem sanitizada de providers
      `EMAIL` cujo `provider_user_id` difere de `users.email`.
-- [ ] 10. Registrar em `decisions.md` o resultado agregado da auditoria, sem PII.
-- [ ] 11. Se houver divergências, aprovar estratégia de correção antes de criar
-      migration ou script.
-- [ ] 12. Se houver correção persistida, aplicar `migration-rollout`, documentar
-      N/N+1 e atualizar schema/compatibilidade conforme necessário.
+- [x] 10. Registrar em `decisions.md` o resultado agregado da auditoria, sem PII.
+- [x] 11. Confirmar que não há divergências no ambiente local auditado e que não
+      será criada correção de dados nesta feature.
+- [x] 12. Confirmar que não há mudança persistida e, portanto, não há migration,
+      matriz N/N+1 ou atualização de schema.
 
 ## Contrato HTTP E Presentation
 
-- [ ] 13. Tornar `email` opcional, depreciado e ignorado no
+- [x] 13. Tornar `email` opcional, depreciado e ignorado no
       `LinkEmailProviderDto` durante a versão de transição.
-- [ ] 14. Manter `password` obrigatório com limites centralizados de caracteres e
+- [x] 14. Manter `password` obrigatório com limites centralizados de caracteres e
       bytes UTF-8.
-- [ ] 15. Alterar controller para nunca repassar `email` ao caso de uso.
-- [ ] 16. Remover `sessionMetadata` do input do caso de uso se a decisão de
+- [x] 15. Alterar controller para nunca repassar `email` ao caso de uso.
+- [x] 16. Remover `sessionMetadata` do input do caso de uso se a decisão de
       segurança não lhe der uma finalidade explícita.
-- [ ] 17. Criar response DTO com discriminador `object` centralizado e sem dados
+- [x] 17. Criar response DTO com discriminador `object` centralizado e sem dados
       sensíveis.
-- [ ] 18. Atualizar Swagger com request novo, campo legado depreciado, resposta e
+- [x] 18. Atualizar Swagger com request novo, campo legado depreciado, resposta e
       erros.
 
 ## Application, Domain E Persistência
 
-- [ ] 19. Remover `email` de `LinkEmailProviderUseCaseDto`.
-- [ ] 20. Carregar usuário por `userId` com lock pessimista dentro da transação.
-- [ ] 21. Derivar `providerUserId` exclusivamente de `user.email.value`.
-- [ ] 22. Revalidar provider existente e conflito entre contas dentro da mesma
+- [x] 19. Remover `email` de `LinkEmailProviderUseCaseDto`.
+- [x] 20. Carregar usuário por `userId` com lock pessimista dentro da transação.
+- [x] 21. Derivar `providerUserId` exclusivamente de `user.email.value`.
+- [x] 22. Revalidar provider existente e conflito entre contas dentro da mesma
       transação.
-- [ ] 23. Preservar hash fora do lock sem enfraquecer validação ou expor senha.
-- [ ] 24. Persistir o aggregate com o transaction manager e invalidar cache.
-- [ ] 25. Traduzir violação de `UQ_auth_providers` para erro de aplicação estável.
-- [ ] 26. Garantir que e-mail, status, perfil e providers anteriores permaneçam
+- [x] 23. Preservar hash fora do lock sem enfraquecer validação ou expor senha.
+- [x] 24. Persistir o aggregate com o transaction manager e invalidar cache.
+- [x] 25. Traduzir violação de `UQ_auth_providers` para erro de aplicação estável.
+- [x] 26. Garantir que e-mail, status, perfil e providers anteriores permaneçam
       inalterados.
 
-## Google OAuth - Bloqueado Pela Decisão
+## Google OAuth
 
-- [ ] 27. Testar e preservar a regra de que profile sem e-mail não cria usuário,
-      provider, sessão, cookies ou outbox.
-- [ ] 28. Validar explicitamente o atributo `verified` do e-mail Google conforme
-      `DEC-006`.
-- [ ] 29. Criar contrato estável e redirect frontend para falha de e-mail Google.
-- [ ] 30. Atualizar fluxo de status/eventos somente se a alternativa aprovada
-      exigir verification Danfy.
-- [ ] 31. Se necessário, modelar separadamente perfil pendente e e-mail pendente
-      antes de ativar Google não verificado.
+- [x] 27. Registrar a issue #90 e manter GoogleStrategy, callback, status e
+      eventos fora desta implementação.
 
 ## Testes
 
-- [ ] 32. Atualizar testes do DTO para request novo, legado ignorado e limites
+- [x] 32. Atualizar testes do DTO para request novo, legado ignorado e limites
       72/73 bytes.
-- [ ] 33. Atualizar testes do controller comprovando que `email` nunca chega ao
+- [x] 33. Atualizar testes do controller comprovando que `email` nunca chega ao
       caso de uso.
-- [ ] 34. Refatorar testes do use case para usar e-mail principal do domain user.
-- [ ] 35. Cobrir provider existente, usuário ausente e conflito entre contas.
-- [ ] 36. Cobrir tradução da unique violation conhecida.
-- [ ] 37. Criar teste PostgreSQL de duas tentativas concorrentes.
-- [ ] 38. Criar E2E do vínculo seguido de logout e login local pelo e-mail
-      principal.
-- [ ] 39. Criar E2E provando que o e-mail legado divergente não autentica.
-- [ ] 40. Criar testes da estratégia/callback Google para e-mail ausente,
-      verificado e não verificado.
-- [ ] 41. Se verification for reutilizada, cobrir outbox, envio automático,
-      confirmação e transição final de status no nível adequado.
+- [x] 34. Refatorar testes do use case para usar e-mail principal do domain user.
+- [x] 35. Cobrir provider existente, usuário ausente e conflito entre contas.
+- [x] 36. Cobrir tradução da unique violation conhecida.
+- [x] 37. Criar teste PostgreSQL de duas tentativas concorrentes.
+- [x] 38. Criar integração PostgreSQL do vínculo seguida de login local real pelo
+      e-mail principal.
+- [x] 39. Combinar E2E do campo legado ignorado com integração provando que
+      endereço alternativo não autentica.
 
 ## Documentação E Entrega
 
-- [ ] 42. Atualizar docs de fluxo/conceito de auth.
-- [ ] 43. Atualizar integração de link providers e OAuth Google.
-- [ ] 44. Atualizar endpoints, erros, Swagger e response objects.
-- [ ] 45. Atualizar a spec existente de email verification se seu escopo passar a
-      incluir Google.
-- [ ] 46. Registrar tarefa/versão de remoção definitiva do campo legado `email`.
-- [ ] 47. Rodar format, lint, build, unitários, integração e E2E aplicáveis.
-- [ ] 48. Revisar invariantes de segurança, tenant, atomicidade e compatibilidade.
-- [ ] 49. Atualizar esta lista e as decisões se a implementação revelar mudança
+- [x] 42. Atualizar docs de fluxo/conceito de auth.
+- [x] 43. Atualizar integração de link providers.
+- [x] 44. Atualizar endpoints, erros, Swagger e response objects.
+- [x] 45. Manter a spec de email verification inalterada; evolução Google segue
+      na issue #90.
+- [x] 46. Registrar em `DEC-003` a remoção definitiva do campo legado `email` na
+      próxima versão coordenada.
+- [x] 47. Rodar format, lint, build, unitários, integração e E2E aplicáveis.
+- [x] 48. Revisar invariantes de segurança, tenant, atomicidade e compatibilidade.
+- [x] 49. Atualizar esta lista e as decisões se a implementação revelar mudança
       de regra ou design.

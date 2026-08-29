@@ -104,81 +104,70 @@ Impact:
 Se houver divergências, a spec será atualizada com rollout `expand -> migrate ->
 contract`, matriz N/N+1 e estratégia idempotente antes de qualquer SQL mutável.
 
-## DEC-006 - Tratar E-mail Google Ausente E Não Verificado
-
-Status: pending
-
-Confirmed portion:
-Se nenhum e-mail utilizável estiver presente, o sistema falha antes de
-`OAuthCallbackUseCase`; nenhum usuário, provider, sessão, cookie ou evento é
-criado.
-
-Pending decision:
-Quando existir e-mail, mas `verified !== true`, escolher uma alternativa:
-
-1. rejeitar login/criação e redirecionar o frontend com erro estável; ou
-2. criar usuário `PENDING_EMAIL_VERIFICATION` e reutilizar o fluxo Danfy.
-
-Trade-off:
-A alternativa 1 preserva o modelo atual e confia somente em identidade confirmada
-pelo provider. A alternativa 2 permite continuar o onboarding, mas o status único
-não representa simultaneamente `PENDING_PROFILE` e
-`PENDING_EMAIL_VERIFICATION`; a confirmação atual leva diretamente a `ACTIVE`.
-
-Required follow-up:
-Definir código/redirect do callback. Se a alternativa 2 for escolhida, aprovar
-uma máquina de estados que não pule a pendência de perfil e atualizar a spec de
-email verification, hoje explicitamente restrita ao cadastro por credenciais.
-
-## DEC-007 - Confiar No E-mail Confirmado Pelo Google
+## DEC-006 - Preservar Google OAuth E Tratar Verificação Separadamente
 
 Status: accepted
 
 Decision:
-Quando o Google fornece e-mail com `verified = true`, usar o endereço normalizado
-como `users.email` e não exigir uma segunda verificação Danfy somente porque o
-usuário adicionou uma senha.
+A issue #79 não altera presença, seleção ou atributo `verified` do e-mail Google.
+O comportamento atual fica preservado e a evolução foi rastreada na issue #90.
 
 Reason:
-O vínculo de senha adiciona método de autenticação, não altera o endereço nem sua
-procedência.
+A procedência do e-mail Google, os estados de perfil/verificação e o contrato do
+callback formam uma feature independente do vínculo de senha ao e-mail já
+persistido.
 
 Impact:
-O provider `EMAIL` usa o e-mail principal já confirmado e o vínculo não cria
-challenge ou evento de verificação.
+Nenhum arquivo, status, evento, challenge ou teste de Google OAuth entra nesta
+entrega.
+
+## DEC-007 - Vínculo EMAIL Não Dispara Verificação
+
+Status: accepted
+
+Decision:
+Adicionar o provider `EMAIL` reutiliza `users.email` e não cria challenge, e-mail
+automático, evento de verificação ou transição de status.
+
+Reason:
+O vínculo de senha adiciona um método de autenticação; ele não altera nem valida
+a procedência do endereço principal.
+
+Impact:
+Google-only e demais contas preservam status, perfil, sessões e providers
+anteriores.
 
 ## DEC-008 - Proteções Adicionais Ao Adicionar Senha
 
-Status: pending
+Status: accepted
 
-Pending decision:
-Definir se o vínculo exige reautenticação recente com Google, preserva/revoga
-sessões e envia notificação de segurança sobre o novo método de login.
+Decision:
+Preservar a proteção atual do endpoint: access token válido, sem reautenticação
+recente, revogação de sessões ou notificação adicional. Remover
+`sessionMetadata` do caso de uso porque ele não é consumido.
 
 Reason:
-Uma senha cria acesso permanente adicional. O endpoint atual exige apenas access
-token válido e recebe `sessionMetadata` sem utilizá-lo.
+O escopo aprovado corrige a identidade do provider e reduz a superfície do
+request. Endurecimento adicional pode ser tratado separadamente sem manter dado
+morto no contrato interno.
 
 Impact:
-A decisão pode alterar request/fluxo, eventos, notifications e testes. Deve ser
-resolvida antes do código se fizer parte da issue #79.
+Não há alteração de sessões, eventos ou notifications nesta entrega.
 
 ## DEC-009 - Tratamento De Dados Históricos Divergentes
 
-Status: pending-audit
+Status: accepted
 
-Decision needed:
-Após obter apenas a contagem sanitizada de divergências, escolher entre:
-
-- nenhuma ação, se a contagem for zero;
-- correção automática para `users.email` quando não houver conflito;
-- bloqueio e resolução explícita quando houver colisão;
-- operação manual auditada, se o volume e o risco não justificarem migration.
+Decision:
+A auditoria sanitizada do PostgreSQL local em 2026-08-28 retornou `0` providers
+`EMAIL` com `provider_user_id <> users.email`. A feature não cria migration nem
+script de correção.
 
 Reason:
-O comportamento antigo permitia `provider_user_id <> users.email`. Reescrever
-sem conhecer conflitos pode trocar inadvertidamente uma credencial de identidade.
+O comportamento antigo permitia divergência, mas o ambiente auditado não contém
+dados a migrar. O schema já oferece as constraints necessárias à mudança de
+comportamento.
 
 Impact:
-Nenhuma correção será implementada antes da auditoria e da atualização desta
-decisão.
+Qualquer divergência encontrada em outro ambiente deve interromper o rollout e
+abrir decisão/migração própria antes de alterar dados.
