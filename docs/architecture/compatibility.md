@@ -60,6 +60,7 @@ release em que ele foi introduzido.
 | ID              | Compatibilidade                                               | Introduzida em                                     | Remoção mais cedo                                                    | Estado          |
 | --------------- | ------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------- | --------------- |
 | `DB-COMPAT-001` | default de `email_verification_challenges.origin` para code N | unreleased, PR #85; confirmar tag na PR de release | não agendada; bloqueada enquanto v0.1.3 puder ser imagem de rollback | `EXPAND_ACTIVE` |
+| `DB-COMPAT-002` | `accounts.color/icon` e `template_id` nullable para rollback da v0.3 | unreleased, issue #91; confirmar tag na PR de release | v0.5, somente após os gates abaixo | `EXPAND_ACTIVE` |
 
 ### DB-COMPAT-001 - Default legado de `email_verification_challenges.origin`
 
@@ -99,6 +100,37 @@ Na mesma mudança, remover `default 'LEGACY_UNKNOWN'` de
 `docs/database/schema.md`, atualizar este contrato com a tag de remoção e marcar
 o estado como `RETIRED`. A constraint e o valor `LEGACY_UNKNOWN` permanecem até
 uma decisão separada provar que não existem linhas nem leitores dependentes.
+
+### DB-COMPAT-002 - Identidade visual legada de accounts
+
+**Contexto.** A v0.3 lê e escreve `accounts.color`/`accounts.icon` e desconhece templates. A imagem nova usa `account_templates` e `accounts.template_id`, mas a migration roda antes da ativação e permanece aplicada durante rollback.
+
+**Expand.** A migration `1787979500000-ExpandAccountTemplates` cria `account_templates`, adiciona `accounts.template_id` nullable e mantém `color`/`icon` sem alteração. A imagem nova aceita o contrato legado, materializa template customizado e faz dual-write. Escritas v0.3 sem template são reconciliadas por comando repetível.
+
+| Combinação | Compatível? | Motivo/ordem |
+| --- | --- | --- |
+| code N v0.3 antes da migration | sim | comportamento baseline |
+| code N v0.3 depois da migration | sim | tabela/coluna novas são aditivas; `template_id` aceita nulo |
+| code N+1 antes da migration | não | ORM e repositories dependem da tabela/coluna; executar expand antes da ativação |
+| code N+1 depois da migration | sim | usa template e mantém shims legados |
+
+**Ordem operacional.** Executar migration expand; executar `npm run account-templates:seed`; ativar code N+1; executar `npm run account-templates:reconcile -- <batch-size>`; observar nulos, divergências e tráfego legado. Rollback troca apenas a imagem para v0.3 e mantém o schema expandido.
+
+**Gates de remoção.** O contract continua bloqueado até existir evidência simultânea de que: v0.3 e qualquer writer legado não são mais rollback elegível; `accounts.template_id IS NULL` permanece zero; não há divergência entre template e shims; requests com `color`/`icon` legados permanecem zero durante a janela acordada.
+
+Consultas mínimas:
+
+```sql
+SELECT count(*) FROM accounts WHERE template_id IS NULL;
+
+SELECT count(*)
+FROM accounts a
+JOIN account_templates t ON t.id = a.template_id
+WHERE a.color IS DISTINCT FROM t.color_token
+   OR a.icon IS DISTINCT FROM CASE WHEN t.template_type = 'INSTITUTIONAL' THEN 'landmark' ELSE t.icon_key END;
+```
+
+**Contract exato da v0.5.** Em migration separada: `SET NOT NULL accounts.template_id`, depois `DROP COLUMN color` e `DROP COLUMN icon`. Na mesma release, remover payload/response legado, dual-read, dual-write, fallback de cache, reconciler e esta compatibilidade dos contratos de integração. Nunca editar a migration expand.
 
 ## Registro De Novos Contratos
 

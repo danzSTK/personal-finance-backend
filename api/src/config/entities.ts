@@ -1,4 +1,5 @@
 import { AccountOrmEntity } from '@/modules/accounts/infrastructure/persistence/account.entity';
+import { AccountTemplateOrmEntity } from '@/modules/accounts/infrastructure/persistence/account-template-orm.entity';
 import { AssetOrmEntity } from '@/modules/assets/infrastructure/persistence/asset-orm.entity';
 import { EmailMessageOrmEntity } from '@/modules/notifications/infrastructure/persistence/email-message-orm.entity';
 import { EmailVerificationChallengeOrmEntity } from '@/modules/auth/infrastructure/persistence/email-verification-challenge-orm.entity';
@@ -13,6 +14,7 @@ export const ENTITIES = [
   UserOrmEntity,
   AuthProviderOrmEntity,
   AccountOrmEntity,
+  AccountTemplateOrmEntity,
   AssetOrmEntity,
   CategoryOrmEntity,
   TransactionOrmEntity,

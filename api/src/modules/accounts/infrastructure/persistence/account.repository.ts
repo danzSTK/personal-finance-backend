@@ -87,6 +87,25 @@ export class AccountRepository implements IAccountRepository {
     return AccountMapper.toDomain(saved);
   }
 
+  async findWithoutTemplateForUpdate(limit: number, options: IRepositoryOptions): Promise<Account[]> {
+    if (!options.manager) {
+      throw new Error('findWithoutTemplateForUpdate requires a transaction manager');
+    }
+
+    const entities = await options.manager
+      .getRepository(AccountOrmEntity)
+      .createQueryBuilder('account')
+      .where('account.template_id IS NULL')
+      .orderBy('account.created_at', 'ASC')
+      .addOrderBy('account.id', 'ASC')
+      .limit(limit)
+      .setLock('pessimistic_write')
+      .setOnLocked('skip_locked')
+      .getMany();
+
+    return entities.map(entity => AccountMapper.toDomain(entity));
+  }
+
   async unsetDefaultAccount(userId: string, options?: IRepositoryOptions): Promise<void> {
     const repository = options?.manager ? options.manager.getRepository(AccountOrmEntity) : this.accountRepository;
 

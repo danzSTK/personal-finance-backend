@@ -4,6 +4,7 @@ import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { DateOnlyString } from '@/common/utils/date-only';
 import { RedisService } from '@/database/redis/redis.service';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
+import { IAccountCacheInvalidator } from '@/modules/accounts/application/ports/account-cache-invalidator.interface';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
 import { Injectable } from '@nestjs/common';
 import { AccountRepository } from './account.repository';
@@ -14,6 +15,7 @@ interface CachedAccount {
   name: string;
   type: AccountType;
   initialBalanceCents: number;
+  templateId?: string | null;
   color: ColorToken | null;
   icon: IconKey | null;
   includeInTotal: boolean;
@@ -24,7 +26,7 @@ interface CachedAccount {
 }
 
 @Injectable()
-export class CachedAccountRepository implements IAccountRepository {
+export class CachedAccountRepository implements IAccountRepository, IAccountCacheInvalidator {
   constructor(
     private readonly accountRepository: AccountRepository,
     private readonly cache: RedisService,
@@ -115,6 +117,10 @@ export class CachedAccountRepository implements IAccountRepository {
   }
 
   async save(account: Account, options?: IRepositoryOptions): Promise<Account> {
+    if (options?.manager) {
+      return this.accountRepository.save(account, options);
+    }
+
     const saved = await this.accountRepository.save(account, options);
 
     await this.invalidateUserAccountCache(saved.userId, options);
@@ -123,9 +129,22 @@ export class CachedAccountRepository implements IAccountRepository {
     return saved;
   }
 
+  async findWithoutTemplateForUpdate(limit: number, options: IRepositoryOptions): Promise<Account[]> {
+    return this.accountRepository.findWithoutTemplateForUpdate(limit, options);
+  }
+
   async unsetDefaultAccount(userId: string, options?: IRepositoryOptions): Promise<void> {
+    if (options?.manager) {
+      await this.accountRepository.unsetDefaultAccount(userId, options);
+      return;
+    }
+
     await this.accountRepository.unsetDefaultAccount(userId, options);
     await this.invalidateUserAccountCache(userId, options);
+  }
+
+  async invalidateUserAccounts(userId: string): Promise<void> {
+    await this.invalidateUserAccountCache(userId);
   }
 
   async userHasDefaultAccount(userId: string, options?: IRepositoryOptions): Promise<boolean> {
@@ -168,6 +187,7 @@ export class CachedAccountRepository implements IAccountRepository {
       name: account.name,
       type: account.type,
       initialBalanceCents: account.initialBalanceCents,
+      templateId: account.templateId,
       color: account.color,
       icon: account.icon,
       includeInTotal: account.includeInTotal,
@@ -185,6 +205,7 @@ export class CachedAccountRepository implements IAccountRepository {
         name: cached.name,
         type: cached.type,
         initialBalanceCents: cached.initialBalanceCents,
+        templateId: cached.templateId ?? null,
         color: cached.color,
         icon: cached.icon,
         includeInTotal: cached.includeInTotal,

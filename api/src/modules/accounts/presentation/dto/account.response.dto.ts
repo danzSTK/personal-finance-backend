@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { RESPONSE_OBJECT_TYPES } from '@/common/models/constants';
 import { AccountType } from '@/common/models/enums/account-type.enum';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { AccountBalanceSummary } from '@/modules/accounts/domain/repositories/account-balance.repository.interface';
+import { AccountTemplateResponseDto } from './account-template.response.dto';
 
 class AccountBalanceResponseDto {
   @ApiProperty()
@@ -15,6 +17,9 @@ class AccountBalanceResponseDto {
 }
 
 export class AccountResponseDto {
+  @ApiProperty({ example: RESPONSE_OBJECT_TYPES.ACCOUNT_ITEM })
+  object: typeof RESPONSE_OBJECT_TYPES.ACCOUNT_ITEM;
+
   @ApiProperty()
   id: string;
 
@@ -27,10 +32,16 @@ export class AccountResponseDto {
   @ApiProperty()
   initialBalanceCents: number;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, format: 'uuid' })
+  templateId: string | null;
+
+  @ApiProperty({ nullable: true, type: AccountTemplateResponseDto })
+  template: AccountTemplateResponseDto | null;
+
+  @ApiProperty({ nullable: true, deprecated: true })
   color: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, deprecated: true })
   icon: string | null;
 
   @ApiProperty()
@@ -51,12 +62,19 @@ export class AccountResponseDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt: Date;
 
-  static fromDomain(account: Account, balance?: AccountBalanceSummary): AccountResponseDto {
+  static fromDomain(
+    account: Account,
+    balance?: AccountBalanceSummary,
+    template: AccountTemplateResponseDto | null = null,
+  ): AccountResponseDto {
     return {
+      object: RESPONSE_OBJECT_TYPES.ACCOUNT_ITEM,
       id: account.id,
       name: account.name,
       type: account.type,
       initialBalanceCents: account.initialBalanceCents,
+      templateId: account.templateId,
+      template,
       color: account.color,
       icon: account.icon,
       includeInTotal: account.includeInTotal,

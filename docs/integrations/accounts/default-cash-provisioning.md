@@ -31,6 +31,7 @@ Se a lista ainda estiver vazia, mostre um estado de carregamento curto e tente n
   "name": "Carteira",
   "type": "CASH",
   "initialBalanceCents": 0,
+  "templateId": "uuid-do-template-custom-privado",
   "color": null,
   "icon": null,
   "includeInTotal": true,
@@ -46,7 +47,7 @@ O backend garante no banco no máximo uma account `CASH` por usuário.
 - Não renderize ação de criar `CASH` manualmente.
 - Não renderize ação de arquivar `CASH`.
 - Não renderize ação de deletar `CASH`.
-- Permita editar apenas dados visuais/exibição quando a conta for `CASH`: `name`, `color`, `icon` e `includeInTotal`.
+- Permita editar apenas dados visuais/exibição quando a conta for `CASH`: `name`, template e `includeInTotal`.
 - Para fluxos financeiros que exigem account, aguarde existir pelo menos uma account ativa.
 
 ## Erros Esperados

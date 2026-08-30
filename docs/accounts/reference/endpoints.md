@@ -12,6 +12,7 @@ related:
 |---|---|---|---:|---|
 | `POST` | `/accounts` | `JwtAuthGuard` | `201` | Cria account |
 | `GET` | `/accounts` | `JwtAuthGuard` | `200` | Lista accounts ativas por padrão |
+| `GET` | `/account-templates` | `JwtAuthGuard` | `200` | Lista templates institucionais ativos |
 | `PATCH` | `/accounts/:id` | `JwtAuthGuard` | `200` | Atualiza account |
 | `PATCH` | `/accounts/:id/archive` | `JwtAuthGuard` | `204` | Arquiva account |
 | `PATCH` | `/accounts/:id/unarchive` | `JwtAuthGuard` | `204` | Desarquiva account |

@@ -22,6 +22,7 @@ Para documentação de consumo HTTP, use [Accounts integration](../integrations/
 ### Conceitos
 
 - [Account](./concepts/account.md)
+- [Account template](./concepts/account-template.md)
 - [Account type](./concepts/account-type.md)
 - [CASH account](./concepts/cash-account.md)
 - [Default account](./concepts/default-account.md)
@@ -46,6 +47,11 @@ Para documentação de consumo HTTP, use [Accounts integration](../integrations/
 - [Account balance is derived](./decisions/account-balance-is-derived.md)
 - [Delete only without movement](./decisions/delete-only-without-movement.md)
 - [Transfers are neutral](./decisions/transfers-are-neutral.md)
+- [Account visual identity uses templates](./decisions/account-visual-identity-uses-templates.md)
+- [Account and account template are separate aggregates](./decisions/account-and-template-are-separate-aggregates.md)
+- [Institutional account template catalog is curated](./decisions/institutional-account-template-catalog-is-curated.md)
+- [Institutional template assets use controlled storage](./decisions/institutional-template-assets-use-controlled-storage.md)
+- [Account template rollout preserves V0.3](./decisions/account-template-rollout-preserves-v0-3.md)
 
 ### Referência
 
@@ -53,3 +59,4 @@ Para documentação de consumo HTTP, use [Accounts integration](../integrations/
 - [Account types](./reference/account-types.md)
 - [Invariants](./reference/invariants.md)
 - [Open questions](./reference/open-questions.md)
+- [Account template catalog operations](./reference/account-template-catalog-operations.md)
