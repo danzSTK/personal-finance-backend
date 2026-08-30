@@ -294,7 +294,7 @@ No `POST`, campos visuais customizados ausentes produzem `null`. No `PATCH`, cam
     "bankCode": 260,
     "ispb": "18236120"
   },
-  "color": "nubank",
+  "color": "purple",
   "icon": "landmark",
   "includeInTotal": true,
   "isArchived": false,
@@ -305,6 +305,8 @@ No `POST`, campos visuais customizados ausentes produzem `null`. No `PATCH`, cam
 ```
 
 Enquanto `template_id` for nulo, `templateId` e `template` podem ser nulos no primeiro read compatível; `color`/`icon` continuam presentes. A reconciliação deve reduzir esse estado a zero antes do contract.
+
+Durante `DB-COMPAT-002`, o token institucional novo nunca é gravado diretamente em `accounts.color`. Uma projeção central converte os dez tokens institucionais para o enum reconhecido pela v0.3: Nubank→`purple`, Inter→`orange`, Itaú→`blue`, Bradesco/Santander→`red`, Banco do Brasil→`yellow`, Caixa→`sky`, C6→`zinc`, PicPay→`green` e Mercado Pago→`blue`. `account_templates.color_token` preserva o token institucional original.
 
 ## Ownership E Segurança
 
@@ -513,7 +515,7 @@ Na implementação:
 | Rollback para v0.3 perde escrita        | manter colunas e dual-write; nullable + fallback/reconciliação.                                                                                     |
 | Cross-tenant em custom template         | criação pelo user autenticado, rendering por `id + owner_user_id` e testes de isolamento.                                                           |
 | N+1 queries ao listar accounts          | carregamento batch por IDs.                                                                                                                         |
-| URL/arquivo incorreto tratado como logo | comparação com catálogo, allowlist estrita, checksum e validação estrutural do SVG.                                                                  |
+| URL/arquivo incorreto tratado como logo | comparação com catálogo, allowlist estrita, checksum e validação estrutural do SVG.                                                                 |
 | Segredo em log/catálogo                 | configuração server-side e redaction.                                                                                                               |
 | Remoção de template em uso              | FK deferred `NO ACTION`; desativação lógica. O defer permite que a exclusão de usuário remova accounts e templates customizados na mesma transação. |
 | Catálogo muda de forma não auditada     | dados e IDs versionados; seed explícito.                                                                                                            |

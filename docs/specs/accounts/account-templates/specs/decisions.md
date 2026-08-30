@@ -192,3 +192,16 @@ Templates institucionais são globais, compartilhados e têm lifecycle independe
 
 Impact:
 Casos de uso coordenam os dois repositories. Quando create/update precisa modificar ambos, a transação da aplicação garante atomicidade e o response combina os aggregates sem alterar a fronteira de ownership.
+
+## DEC-015 - Token institucional é projetado para o enum legado
+
+Status: accepted
+
+Decision:
+Durante `DB-COMPAT-002`, `account_templates.color_token` preserva o token específico da instituição, enquanto `accounts.color` recebe um `ColorToken` válido por meio de um mapeamento central e exaustivo.
+
+Reason:
+A v0.3 não reconhece tokens como `nubank`; gravá-los no shim legado quebraria renderização e requests de clientes antigos durante rollback.
+
+Impact:
+Create, update e detecção de divergência usam a mesma projeção. A inclusão de um novo token institucional exige definir também seu fallback legado em tempo de compilação.

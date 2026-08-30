@@ -30,14 +30,14 @@ Envie pelo menos um campo editável.
 
 ## Campos
 
-| Campo | Tipo | Observação |
-|---|---|---|
-| `name` | `string` | Nome exibido ao usuário; mínimo 3 e máximo 255 caracteres; não aceita `null` |
-| `type` | `CASH \| BANK \| CREDIT_CARD \| INVESTMENT` | Tipo da account; não aceita `null` |
-| `template` | objeto discriminado | Seleciona institucional ou define customizado; não aceita `null` |
-| `color` | `ColorToken \| null` | Deprecated; atualiza/materializa custom para compatibilidade v0.3 |
-| `icon` | `IconKey \| null` | Deprecated; atualiza/materializa custom para compatibilidade v0.3 |
-| `includeInTotal` | `boolean` | Define se entra em totais agregados; não aceita `null` |
+| Campo            | Tipo                                        | Observação                                                                   |
+| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------------- |
+| `name`           | `string`                                    | Nome exibido ao usuário; mínimo 3 e máximo 255 caracteres; não aceita `null` |
+| `type`           | `CASH \| BANK \| CREDIT_CARD \| INVESTMENT` | Tipo da account; não aceita `null`                                           |
+| `template`       | objeto discriminado                         | Seleciona institucional ou define customizado; não aceita `null`             |
+| `color`          | `ColorToken \| null`                        | Deprecated; atualiza/materializa custom para compatibilidade v0.3            |
+| `icon`           | `IconKey \| null`                           | Deprecated; atualiza/materializa custom para compatibilidade v0.3            |
+| `includeInTotal` | `boolean`                                   | Define se entra em totais agregados; não aceita `null`                       |
 
 `initialBalanceCents` não é editado por este endpoint.
 
@@ -73,7 +73,7 @@ Envie pelo menos um campo editável.
     "bankCode": 260,
     "ispb": "18236120"
   },
-  "color": "nubank",
+  "color": "purple",
   "icon": "landmark",
   "includeInTotal": true,
   "isArchived": false,
@@ -85,10 +85,10 @@ Envie pelo menos um campo editável.
 
 ## Respostas
 
-| Status | Quando |
-|---:|---|
-| `200` | Account atualizada |
-| `400` | Body inválido |
-| `401` | Sessão ausente ou inválida |
-| `404` | Account ou template selecionável não encontrado |
-| `409` | Account arquivada ou patch vazio |
+| Status | Quando                                          |
+| -----: | ----------------------------------------------- |
+|  `200` | Account atualizada                              |
+|  `400` | Body inválido                                   |
+|  `401` | Sessão ausente ou inválida                      |
+|  `404` | Account ou template selecionável não encontrado |
+|  `409` | Account arquivada ou patch vazio                |

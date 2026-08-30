@@ -42,7 +42,7 @@ related:
 - [x] 20. Alterar update account para suportar `template` institucional/customizado, compatibilidade legada e detecção de divergência após writer v0.3.
 - [x] 21. Garantir que template/account e dual-write sejam salvos atomicamente com o transaction manager propagado.
 - [x] 22. Alterar list/create/update para carregar o template necessário ao response sem N+1 queries.
-- [x] 23. Definir fallback legado institucional (`color=<institution-token>`, `icon=landmark`) e custom (`colorToken`/`iconKey`).
+- [x] 23. Definir projeção central do token institucional para um `ColorToken` reconhecido pela v0.3 (`icon=landmark`) e projeção custom (`colorToken`/`iconKey`).
 - [x] 24. Preservar campos legados no payload de cache e tolerar entradas de cache sem dados novos.
 
 ## Persistence E Migration Expand

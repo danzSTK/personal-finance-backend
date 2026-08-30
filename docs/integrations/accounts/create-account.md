@@ -31,16 +31,16 @@ POST /accounts
 
 ## Campos
 
-| Campo | Tipo | Obrigatório | Observação |
-|---|---|---:|---|
-| `name` | `string` | sim | Nome exibido ao usuário; mínimo 3 e máximo 255 caracteres |
-| `type` | `BANK \| CREDIT_CARD \| INVESTMENT` | sim | Tipo da account criada pelo usuário |
-| `initialBalanceCents` | `number` | não | Saldo inicial em centavos; default `0` quando omitido; não aceita valor negativo |
-| `template` | objeto discriminado | não durante `DB-COMPAT-002` | Identidade institucional ou customizada descrita abaixo; não aceita `null` |
-| `color` | `ColorToken \| null` | não | Deprecated; contrato legado v0.3 |
-| `icon` | `IconKey \| null` | não | Deprecated; contrato legado v0.3 |
-| `includeInTotal` | `boolean` | não | Default `true`; define se entra em totais agregados |
-| `isDefault` | `boolean` | não | Quando `true`, torna esta account a default |
+| Campo                 | Tipo                                |                 Obrigatório | Observação                                                                       |
+| --------------------- | ----------------------------------- | --------------------------: | -------------------------------------------------------------------------------- |
+| `name`                | `string`                            |                         sim | Nome exibido ao usuário; mínimo 3 e máximo 255 caracteres                        |
+| `type`                | `BANK \| CREDIT_CARD \| INVESTMENT` |                         sim | Tipo da account criada pelo usuário                                              |
+| `initialBalanceCents` | `number`                            |                         não | Saldo inicial em centavos; default `0` quando omitido; não aceita valor negativo |
+| `template`            | objeto discriminado                 | não durante `DB-COMPAT-002` | Identidade institucional ou customizada descrita abaixo; não aceita `null`       |
+| `color`               | `ColorToken \| null`                |                         não | Deprecated; contrato legado v0.3                                                 |
+| `icon`                | `IconKey \| null`                   |                         não | Deprecated; contrato legado v0.3                                                 |
+| `includeInTotal`      | `boolean`                           |                         não | Default `true`; define se entra em totais agregados                              |
+| `isDefault`           | `boolean`                           |                         não | Quando `true`, torna esta account a default                                      |
 
 ### Template institucional
 
@@ -86,7 +86,7 @@ O backend confirma que o ID pertence a um template institucional ativo. O `type`
     "bankCode": 260,
     "ispb": "18236120"
   },
-  "color": "nubank",
+  "color": "purple",
   "icon": "landmark",
   "includeInTotal": true,
   "isArchived": false,
@@ -98,6 +98,8 @@ O backend confirma que o ID pertence a um template institucional ativo. O `type`
 
 ## Regras Para O Frontend
 
+`template.colorToken` usa o token institucional novo. O campo deprecated `color` recebe uma projeção equivalente do enum legado `ColorToken` enquanto a v0.3 permanecer elegível para rollback.
+
 - Não envie `userId`; o backend usa a sessão autenticada.
 - Não use `POST /accounts` para criar `CASH`; a `CASH` default é criada pelo backend no onboarding.
 - Prefira `template`. Não combine `template` com `color` ou `icon` no mesmo request.
@@ -107,9 +109,9 @@ O backend confirma que o ID pertence a um template institucional ativo. O `type`
 
 ## Respostas
 
-| Status | Quando |
-|---:|---|
-| `201` | Account criada |
-| `400` | Body inválido |
-| `401` | Sessão ausente ou inválida |
-| `409` | Conflito de regra de negócio |
+| Status | Quando                       |
+| -----: | ---------------------------- |
+|  `201` | Account criada               |
+|  `400` | Body inválido                |
+|  `401` | Sessão ausente ou inválida   |
+|  `409` | Conflito de regra de negócio |

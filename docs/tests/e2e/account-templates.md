@@ -16,6 +16,7 @@
 
 - catálogo não expõe owner nem storage key;
 - `POST` aceita `template.type=institutional` com `templateId` aninhado;
+- response institucional preserva o token novo em `template.colorToken` e projeta um `ColorToken` válido no campo legado `color`;
 - `PATCH` aceita `template.type=custom` parcial;
 - `templateId` na raiz é rejeitado pelo contrato novo;
 - combinação de `template` com campos legados expõe o código estável de conflito.

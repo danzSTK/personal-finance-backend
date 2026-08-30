@@ -62,7 +62,7 @@ Detalhes: [Default CASH provisioning](./default-cash-provisioning.md).
     "bankCode": 260,
     "ispb": "18236120"
   },
-  "color": "nubank",
+  "color": "purple",
   "icon": "landmark",
   "includeInTotal": true,
   "isArchived": false,
