@@ -1,5 +1,4 @@
 import {
-  ACCOUNT_COLOR_TOKEN_MAX_LENGTH,
   ACCOUNT_ICON_KEY_MAX_LENGTH,
   ACCOUNT_NAME_MAX_LENGTH,
   ACCOUNT_NAME_MIN_LENGTH,
@@ -14,13 +13,23 @@ import {
   InvalidAccountError,
   InvalidAccountNameError,
 } from '@/modules/accounts/domain/errors';
+import { AggregateRoot } from '@/shared/domain/aggregate-root';
 
 export interface AccountProps {
   userId: string;
   name: string;
   type: AccountType;
   initialBalanceCents: number;
+  templateId: string | null;
+  /**
+   * @deprecated Projeção de compatibilidade da DB-COMPAT-002. Não usar como fonte da identidade visual.
+   * Remover somente no contract da v0.5.
+   */
   color: ColorToken | null;
+  /**
+   * @deprecated Projeção de compatibilidade da DB-COMPAT-002. Não usar como fonte da identidade visual.
+   * Remover somente no contract da v0.5.
+   */
   icon: IconKey | null;
   includeInTotal: boolean;
   isArchived: boolean;
@@ -29,11 +38,13 @@ export interface AccountProps {
   updatedAt: Date;
 }
 
-export class Account {
+export class Account extends AggregateRoot {
   private constructor(
     private readonly props: AccountProps,
     public readonly id: string,
-  ) {}
+  ) {
+    super();
+  }
 
   get userId(): string {
     return this.props.userId;
@@ -51,10 +62,20 @@ export class Account {
     return this.props.initialBalanceCents;
   }
 
+  get templateId(): string | null {
+    return this.props.templateId;
+  }
+
+  /**
+   * @deprecated Projeção de compatibilidade da DB-COMPAT-002. Use `templateId` e carregue o template associado.
+   */
   get color(): ColorToken | null {
     return this.props.color;
   }
 
+  /**
+   * @deprecated Projeção de compatibilidade da DB-COMPAT-002. Use `templateId` e carregue o template associado.
+   */
   get icon(): IconKey | null {
     return this.props.icon;
   }
@@ -110,6 +131,9 @@ export class Account {
     this.props.updatedAt = new Date();
   }
 
+  /**
+   * @deprecated Compatibilidade com writers v0.3. Não criar regra nova baseada em `accounts.color`.
+   */
   changerColor(color: ColorToken | null) {
     if (this.props.color === color) {
       return;
@@ -119,7 +143,7 @@ export class Account {
       throw new AccountArchivedMutationError('Cannot change color of an archived account.');
     }
 
-    if (color && (color.trim() === '' || color.length > ACCOUNT_COLOR_TOKEN_MAX_LENGTH || !isColorToken(color))) {
+    if (color !== null && !isColorToken(color)) {
       throw new InvalidAccountError('Invalid account color.');
     }
 
@@ -127,6 +151,59 @@ export class Account {
     this.props.updatedAt = new Date();
   }
 
+  changeTemplate(
+    templateId: string,
+    /**
+     * @deprecated Projeção obrigatória durante DB-COMPAT-002; remover no contract da v0.5.
+     */
+    legacyColor: ColorToken | null,
+    /**
+     * @deprecated Projeção obrigatória durante DB-COMPAT-002; remover no contract da v0.5.
+     */
+    legacyIcon: IconKey | null,
+  ): void {
+    if (this.props.isArchived) {
+      throw new AccountArchivedMutationError('Cannot change template of an archived account.');
+    }
+
+    if (templateId.trim() === '') {
+      throw new InvalidAccountError('Invalid account template id.');
+    }
+
+    if (legacyColor !== null && !isColorToken(legacyColor)) {
+      throw new InvalidAccountError('Invalid account color.');
+    }
+
+    if (legacyIcon !== null && !isIconKey(legacyIcon)) {
+      throw new InvalidAccountError('Invalid account icon.');
+    }
+
+    if (this.props.templateId === templateId && this.props.color === legacyColor && this.props.icon === legacyIcon) {
+      return;
+    }
+
+    this.props.templateId = templateId;
+    this.props.color = legacyColor;
+    this.props.icon = legacyIcon;
+    this.props.updatedAt = new Date();
+  }
+
+  associateTemplateForMigration(templateId: string): void {
+    if (this.props.templateId !== null) {
+      return;
+    }
+
+    if (templateId.trim() === '') {
+      throw new InvalidAccountError('Invalid account template id.');
+    }
+
+    this.props.templateId = templateId;
+    this.props.updatedAt = new Date();
+  }
+
+  /**
+   * @deprecated Compatibilidade com writers v0.3. Não criar regra nova baseada em `accounts.icon`.
+   */
   changerIcon(icon: IconKey | null) {
     if (this.props.icon === icon) {
       return;

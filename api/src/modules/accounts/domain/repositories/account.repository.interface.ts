@@ -7,6 +7,7 @@ export abstract class IAccountRepository {
   abstract findByIdAndUserId(accountId: string, userId: string, options?: IRepositoryOptions): Promise<Account | null>;
   abstract listByUserId(userId: string, includeArchived: boolean, options?: IRepositoryOptions): Promise<Account[]>;
   abstract save(account: Account, options?: IRepositoryOptions): Promise<Account>;
+  abstract findWithoutTemplateForUpdate(limit: number, options: IRepositoryOptions): Promise<Account[]>;
   abstract unsetDefaultAccount(userId: string, options?: IRepositoryOptions): Promise<void>;
   abstract userHasDefaultAccount(userId: string, options?: IRepositoryOptions): Promise<boolean>;
   abstract hasAnotherActiveAccount(

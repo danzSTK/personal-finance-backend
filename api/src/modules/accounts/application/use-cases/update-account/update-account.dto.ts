@@ -1,6 +1,9 @@
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
+import { AccountTemplate } from '@/modules/accounts/domain/entities/account-template.entity';
+import { AccountTemplateInput } from '@/modules/accounts/application/models/account-template-input';
 
 export interface UpdateAccountPatch {
+  template?: AccountTemplateInput;
   name?: Account['name'];
   type?: Account['type'];
   color?: Account['color'];
@@ -14,4 +17,7 @@ export interface UpdateAccountUseCaseInput {
   patch: UpdateAccountPatch;
 }
 
-export type UpdateAccountUseCaseOutput = Account;
+export interface UpdateAccountUseCaseOutput {
+  account: Account;
+  template: AccountTemplate;
+}

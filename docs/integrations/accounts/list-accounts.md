@@ -33,10 +33,23 @@ GET /accounts?includeArchived=true&projectedUntil=2026-06-30
 ```json
 [
   {
+    "object": "account.item",
     "id": "5f6b18c6-1fd9-4e8f-99a8-4a7b65ef56e2",
     "name": "Carteira",
     "type": "CASH",
     "initialBalanceCents": 0,
+    "templateId": "a9f5e96d-b623-42a4-8c5f-f4cb96d90526",
+    "template": {
+      "object": "account_template.item",
+      "id": "a9f5e96d-b623-42a4-8c5f-f4cb96d90526",
+      "type": "CUSTOM",
+      "name": "Carteira",
+      "colorToken": null,
+      "iconKey": null,
+      "logoUrl": null,
+      "bankCode": null,
+      "ispb": null
+    },
     "color": null,
     "icon": null,
     "includeInTotal": true,
@@ -73,6 +86,8 @@ A listagem retorna a default primeiro e, depois, as accounts por data de criaç�
 - `includeInTotal=false`: account não entra nos totais agregados do usuário.
 
 Para usuário recém-criado, a lista pode ficar vazia por alguns instantes até a `CASH` default ser provisionada pela outbox.
+
+Durante `DB-COMPAT-002`, uma linha criada pela v0.3 ainda pode aparecer temporariamente com `templateId`/`template` nulos; `color`/`icon` permanecem como fallback até a reconciliação.
 
 ## Respostas
 

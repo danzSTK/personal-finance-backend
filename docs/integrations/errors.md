@@ -122,8 +122,11 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | `ACCOUNT_MUST_REMAIN_ACTIVE`         |  `409` | Arquivamento deixaria o usuário sem account ativa       |
 | `ACCOUNT_NOT_ARCHIVED`               |  `409` | Tentativa de desarquivar account que não está arquivada |
 | `ACCOUNT_NOT_FOUND`                  |  `404` | Account não existe ou não pertence ao usuário           |
+| `ACCOUNT_TEMPLATE_NOT_FOUND`         |  `404` | Template não existe, está inativo ou não é selecionável pelo usuário |
+| `ACCOUNT_TEMPLATE_INPUT_CONFLICT`    |  `400` | `template` foi combinado com `color` ou `icon` legado |
 | `ACCOUNT_UPDATE_EMPTY`               |  `409` | PATCH não trouxe nenhum campo editável                  |
 | `INVALID_ACCOUNT`                    |  `400` | Campo estrutural/visual da account é inválido           |
+| `INVALID_ACCOUNT_TEMPLATE`           |  `400` | Estado ou metadata de template viola o domínio          |
 | `INVALID_ACCOUNT_NAME`               |  `400` | Nome da account é inválido                              |
 
 ## Categories

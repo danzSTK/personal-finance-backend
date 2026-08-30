@@ -13,8 +13,10 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { AccountTemplateOrmEntity } from './account-template-orm.entity';
 @Entity('accounts')
 @Index('idx_accounts_user_id', ['user_id'])
+@Index('idx_accounts_template_id', ['template_id'])
 @Index('idx_accounts_user_not_archived', ['user_id'], { where: 'is_archived = false' })
 @Index('UQ_accounts_user_default_active', ['user_id'], {
   unique: true,
@@ -50,6 +52,9 @@ export class AccountOrmEntity {
   })
   initial_balance_cents: number;
 
+  @Column('uuid', { nullable: true })
+  template_id: string | null;
+
   @Column({ type: 'varchar', length: 20, nullable: true })
   color: ColorToken | null;
 
@@ -74,6 +79,14 @@ export class AccountOrmEntity {
   @ManyToOne(() => UserOrmEntity, user => user.accounts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'FK_accounts_user' })
   user: UserOrmEntity;
+
+  @ManyToOne(() => AccountTemplateOrmEntity, template => template.accounts, {
+    onDelete: 'NO ACTION',
+    nullable: true,
+    deferrable: 'INITIALLY DEFERRED',
+  })
+  @JoinColumn({ name: 'template_id', foreignKeyConstraintName: 'FK_accounts_template' })
+  template: AccountTemplateOrmEntity | null;
 
   @OneToMany(() => TransactionOrmEntity, transaction => transaction.account)
   transactions: TransactionOrmEntity[];

@@ -18,6 +18,7 @@ Todas as suítes `api/test/*.integration-spec.ts` executam pelo comando agregado
 | [password-change-redis](./password-change-redis.md)                           |    não     |      1      |     não      |    não    |      não       |
 | [process-config](./process-config.md)                                         |    não     |     não     |     não      |    não    |  subprocessos  |
 | [worker-health-recovery](./worker-health-recovery.md)                         |     1      |      1      |      1       |     1     |      não       |
+| [account-templates-postgres](./account-templates-postgres.md)                 |     1      |     não     |     não      |    não    |      não       |
 
 As imagens atuais são `postgres:16-alpine`, `redis:7-alpine` e a imagem padrão do
 Testcontainers para Toxiproxy. Portas são efêmeras e nenhuma suíte acessa produção.

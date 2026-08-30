@@ -6,6 +6,7 @@ related:
   - ./account-type.md
   - ./default-account.md
   - ./archived-account.md
+  - ./account-template.md
 ---
 
 # Account
@@ -18,7 +19,8 @@ Campos principais:
 - `name`: nome exibido ao usuário.
 - `type`: tipo da account.
 - `initialBalanceCents`: saldo inicial usado no cálculo derivado.
-- `color` e `icon`: customização visual.
+- `templateId`: referência à identidade visual da account.
+- `color` e `icon`: shims legados temporários durante `DB-COMPAT-002`; não são a fonte nova de identidade.
 - `includeInTotal`: define se entra nos totais agregados.
 - `isArchived`: remove a account da listagem padrão.
 - `isDefault`: account padrão do usuário.
@@ -30,3 +32,5 @@ Todo acesso a account deve ser filtrado por `userId` do usuário autenticado. O 
 ## Regra Central
 
 O usuário deve sempre ter pelo menos uma account ativa no sistema.
+
+A imagem nova associa toda account criada a um `account_template`. `templateId` permanece nullable no banco apenas para que a v0.3 continue elegível para rollback e para que o reconciler alcance escritas legadas.

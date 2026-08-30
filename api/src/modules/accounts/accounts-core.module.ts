@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { IAccountCacheInvalidator } from './application/ports/account-cache-invalidator.interface';
+import { ListAccountTemplatesUseCase } from './application/use-cases/list-account-templates/list-account-templates.use-case';
 import { ArchiveAccountUseCase } from './application/use-cases/archive-account/archive-account.use-case';
 import { CreateAccountUseCase } from './application/use-cases/create-account/create-account.use-case';
 import { CreateDefaultAccountUseCase } from './application/use-cases/create-default-account/create-default-account.use-case';
@@ -10,15 +12,20 @@ import { UnarchiveAccountUseCase } from './application/use-cases/unarchive-accou
 import { UpdateAccountUseCase } from './application/use-cases/update-account/update-account.use-case';
 import { IAccountBalanceRepository } from './domain/repositories/account-balance.repository.interface';
 import { IAccountRepository } from './domain/repositories/account.repository.interface';
+import { IAccountTemplateRepository } from './domain/repositories/account-template.repository.interface';
 import { AccountBalanceRepository } from './infrastructure/persistence/account-balance.repository';
 import { AccountOrmEntity } from './infrastructure/persistence/account.entity';
+import { AccountTemplateOrmEntity } from './infrastructure/persistence/account-template-orm.entity';
+import { AccountTemplateRepository } from './infrastructure/persistence/account-template.repository';
 import { AccountRepository } from './infrastructure/persistence/account.repository';
 import { CachedAccountRepository } from './infrastructure/persistence/cached-account.repository';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AccountOrmEntity])],
+  imports: [TypeOrmModule.forFeature([AccountOrmEntity, AccountTemplateOrmEntity])],
   providers: [
     { provide: IAccountRepository, useClass: CachedAccountRepository },
+    { provide: IAccountCacheInvalidator, useExisting: IAccountRepository },
+    { provide: IAccountTemplateRepository, useClass: AccountTemplateRepository },
     { provide: IAccountBalanceRepository, useClass: AccountBalanceRepository },
     AccountRepository,
     CreateAccountUseCase,
@@ -29,6 +36,7 @@ import { CachedAccountRepository } from './infrastructure/persistence/cached-acc
     UnarchiveAccountUseCase,
     UpdateAccountUseCase,
     CreateDefaultAccountUseCase,
+    ListAccountTemplatesUseCase,
   ],
   exports: [
     IAccountRepository,
@@ -40,6 +48,7 @@ import { CachedAccountRepository } from './infrastructure/persistence/cached-acc
     UnarchiveAccountUseCase,
     UpdateAccountUseCase,
     CreateDefaultAccountUseCase,
+    ListAccountTemplatesUseCase,
   ],
 })
 export class AccountsCoreModule {}

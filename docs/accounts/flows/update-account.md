@@ -21,15 +21,17 @@ Atualiza campos editáveis de uma account.
 4. Se não existir, retorna `404`.
 5. Se estiver arquivada, retorna conflito.
 6. Se não houver nenhum campo de patch, retorna conflito.
-7. Aplica apenas campos definidos.
-8. Salva e retorna a account atualizada.
+7. Rejeita `template` combinado com `color`/`icon` legados.
+8. Confirma uma referência institucional ou cria/atualiza o template customizado por regra do backend.
+9. Aplica apenas campos definidos e mantém o dual-write legado.
+10. Salva os aggregates na mesma transação e retorna a account atualizada.
 
 ## Campos Comuns
 
 - `name`
 - `type`
-- `color`
-- `icon`
+- `template`
+- `color` e `icon` somente durante `DB-COMPAT-002`
 - `includeInTotal`
 
 ## Regras Planejadas
