@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { AccountType, IconKey } from '@/common/models/enums';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { toDateOnly } from '@/common/utils/date-only';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { AccountTemplate } from '@/modules/accounts/domain/entities/account-template.entity';
@@ -82,7 +82,7 @@ describe('ListAccountsUseCase', () => {
 
       expect(templateRepository.findByIdsForRendering).toHaveBeenCalledWith([], userId);
       expect(output.template).toBeNull();
-      expect(output.account.color).toBe('nubank');
+      expect(output.account.color).toBe(ColorToken.PURPLE);
       expect(output.balance).toEqual({
         accountId: account.id,
         currentCents: 0,
@@ -102,7 +102,7 @@ function accountFixture(templateId: string | null): Account {
       type: AccountType.BANK,
       initialBalanceCents: 0,
       templateId,
-      color: 'nubank',
+      color: ColorToken.PURPLE,
       icon: IconKey.LANDMARK,
       includeInTotal: true,
       isArchived: false,

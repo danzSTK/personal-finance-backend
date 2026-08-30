@@ -61,6 +61,24 @@ describe('UpdateAccountUseCase', () => {
   });
 
   describe('execute', () => {
+    it('associates an institutional template with a v0.3-compatible legacy color', async () => {
+      const account = customAccount();
+      const template = institutionalTemplate();
+      accountRepository.findByIdAndUserId.mockResolvedValue(account);
+      templateRepository.findActiveInstitutionalById.mockResolvedValue(template);
+
+      const output = await useCase.execute({
+        userId,
+        accountId: account.id,
+        patch: { template: { type: 'institutional', templateId: template.id } },
+      });
+
+      expect(output.account.templateId).toBe(template.id);
+      expect(output.account.color).toBe(ColorToken.PURPLE);
+      expect(output.account.icon).toBe(IconKey.LANDMARK);
+      expect(output.template.colorToken).toBe('nubank');
+    });
+
     it('materializes a private custom template when a v0.3 visual update replaces an institution', async () => {
       const account = institutionalAccount();
       accountRepository.findByIdAndUserId.mockResolvedValue(account);
@@ -198,7 +216,7 @@ describe('UpdateAccountUseCase', () => {
         type: AccountType.BANK,
         initialBalanceCents: 0,
         templateId: '54066cca-075e-4300-923b-f5b36462aa1f',
-        color: 'nubank',
+        color: ColorToken.PURPLE,
         icon: IconKey.LANDMARK,
         includeInTotal: true,
         isArchived: false,

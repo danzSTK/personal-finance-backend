@@ -79,8 +79,9 @@ describe('CreateAccountUseCase', () => {
         manager,
       });
       expect(output.account.templateId).toBe(template.id);
-      expect(output.account.color).toBe('nubank');
+      expect(output.account.color).toBe(ColorToken.PURPLE);
       expect(output.account.icon).toBe(IconKey.LANDMARK);
+      expect(output.template.colorToken).toBe('nubank');
       expect(output.template).toBe(template);
       expect(cacheInvalidator.invalidateUserAccounts).toHaveBeenCalledWith(userId);
     });

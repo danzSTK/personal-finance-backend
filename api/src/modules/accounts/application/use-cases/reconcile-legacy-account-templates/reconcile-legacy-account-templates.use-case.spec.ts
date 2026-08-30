@@ -55,7 +55,7 @@ describe('ReconcileLegacyAccountTemplatesUseCase', () => {
   describe('execute', () => {
     it('processes short transactional batches and sanitizes institutional-only legacy colors', async () => {
       const first = legacyAccount('7959495d-7c8a-451d-b308-da032c20e615', ColorToken.BLUE, IconKey.WALLET);
-      const second = legacyAccount('0aa8f64c-f88d-4112-96fa-716017442d33', 'nubank', IconKey.LANDMARK);
+      const second = legacyAccount('0aa8f64c-f88d-4112-96fa-716017442d33', 'nubank' as ColorToken, IconKey.LANDMARK);
       const third = legacyAccount('7242a48c-b86d-427a-a83c-3b9fc77090e9', null, null);
       accountRepository.findWithoutTemplateForUpdate
         .mockResolvedValueOnce([first, second])

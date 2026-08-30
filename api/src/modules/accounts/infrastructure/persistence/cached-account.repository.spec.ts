@@ -89,7 +89,7 @@ function accountFixture(): Account {
       type: AccountType.BANK,
       initialBalanceCents: 0,
       templateId: '54066cca-075e-4300-923b-f5b36462aa1f',
-      color: 'nubank',
+      color: ColorToken.PURPLE,
       icon: IconKey.LANDMARK,
       includeInTotal: true,
       isArchived: false,

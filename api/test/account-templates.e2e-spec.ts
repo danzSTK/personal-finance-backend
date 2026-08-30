@@ -1,6 +1,7 @@
 import { AppExceptionFilter } from '@/common/filters';
 import { createValidationException } from '@/common/validation';
 import { AccountTemplateInputConflictError } from '@/modules/accounts/application/errors';
+import { projectAccountTemplateToLegacyVisual } from '@/modules/accounts/application/models/account-template-legacy-visual';
 import { ArchiveAccountUseCase } from '@/modules/accounts/application/use-cases/archive-account/archive-account.use-case';
 import { CreateAccountUseCase } from '@/modules/accounts/application/use-cases/create-account/create-account.use-case';
 import { GetAccountSummaryUseCase } from '@/modules/accounts/application/use-cases/get-account-summary/get-account-summary.use-case';
@@ -156,7 +157,7 @@ describe('Account templates HTTP contract (e2e)', () => {
   it('accepts the new institutional object on POST and forwards the discriminated command', async () => {
     const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
 
-    await request(httpServer)
+    const response = await request(httpServer)
       .post('/accounts')
       .set('Authorization', 'Bearer account-template-test')
       .send({
@@ -168,6 +169,12 @@ describe('Account templates HTTP contract (e2e)', () => {
         },
       })
       .expect(201);
+
+    const responseBody = response.body as Record<string, unknown>;
+    const responseTemplate = responseBody.template as Record<string, unknown>;
+    expect(responseBody.color).toBe(ColorToken.PURPLE);
+    expect(responseBody.icon).toBe(IconKey.LANDMARK);
+    expect(responseTemplate.colorToken).toBe('nubank');
 
     expect(createAccountExecute).toHaveBeenCalledWith({
       userId: '7959495d-7c8a-451d-b308-da032c20e615',
@@ -292,6 +299,7 @@ function customTemplate(): AccountTemplate {
 
 function accountWithTemplate(template: AccountTemplate, name: string): Account {
   const now = new Date('2026-08-29T00:00:00.000Z');
+  const legacyVisual = projectAccountTemplateToLegacyVisual(template);
   return Account.reconstitute(
     {
       userId: '7959495d-7c8a-451d-b308-da032c20e615',
@@ -299,8 +307,8 @@ function accountWithTemplate(template: AccountTemplate, name: string): Account {
       type: AccountType.BANK,
       initialBalanceCents: 0,
       templateId: template.id,
-      color: template.colorToken,
-      icon: template.type === ACCOUNT_TEMPLATE_TYPE.INSTITUTIONAL ? IconKey.LANDMARK : template.iconKey,
+      color: legacyVisual.color,
+      icon: legacyVisual.icon,
       includeInTotal: true,
       isArchived: false,
       isDefault: false,
