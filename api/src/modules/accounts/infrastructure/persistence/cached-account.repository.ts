@@ -1,11 +1,10 @@
-import { AccountType, IconKey } from '@/common/models/enums';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import { DateOnlyString } from '@/common/utils/date-only';
 import { RedisService } from '@/database/redis/redis.service';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { IAccountCacheInvalidator } from '@/modules/accounts/application/ports/account-cache-invalidator.interface';
-import { AccountTemplateColorTokenValue } from '@/modules/accounts/domain/value-objects/account-template-color-token.value-object';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
 import { Injectable } from '@nestjs/common';
 import { AccountRepository } from './account.repository';
@@ -17,7 +16,7 @@ interface CachedAccount {
   type: AccountType;
   initialBalanceCents: number;
   templateId?: string | null;
-  color: AccountTemplateColorTokenValue | null;
+  color: ColorToken | null;
   icon: IconKey | null;
   includeInTotal: boolean;
   isArchived: boolean;

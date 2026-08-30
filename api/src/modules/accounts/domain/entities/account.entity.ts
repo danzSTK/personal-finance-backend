@@ -2,9 +2,10 @@ import {
   ACCOUNT_ICON_KEY_MAX_LENGTH,
   ACCOUNT_NAME_MAX_LENGTH,
   ACCOUNT_NAME_MIN_LENGTH,
+  isColorToken,
   isIconKey,
 } from '@/common/models/constants';
-import { AccountType, IconKey } from '@/common/models/enums';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import {
   AccountArchivedMutationError,
   AccountCannotBeArchivedError,
@@ -12,10 +13,6 @@ import {
   InvalidAccountError,
   InvalidAccountNameError,
 } from '@/modules/accounts/domain/errors';
-import {
-  AccountTemplateColorToken,
-  AccountTemplateColorTokenValue,
-} from '@/modules/accounts/domain/value-objects/account-template-color-token.value-object';
 import { AggregateRoot } from '@/shared/domain/aggregate-root';
 
 export interface AccountProps {
@@ -28,7 +25,7 @@ export interface AccountProps {
    * @deprecated Projeção de compatibilidade da DB-COMPAT-002. Não usar como fonte da identidade visual.
    * Remover somente no contract da v0.5.
    */
-  color: AccountTemplateColorTokenValue | null;
+  color: ColorToken | null;
   /**
    * @deprecated Projeção de compatibilidade da DB-COMPAT-002. Não usar como fonte da identidade visual.
    * Remover somente no contract da v0.5.
@@ -72,7 +69,7 @@ export class Account extends AggregateRoot {
   /**
    * @deprecated Projeção de compatibilidade da DB-COMPAT-002. Use `templateId` e carregue o template associado.
    */
-  get color(): AccountTemplateColorTokenValue | null {
+  get color(): ColorToken | null {
     return this.props.color;
   }
 
@@ -137,7 +134,7 @@ export class Account extends AggregateRoot {
   /**
    * @deprecated Compatibilidade com writers v0.3. Não criar regra nova baseada em `accounts.color`.
    */
-  changerColor(color: AccountTemplateColorTokenValue | null) {
+  changerColor(color: ColorToken | null) {
     if (this.props.color === color) {
       return;
     }
@@ -146,8 +143,8 @@ export class Account extends AggregateRoot {
       throw new AccountArchivedMutationError('Cannot change color of an archived account.');
     }
 
-    if (color) {
-      AccountTemplateColorToken.create(color);
+    if (color !== null && !isColorToken(color)) {
+      throw new InvalidAccountError('Invalid account color.');
     }
 
     this.props.color = color;
@@ -159,7 +156,7 @@ export class Account extends AggregateRoot {
     /**
      * @deprecated Projeção obrigatória durante DB-COMPAT-002; remover no contract da v0.5.
      */
-    legacyColor: AccountTemplateColorTokenValue | null,
+    legacyColor: ColorToken | null,
     /**
      * @deprecated Projeção obrigatória durante DB-COMPAT-002; remover no contract da v0.5.
      */
@@ -173,8 +170,8 @@ export class Account extends AggregateRoot {
       throw new InvalidAccountError('Invalid account template id.');
     }
 
-    if (legacyColor !== null) {
-      AccountTemplateColorToken.create(legacyColor);
+    if (legacyColor !== null && !isColorToken(legacyColor)) {
+      throw new InvalidAccountError('Invalid account color.');
     }
 
     if (legacyIcon !== null && !isIconKey(legacyIcon)) {

@@ -11,11 +11,11 @@ import { AccountTemplateFactory } from '@/modules/accounts/domain/factories/acco
 import { IAccountTemplateRepository } from '@/modules/accounts/domain/repositories/account-template.repository.interface';
 import { AccountFactory } from '@/modules/accounts/domain/factories/account.factory';
 import { IAccountRepository } from '@/modules/accounts/domain/repositories/account.repository.interface';
-import { IconKey } from '@/common/models/enums';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 import { ACCOUNT_TEMPLATE_INPUT_TYPE } from '@/modules/accounts/application/models/account-template-input';
+import { projectAccountTemplateToLegacyVisual } from '@/modules/accounts/application/models/account-template-legacy-visual';
 
 @Injectable()
 export class CreateAccountUseCase {
@@ -60,9 +60,9 @@ export class CreateAccountUseCase {
 
     const template = await this.resolveTemplate(data, manager);
     const account: Account = AccountFactory.createManualAccount(data, shouldSetAsDefault);
-    const legacyIcon = template.type === ACCOUNT_TEMPLATE_TYPE.INSTITUTIONAL ? IconKey.LANDMARK : template.iconKey;
+    const legacyVisual = projectAccountTemplateToLegacyVisual(template);
 
-    account.changeTemplate(template.id, template.colorToken, legacyIcon);
+    account.changeTemplate(template.id, legacyVisual.color, legacyVisual.icon);
     const savedAccount = await this.accountRepository.save(account, options);
 
     return { account: savedAccount, template };

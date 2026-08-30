@@ -1,5 +1,4 @@
-import { AccountType, IconKey } from '@/common/models/enums';
-import { AccountTemplateColorTokenValue } from '@/modules/accounts/domain/value-objects/account-template-color-token.value-object';
+import { AccountType, ColorToken, IconKey } from '@/common/models/enums';
 import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { UserOrmEntity } from '@/modules/users/infrastructure/persistence/user-orm-entity';
 import {
@@ -57,7 +56,7 @@ export class AccountOrmEntity {
   template_id: string | null;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
-  color: AccountTemplateColorTokenValue | null;
+  color: ColorToken | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   icon: IconKey | null;

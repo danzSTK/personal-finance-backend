@@ -12,7 +12,6 @@ import {
 } from '@/modules/accounts/application/errors';
 import { IAccountCacheInvalidator } from '@/modules/accounts/application/ports/account-cache-invalidator.interface';
 import { isColorToken } from '@/common/models/constants';
-import { IconKey } from '@/common/models/enums';
 import { Account } from '@/modules/accounts/domain/entities/account.entity';
 import { AccountTemplate } from '@/modules/accounts/domain/entities/account-template.entity';
 import { ACCOUNT_TEMPLATE_TYPE } from '@/modules/accounts/domain/enums/account-template-type.enum';
@@ -23,6 +22,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 import { ACCOUNT_TEMPLATE_INPUT_TYPE } from '@/modules/accounts/application/models/account-template-input';
+import { projectAccountTemplateToLegacyVisual } from '@/modules/accounts/application/models/account-template-legacy-visual';
 
 @Injectable()
 export class UpdateAccountUseCase {
@@ -92,11 +92,8 @@ export class UpdateAccountUseCase {
         throw new AccountTemplateNotFoundError();
       }
 
-      account.changeTemplate(
-        selected.id,
-        selected.colorToken,
-        selected.type === ACCOUNT_TEMPLATE_TYPE.INSTITUTIONAL ? IconKey.LANDMARK : selected.iconKey,
-      );
+      const legacyVisual = projectAccountTemplateToLegacyVisual(selected);
+      account.changeTemplate(selected.id, legacyVisual.color, legacyVisual.icon);
       return selected;
     }
 
@@ -107,10 +104,9 @@ export class UpdateAccountUseCase {
     }
 
     const hasLegacyVisualPatch = data.patch.color !== undefined || data.patch.icon !== undefined;
-    const expectedColor = current?.colorToken ?? null;
-    const expectedIcon =
-      current?.type === ACCOUNT_TEMPLATE_TYPE.INSTITUTIONAL ? IconKey.LANDMARK : (current?.iconKey ?? null);
-    const legacyDiverged = current !== null && (account.color !== expectedColor || account.icon !== expectedIcon);
+    const expectedVisual = current ? projectAccountTemplateToLegacyVisual(current) : { color: null, icon: null };
+    const legacyDiverged =
+      current !== null && (account.color !== expectedVisual.color || account.icon !== expectedVisual.icon);
 
     if (!hasLegacyVisualPatch && current && !legacyDiverged) {
       if (
@@ -183,7 +179,8 @@ export class UpdateAccountUseCase {
     }
 
     const savedTemplate = await this.accountTemplateRepository.save(custom, { manager });
-    account.changeTemplate(savedTemplate.id, savedTemplate.colorToken, savedTemplate.iconKey);
+    const legacyVisual = projectAccountTemplateToLegacyVisual(savedTemplate);
+    account.changeTemplate(savedTemplate.id, legacyVisual.color, legacyVisual.icon);
     return savedTemplate;
   }
 
