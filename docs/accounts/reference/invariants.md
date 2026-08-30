@@ -20,6 +20,13 @@ related:
 - Accounts arquivadas não aparecem por padrão.
 - `includeInTotal=false` remove a account dos totais agregados e relatórios gerais.
 - Accounts fora dos totais ainda podem aparecer quando pedidas explicitamente.
+- Identidade visual nova é referenciada por `account.templateId`.
+- `Account` e `AccountTemplate` são aggregates separados; o vínculo não implica persistência em cascata.
+- `template.type` em create/update é intenção do comando; o backend confirma ou cria o tipo persistido sem confiar na classificação do cliente.
+- Template institucional é global e não pode ser alterado pelo usuário.
+- Template customizado só pode ser selecionado/alterado por seu owner autenticado.
+- Template institucional inativo não aceita nova associação, mas continua renderizando accounts existentes.
+- `color`/`icon` permanecem em dual-write somente enquanto `DB-COMPAT-002` estiver ativo.
 
 ## Planejadas
 

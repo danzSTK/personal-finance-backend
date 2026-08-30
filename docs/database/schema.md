@@ -237,6 +237,56 @@ Registra fatos de segurança da alteração de senha. A tabela sustenta o contad
 - `FAILED_ATTEMPTS_BLOCK_STARTED` representa somente um novo bloqueio iniciado por falhas repetidas da senha atual.
 - IP, User-Agent e metadata exigem sanitização, allowlist e política de retenção.
 
+## `account_templates`
+
+Representa a identidade visual reutilizável de uma account. Templates institucionais são globais; templates customizados pertencem a um usuário. BrasilAPI e o CDN de origem não participam das leituras em runtime.
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identificador estável do template. |
+| `template_type` | `varchar(20)` | `not null` | `INSTITUTIONAL` ou `CUSTOM`. |
+| `owner_user_id` | `uuid` | `nullable` | Owner do custom; nulo para institucional. |
+| `catalog_key` | `varchar(80)` | `nullable` | Chave estável do catálogo institucional. |
+| `name` | `varchar(255)` | `not null` | Nome de exibição. |
+| `color_token` | `varchar(30)` | `nullable` | Token interpretado pelo frontend; obrigatório para institucional. |
+| `icon_key` | `varchar(50)` | `nullable` | Ícone interno de template customizado. |
+| `logo_storage_key` | `varchar(1024)` | `nullable` | Key relativa do SVG institucional no Object Storage. |
+| `bank_code` | `smallint` | `nullable` | Código bancário curado da BrasilAPI. |
+| `ispb` | `varchar(8)` | `nullable` | ISPB curado da BrasilAPI. |
+| `is_active` | `boolean` | `not null default true` | Controla novas seleções sem quebrar referências existentes. |
+| `created_at` | `timestamptz` | `not null default now()` | Criação. |
+| `updated_at` | `timestamptz` | `not null default now()` | Última atualização. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_account_templates` | primary key | `id` | Identidade única. |
+| `FK_account_templates_owner_user` | foreign key | `owner_user_id -> users.id ON DELETE CASCADE` | Remove templates privados junto ao owner. |
+| `CHK_account_templates_type` | check | tipo em `INSTITUTIONAL`, `CUSTOM` | Protege o discriminador. |
+| `CHK_account_templates_owner` | check | institucional sem owner; custom com owner | Protege ownership e escopo global. |
+| `CHK_account_templates_institutional_metadata` | check | institucional exige catálogo, cor, logo, código e ISPB; custom não aceita metadados bancários/logo | Impede estados híbridos. |
+| `CHK_account_templates_storage_key` | check | key nula ou não vazia e sem `/` inicial | Mantém key relativa. |
+| `CHK_account_templates_ispb` | check | nulo ou oito dígitos | Protege formato do ISPB. |
+| `CHK_account_templates_bank_code` | check | nulo ou `1..999` | Protege faixa do código. |
+
+### Índices
+
+| Nome | Colunas/filtro | Utilidade |
+| --- | --- | --- |
+| `UQ_account_templates_catalog_key` | `catalog_key WHERE catalog_key IS NOT NULL`, unique | Seed idempotente e identidade institucional. |
+| `UQ_account_templates_bank_code` | `bank_code WHERE template_type = 'INSTITUTIONAL'`, unique | Impede instituição duplicada por código. |
+| `UQ_account_templates_ispb` | `ispb WHERE template_type = 'INSTITUTIONAL'`, unique | Impede instituição duplicada por ISPB. |
+| `idx_account_templates_owner_user_id` | `owner_user_id WHERE template_type = 'CUSTOM'` | Busca privada por owner. |
+
+### Triggers
+
+| Nome | Função | Utilidade |
+| --- | --- | --- |
+| `trg_account_templates_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente em updates. |
+
 ## `accounts`
 
 Representa uma conta financeira do usuário. O saldo não é persistido aqui; ele é derivado de `initial_balance_cents + impactos de transactions`.
@@ -250,8 +300,9 @@ Representa uma conta financeira do usuário. O saldo não é persistido aqui; el
 | `account_type` | `accounts_account_type_enum` | `not null` | Tipo da account: `CASH`, `BANK`, `CREDIT_CARD` ou `INVESTMENT`. |
 | `name` | `varchar(255)` | `not null` | Nome exibido para o usuário. |
 | `initial_balance_cents` | `bigint` | `not null default 0` | Saldo inicial em centavos usado no cálculo derivado do saldo. |
-| `color` | `varchar(20)` | `nullable` | Cor visual da account. |
-| `icon` | `varchar(100)` | `nullable` | Ícone visual da account. |
+| `template_id` | `uuid` | `nullable` | Referência visual nova; nulabilidade temporária durante `DB-COMPAT-002`. |
+| `color` | `varchar(20)` | `nullable` | Shim visual legado para rollback da v0.3; dual-write temporário. |
+| `icon` | `varchar(100)` | `nullable` | Shim visual legado para rollback da v0.3; dual-write temporário. |
 | `include_in_total` | `boolean` | `not null default true` | Define se a conta entra em totais e relatórios agregados. |
 | `is_archived` | `boolean` | `not null default false` | Indica se a account está arquivada. |
 | `is_default` | `boolean` | `not null default false` | Indica a conta default do usuário. |
@@ -264,6 +315,7 @@ Representa uma conta financeira do usuário. O saldo não é persistido aqui; el
 | --- | --- | --- | --- |
 | `PK_accounts` | primary key | `id` | Garante identidade única da account. |
 | `FK_accounts_user` | foreign key | `user_id -> users.id ON DELETE CASCADE` | Garante que toda account pertença a um usuário existente. |
+| `FK_accounts_template` | foreign key | `template_id -> account_templates.id ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED` | Preserva template referenciado e permite cascade transacional do usuário/custom. |
 | `CHK_accounts_type` | check | `account_type IN ('CASH', 'BANK', 'CREDIT_CARD', 'INVESTMENT')` | Protege o domínio contra tipos fora do contrato. |
 | `CHK_accounts_default_not_archived` | check | `NOT (is_default = true AND is_archived = true)` | Impede que uma account arquivada continue marcada como default. |
 | `CHK_accounts_initial_balance_cents` | check | `initial_balance_cents >= 0` | Impede saldo inicial negativo. |
@@ -273,6 +325,7 @@ Representa uma conta financeira do usuário. O saldo não é persistido aqui; el
 | Nome | Colunas/filtro | Utilidade |
 | --- | --- | --- |
 | `idx_accounts_user_id` | `user_id` | Lista contas por usuário. |
+| `idx_accounts_template_id` | `template_id` | Join/rendering e verificação de referências. |
 | `idx_accounts_user_not_archived` | `user_id WHERE is_archived = false` | Otimiza a listagem padrão de contas ativas/não arquivadas. |
 | `UQ_accounts_user_default_active` | `user_id WHERE is_default = true AND is_archived = false`, unique | Garante no banco uma única account default ativa por usuário. |
 | `UQ_accounts_user_cash` | `user_id WHERE account_type = 'CASH'`, unique | Garante no banco no máximo uma account `CASH` por usuário. |
@@ -607,6 +660,7 @@ Usada por:
 
 - `trg_users_updated_at`
 - `trg_auth_providers_updated_at`
+- `trg_account_templates_updated_at`
 - `trg_accounts_updated_at`
 - `trg_categories_updated_at`
 - `trg_transactions_updated_at`

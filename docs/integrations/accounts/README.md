@@ -33,6 +33,7 @@ Detalhes: [Default CASH provisioning](./default-cash-provisioning.md).
 
 - [Default CASH provisioning](./default-cash-provisioning.md)
 - [Create account](./create-account.md)
+- [List account templates](./list-account-templates.md)
 - [List accounts](./list-accounts.md)
 - [Get account summary](./get-account-summary.md)
 - [Update account](./update-account.md)
@@ -44,11 +45,24 @@ Detalhes: [Default CASH provisioning](./default-cash-provisioning.md).
 
 ```json
 {
+  "object": "account.item",
   "id": "5f6b18c6-1fd9-4e8f-99a8-4a7b65ef56e2",
   "name": "Nubank",
   "type": "BANK",
   "initialBalanceCents": 100000,
-  "color": "blue",
+  "templateId": "54066cca-075e-4300-923b-f5b36462aa1f",
+  "template": {
+    "object": "account_template.item",
+    "id": "54066cca-075e-4300-923b-f5b36462aa1f",
+    "type": "INSTITUTIONAL",
+    "name": "Nubank",
+    "colorToken": "nubank",
+    "iconKey": null,
+    "logoUrl": "https://public.example/banking-institutions-icons/nubank.svg",
+    "bankCode": 260,
+    "ispb": "18236120"
+  },
+  "color": "nubank",
   "icon": "landmark",
   "includeInTotal": true,
   "isArchived": false,
@@ -65,7 +79,7 @@ Detalhes: [Default CASH provisioning](./default-cash-provisioning.md).
 
 O response não expõe `userId`; o vínculo com usuário vem da sessão autenticada.
 
-`color` e `icon` são tokens oficiais do produto. Use o catálogo exposto em `GET /categories/metadata` para montar seletores e renderizar fallback visual quando necessário.
+Clientes novos usam `template` e obtêm as opções em `GET /account-templates`. `color` e `icon` no nível da account estão deprecated e permanecem temporariamente para rollback da v0.3.
 
 ## Tipos
 
