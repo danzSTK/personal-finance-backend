@@ -16,6 +16,7 @@ import { AccountSummaryResponseDto } from '../dto/account-summary.response.dto';
 import { CreateAccountDto } from '../dto/create-account.dto';
 import { GetAccountSummaryQueryDto } from '../dto/get-account-summary.query.dto';
 import { ListAccountsQueryDto } from '../dto/list-accounts.query.dto';
+import { AccountTemplateResponseAssembler } from '../services/account-template-response.assembler';
 
 @ApiTags('accounts')
 @Controller('accounts')
@@ -28,6 +29,7 @@ export class AccountsController {
     private readonly setDefaultAccountUseCase: SetDefaultAccountUseCase,
     private readonly unarchiveAccountUseCase: UnarchiveAccountUseCase,
     private readonly updateAccountUseCase: UpdateAccountUseCase,
+    private readonly accountTemplateResponseAssembler: AccountTemplateResponseAssembler,
   ) {}
 
   @Post()
@@ -42,18 +44,23 @@ export class AccountsController {
   @ApiResponse({ status: 401, description: 'Sessão ausente ou inválida', type: PlatformErrorResponseDto })
   @ApiResponse({ status: 409, description: 'Conflito de regra de negócio', type: PlatformErrorResponseDto })
   async create(@CurrentUser() user: User, @Body() body: CreateAccountDto): Promise<AccountResponseDto> {
-    const account = await this.createAccountUseCase.execute({
+    const output = await this.createAccountUseCase.execute({
       userId: user.id,
       name: body.name,
       type: body.type,
       initialBalanceCents: body.initialBalanceCents,
+      template: body.template,
       color: body.color,
       icon: body.icon,
       includeInTotal: body.includeInTotal,
       isDefault: body.isDefault,
     });
 
-    return AccountResponseDto.fromDomain(account);
+    return AccountResponseDto.fromDomain(
+      output.account,
+      undefined,
+      this.accountTemplateResponseAssembler.toDto(output.template),
+    );
   }
 
   @Patch(':id')
@@ -73,13 +80,17 @@ export class AccountsController {
     @Param('id') accountId: string,
     @Body() body: UpdateAccountDto,
   ): Promise<AccountResponseDto> {
-    const updatedAccount = await this.updateAccountUseCase.execute({
+    const output = await this.updateAccountUseCase.execute({
       userId: user.id,
       accountId,
       patch: body,
     });
 
-    return AccountResponseDto.fromDomain(updatedAccount);
+    return AccountResponseDto.fromDomain(
+      output.account,
+      undefined,
+      this.accountTemplateResponseAssembler.toDto(output.template),
+    );
   }
 
   @Get()
@@ -94,7 +105,13 @@ export class AccountsController {
       projectedUntil: query.projectedUntil,
     });
 
-    return accounts.map(item => AccountResponseDto.fromDomain(item.account, item.balance));
+    return accounts.map(item =>
+      AccountResponseDto.fromDomain(
+        item.account,
+        item.balance,
+        item.template ? this.accountTemplateResponseAssembler.toDto(item.template) : null,
+      ),
+    );
   }
 
   @Get('summary')

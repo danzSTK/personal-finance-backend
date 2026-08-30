@@ -1,0 +1,148 @@
+import { InstitutionalAccountTemplateColorToken } from '@/modules/accounts/domain/value-objects/account-template-color-token.value-object';
+
+export interface InstitutionalAccountTemplateCatalogEntry {
+  readonly id: string;
+  readonly catalogKey: string;
+  readonly name: string;
+  readonly bankCode: number;
+  readonly ispb: string;
+  readonly brasilApiName: string;
+  readonly brasilApiFullName: string;
+  readonly sourceLogoUrl: string;
+  readonly sourceChecksumSha256: string;
+  readonly colorToken: InstitutionalAccountTemplateColorToken;
+  readonly storageKey: string;
+}
+
+export const INSTITUTIONAL_ACCOUNT_TEMPLATES = [
+  {
+    id: '54066cca-075e-4300-923b-f5b36462aa1f',
+    catalogKey: 'nubank',
+    name: 'Nubank',
+    bankCode: 260,
+    ispb: '18236120',
+    brasilApiName: 'NU PAGAMENTOS - IP',
+    brasilApiFullName: 'NU PAGAMENTOS S.A. - INSTITUIÇÃO DE PAGAMENTO',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/18236120.svg',
+    sourceChecksumSha256: 'a4a63bd7d76bd7f3377335ae2a4c9d1f80d602f6a69fd5dba375f46d269272a6',
+    colorToken: 'nubank',
+    storageKey: 'banking-institutions-icons/nubank.svg',
+  },
+  {
+    id: 'f3715f16-f652-45d9-9f71-c710b410449c',
+    catalogKey: 'inter',
+    name: 'Inter',
+    bankCode: 77,
+    ispb: '00416968',
+    brasilApiName: 'BANCO INTER',
+    brasilApiFullName: 'Banco Inter S.A.',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/00416968.svg',
+    sourceChecksumSha256: '09b8e88439fd0106deef4eb448fea00d127e1a7dd592b5baa76fea07b226c128',
+    colorToken: 'inter',
+    storageKey: 'banking-institutions-icons/inter.svg',
+  },
+  {
+    id: '44d2bdda-1a95-42d9-bd4e-cd6493fbe29f',
+    catalogKey: 'itau',
+    name: 'Itaú',
+    bankCode: 341,
+    ispb: '60701190',
+    brasilApiName: 'ITAÚ UNIBANCO S.A.',
+    brasilApiFullName: 'ITAÚ UNIBANCO S.A.',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/60701190.svg',
+    sourceChecksumSha256: '9b2cadfb4ec44d8a3f9b24e9b3e7439e128164ab05ab1044ad37742255795af2',
+    colorToken: 'itau',
+    storageKey: 'banking-institutions-icons/itau.svg',
+  },
+  {
+    id: 'cc904f27-a71d-4e20-8454-99fe7b93360c',
+    catalogKey: 'bradesco',
+    name: 'Bradesco',
+    bankCode: 237,
+    ispb: '60746948',
+    brasilApiName: 'BCO BRADESCO S.A.',
+    brasilApiFullName: 'Banco Bradesco S.A.',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/60746948.svg',
+    sourceChecksumSha256: 'eab31731175c5229512016c2cdf98f38affecb891c217bbe6ea6b83e4c5bdb38',
+    colorToken: 'bradesco',
+    storageKey: 'banking-institutions-icons/bradesco.svg',
+  },
+  {
+    id: 'f48f08da-bcaa-4be9-a14d-88de146cfbb7',
+    catalogKey: 'santander',
+    name: 'Santander',
+    bankCode: 33,
+    ispb: '90400888',
+    brasilApiName: 'BCO SANTANDER (BRASIL) S.A.',
+    brasilApiFullName: 'BANCO SANTANDER (BRASIL) S.A.',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/90400888.svg',
+    sourceChecksumSha256: '3db65acca8651f09096f81c004513586b3b22075041afe7e29df16f658b7d766',
+    colorToken: 'santander',
+    storageKey: 'banking-institutions-icons/santander.svg',
+  },
+  {
+    id: '83a760d7-a645-49ef-b915-8714a33beb65',
+    catalogKey: 'banco-do-brasil',
+    name: 'Banco do Brasil',
+    bankCode: 1,
+    ispb: '00000000',
+    brasilApiName: 'BCO DO BRASIL S.A.',
+    brasilApiFullName: 'Banco do Brasil S.A.',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/00000000.svg',
+    sourceChecksumSha256: '8bd7640e0e08e49cc00d3b4b901a44add88a1a3e9539b8cd71c8f04692d88caa',
+    colorToken: 'banco-do-brasil',
+    storageKey: 'banking-institutions-icons/banco-do-brasil.svg',
+  },
+  {
+    id: 'cbe3b3f9-0289-4323-b2ff-3e399f8f6847',
+    catalogKey: 'caixa',
+    name: 'Caixa',
+    bankCode: 104,
+    ispb: '00360305',
+    brasilApiName: 'CAIXA ECONOMICA FEDERAL',
+    brasilApiFullName: 'CAIXA ECONOMICA FEDERAL',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/00360305.svg',
+    sourceChecksumSha256: '3073827b49f87a32f69c93d8008583a1af2f2498b873eabd9f9d64d130c70dfd',
+    colorToken: 'caixa',
+    storageKey: 'banking-institutions-icons/caixa.svg',
+  },
+  {
+    id: '396d3bc3-a1f2-49b6-a564-d94ffecdf778',
+    catalogKey: 'c6',
+    name: 'C6 Bank',
+    bankCode: 336,
+    ispb: '31872495',
+    brasilApiName: 'BCO C6 S.A.',
+    brasilApiFullName: 'Banco C6 S.A.',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/31872495.svg',
+    sourceChecksumSha256: 'deb2fd2d220ad11000f97f2ee553308c1e98311c979a0a003530aca76f83b011',
+    colorToken: 'c6',
+    storageKey: 'banking-institutions-icons/c6.svg',
+  },
+  {
+    id: '9c004203-5406-425e-bed6-271c695b6e8c',
+    catalogKey: 'picpay',
+    name: 'PicPay',
+    bankCode: 380,
+    ispb: '22896431',
+    brasilApiName: 'PICPAY',
+    brasilApiFullName: 'PICPAY INSTITUIçãO DE PAGAMENTO S.A.',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/22896431.svg',
+    sourceChecksumSha256: '5dda49002fc6d9b323a30d88afd7e9ba5b54982dc5ffcf630364aa94bfcf43b8',
+    colorToken: 'picpay',
+    storageKey: 'banking-institutions-icons/picpay.svg',
+  },
+  {
+    id: 'd5b91da3-b180-44dd-b0b4-1af98edcb009',
+    catalogKey: 'mercado-pago',
+    name: 'Mercado Pago',
+    bankCode: 323,
+    ispb: '10573521',
+    brasilApiName: 'MERCADO PAGO IP LTDA.',
+    brasilApiFullName: 'MERCADO PAGO INSTITUIÇÃO DE PAGAMENTO LTDA.',
+    sourceLogoUrl: 'https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/10573521.svg',
+    sourceChecksumSha256: 'a1dbab9a3efb581b2e2e12bd09a3e4fe16d71b4d7c29be902f78c2958ee103f2',
+    colorToken: 'mercado-pago',
+    storageKey: 'banking-institutions-icons/mercado-pago.svg',
+  },
+] as const satisfies readonly InstitutionalAccountTemplateCatalogEntry[];
