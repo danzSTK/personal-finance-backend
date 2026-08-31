@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.0](https://github.com/danzSTK/personal-finance-backend/compare/v0.1.3...v0.2.0) (2026-08-31)
+
+
+### Features
+
+* **accounts:** adiciona templates visuais de contas ([#92](https://github.com/danzSTK/personal-finance-backend/issues/92)) ([c257a69](https://github.com/danzSTK/personal-finance-backend/commit/c257a69ade3c9f066699ee8fd802c508dd9df3dc)), closes [#91](https://github.com/danzSTK/personal-finance-backend/issues/91)
+* **auth:** implementa alteração segura de senha ([f5ca0da](https://github.com/danzSTK/personal-finance-backend/commit/f5ca0da4865145f86c808272b75926390fddd701))
+* **auth:** redefine reenvio de verificação de e-mail ([#85](https://github.com/danzSTK/personal-finance-backend/issues/85)) ([59fafe4](https://github.com/danzSTK/personal-finance-backend/commit/59fafe4123662b0a3aa87b0497784640b70b5459))
+* **auth:** vincula credenciais ao email principal ([#89](https://github.com/danzSTK/personal-finance-backend/issues/89)) ([6434858](https://github.com/danzSTK/personal-finance-backend/commit/6434858fda5e45f11f953377894fea4e84df653d)), closes [#79](https://github.com/danzSTK/personal-finance-backend/issues/79)
+
+
+### Bug Fixes
+
+* **auth:** limita senhas a 72 bytes UTF-8 ([#81](https://github.com/danzSTK/personal-finance-backend/issues/81)) ([d47e0cf](https://github.com/danzSTK/personal-finance-backend/commit/d47e0cf6fd6075fe24913ae66d94393553b6826f))
+
 ## [0.1.3](https://github.com/danzSTK/personal-finance-backend/compare/v0.1.2...v0.1.3) (2026-07-22)
 
 
