@@ -38,11 +38,11 @@ related:
 ## Integração e VM
 
 - [x] 19. Mergear as PRs do backend e do `danfy-infra`.
-- [ ] 20. Instalar Compose e executor na VM e atualizar `backend.env`, preservando backup do estado anterior.
-- [ ] 21. Subir `postgres` e validar o healthcheck e o `StartedAt`.
-- [ ] 22. Resetar os volumes dos dois Redis.
-- [ ] 23. Promover `develop` para `main` por PR e deixar a release incluir a mudança.
-- [ ] 24. Acompanhar o Backend CD e validar readiness local e pública, `health:worker` e a estabilidade do container `postgres`.
+- [x] 20. Instalar Compose e executor na VM e atualizar `backend.env`, preservando backup do estado anterior.
+- [x] 21. Subir `postgres` e validar o healthcheck e o `StartedAt`.
+- [x] 22. Resetar os volumes dos dois Redis.
+- [x] 23. Promover `develop` para `main` por PR e deixar a release incluir a mudança.
+- [x] 24. Acompanhar o Backend CD e validar readiness local e pública, `health:worker` e a estabilidade do container `postgres`.
 
 ## Acompanhamento recomendado
 
