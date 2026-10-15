@@ -27,14 +27,14 @@ Este guia descreve a arquitetura e os requisitos operacionais do host de produç
 
 A stack é composta por:
 
-| Serviço         | Tecnologia           | Função                                               |
-| --------------- | -------------------- | ---------------------------------------------------- |
-| API             | NestJS (Node.js 24)  | HTTP, casos de uso, producers e escrita da outbox    |
-| Worker          | NestJS (Node.js 24)  | Outbox, eventos, reconciliação e jobs BullMQ         |
-| Banco de dados  | PostgreSQL 16 no RDS | Persistência de dados externa ao Compose             |
-| Cache e sessões | Redis 7              | Cache, sessões e rate limit                          |
-| Filas           | Redis 7              | Backend dedicado do BullMQ com política `noeviction` |
-| Proxy reverso   | NGINX (host)         | TLS de origem + roteamento de tráfego                |
+| Serviço         | Tecnologia          | Função                                               |
+| --------------- | ------------------- | ---------------------------------------------------- |
+| API             | NestJS (Node.js 24) | HTTP, casos de uso, producers e escrita da outbox    |
+| Worker          | NestJS (Node.js 24) | Outbox, eventos, reconciliação e jobs BullMQ         |
+| Banco de dados  | PostgreSQL 16       | Persistência de dados interna com volume nomeado     |
+| Cache e sessões | Redis 7             | Cache, sessões e rate limit                          |
+| Filas           | Redis 7             | Backend dedicado do BullMQ com política `noeviction` |
+| Proxy reverso   | NGINX (host)        | TLS de origem + roteamento de tráfego                |
 
 ---
 
@@ -52,18 +52,19 @@ NGINX (host) — porta 80 → redireciona para HTTPS
               — porta 443 → certificado Cloudflare Origin CA
                   │
                   ▼
-           Docker Compose                         AWS
-           ┌──────────────────────────────────────┐   ┌─────────────────┐
-           │  API (NestJS)       — porta 3000     │──>│ PostgreSQL RDS  │
-           │  Worker (NestJS)    — sem porta HTTP │──>│ endpoint no env │
-           │  Redis cache/sessão — porta 6379     │   └─────────────────┘
-           │  Redis BullMQ       — porta 6379 int. │
-           └──────────────────────────────────────┘
+           Docker Compose
+           ┌────────────────────────────────────────┐
+           │  API (NestJS)       — porta 3000       │
+           │  Worker (NestJS)    — sem porta HTTP   │
+           │  PostgreSQL 16      — porta 5432 int.  │
+           │  Redis cache/sessão — porta 6379 int.  │
+           │  Redis BullMQ       — porta 6379 int.  │
+           └────────────────────────────────────────┘
 ```
 
-> **Nota:** O NGINX roda diretamente no host (não em container). API, worker e Redis rodam em containers na rede interna (`app-network`), enquanto PostgreSQL permanece no RDS e é acessado pelo endpoint definido em `POSTGRES_HOST`. A API é publicada pelo proxy da Cloudflare e encaminhada ao NGINX com o modo SSL/TLS `Full (strict)`. O Redis de BullMQ deve ficar separado do Redis de cache/sessões para evitar eviction de chaves de jobs.
+> **Nota:** O NGINX roda diretamente no host (não em container). API, worker, PostgreSQL e os dois Redis rodam em containers na rede interna (`app-network`). A porta do PostgreSQL não é exposta no host; o serviço é acessado internamente pelo hostname `postgres` com `POSTGRES_SSL=false`. A persistência do banco reside no volume nomeado `app_postgresdata`. A API é publicada pelo proxy da Cloudflare e encaminhada ao NGINX com o modo SSL/TLS `Full (strict)`. O Redis de BullMQ deve ficar separado do Redis de cache/sessões para evitar eviction de chaves de jobs.
 
-> Em produção, execute Compose somente com `-f docker-compose.yml`. O arquivo versionado `docker-compose.dev.yml` adiciona build local, PostgreSQL e portas de desenvolvimento e não deve participar do deploy.
+> Em produção, o Compose é gerenciado pelo executor em `/opt/danfy/backend/compose.production.yml`. O arquivo versionado `docker-compose.dev.yml` adiciona build local e portas de desenvolvimento e não deve participar do deploy.
 
 ---
 
@@ -145,11 +146,12 @@ Os env files são mantidos pelo executor fora do checkout da aplicação. Use `.
 
 ```env
 # PostgreSQL
-POSTGRES_HOST=endpoint-do-rds.amazonaws.com
+POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_USER=seu_usuario
 POSTGRES_PASSWORD=senha_forte_aqui
 POSTGRES_DB=nome_do_banco
+POSTGRES_SSL=false
 
 # Redis
 REDIS_PASSWORD=senha_forte_redis
@@ -371,6 +373,6 @@ Uma sobreposição curta com a versão anterior é tolerada por `SKIP LOCKED`, l
 | Consultar logs de uma release  | artifact `production-deploy-<versão>` no Backend CD                      |
 | Implantar uma versão           | publicar uma GitHub Release estável e aprovar o Environment `production` |
 | Restaurar a versão anterior    | executor `rollback previous`, seguindo o procedimento operacional        |
-| Investigar o PostgreSQL no RDS | ferramentas e credenciais operacionais do ambiente, fora do Compose      |
+| Investigar o PostgreSQL       | `docker compose exec postgres psql -U <user> -d <db>` no host            |
 
 Operações que alteram o runtime devem passar pelo executor. Não entregue acesso direto ao Docker para o usuário `deploy`.

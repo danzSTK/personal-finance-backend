@@ -3,6 +3,7 @@ import { join } from 'path';
 import { DataSource } from 'typeorm';
 import { AppStatus } from '../common/models/enums';
 import { ENTITIES } from '../config/entities';
+import { parsePostgresSslFlag, resolvePostgresSsl } from './postgres/postgres-ssl';
 
 // Carrega o .env da raiz
 if (process.env.NODE_ENV !== AppStatus.PRODUCTION) {
@@ -20,5 +21,8 @@ export const AppDataSource = new DataSource({
   migrations: [join(__dirname, './migrations/*{.ts,.js}')],
   synchronize: false,
   logging: process.env.NODE_ENV === AppStatus.PRODUCTION ? ['error'] : true,
-  ssl: process.env.NODE_ENV === AppStatus.PRODUCTION ? { rejectUnauthorized: false } : false,
+  ssl: resolvePostgresSsl({
+    isProduction: process.env.NODE_ENV === AppStatus.PRODUCTION,
+    enabled: parsePostgresSslFlag(process.env.POSTGRES_SSL),
+  }),
 });

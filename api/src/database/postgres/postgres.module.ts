@@ -6,6 +6,7 @@ import { AppStatus } from '@/common/models/enums';
 import { Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { resolvePostgresSsl } from './postgres-ssl';
 
 export const createPostgresOptions = (
   dbConfig: ConfigType<typeof databaseConfig>,
@@ -23,7 +24,7 @@ export const createPostgresOptions = (
     entities: ENTITIES,
     synchronize: false,
     logging: isProduction ? ['error'] : true,
-    ssl: isProduction ? { rejectUnauthorized: false } : false,
+    ssl: resolvePostgresSsl({ isProduction, enabled: dbConfig.ssl }),
   };
 };
 

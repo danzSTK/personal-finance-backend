@@ -132,6 +132,24 @@ WHERE a.color IS DISTINCT FROM t.color_token
 
 **Contract exato da v0.5.** Em migration separada: `SET NOT NULL accounts.template_id`, depois `DROP COLUMN color` e `DROP COLUMN icon`. Na mesma release, remover payload/response legado, dual-read, dual-write, fallback de cache, reconciler e esta compatibilidade dos contratos de integração. Nunca editar a migration expand.
 
+### DB-COMPAT-003 - Migração para PostgreSQL auto-hospedado no Compose
+
+**Contexto.** A persistência migra do Amazon RDS para o PostgreSQL 16 no Compose da VM na rede interna (`app-network`) sem TLS (`POSTGRES_SSL=false`). A imagem legada `v0.1.3` forçava `ssl: { rejectUnauthorized: false }` incondicionalmente em `NODE_ENV=production`.
+
+**Expand / Adição de capacidade.** A variável `POSTGRES_SSL` permite explicitar o uso de TLS ou desligá-lo, mantendo por default o comportamento com TLS em produção para compatibilidade retroativa com ambientes gerenciados.
+
+| Combinação | Compatível? | Motivo/ordem |
+| --- | --- | --- |
+| code N (`v0.1.3`) com RDS (TLS) | sim | comportamento baseline anterior |
+| code N (`v0.1.3`) com PostgreSQL Compose (sem TLS) | não | code N força SSL e o PostgreSQL interno rejeita conexão sem TLS |
+| code N+1 com PostgreSQL Compose (`POSTGRES_SSL=false`) | sim | alvo desta migração |
+| code N+1 com PostgreSQL gerenciado / TLS (`POSTGRES_SSL` ausente) | sim | default de produção com TLS preservado |
+
+**Ordem operacional e limite de rollback.** A topologia Compose com PostgreSQL interno inicia na VM vazia com as migrations aplicadas na ativação de code N+1 e os volumes do Redis reiniciados.
+*Atenção:* Rollback para `v0.1.3` torna-se incompatível após a troca de topologia, pois a imagem legada não suporta conexão sem TLS.
+
+**Gate e aposentadoria.** Torna-se `RETIRED` assim que a release contendo `POSTGRES_SSL` for ativada e `v0.1.3` não for mais alvo em `previous.env`.
+
 ## Registro De Novos Contratos
 
 Cada compatibilidade nova deve registrar:
