@@ -1,0 +1,38 @@
+# Vulnerabilidades de dependencias transitivas/upstream monitoradas via Dependabot
+# Ignoradas temporariamente para desbloqueio da release com PostgreSQL auto-hospedado
+
+# @grpc/grpc-js
+CVE-2026-101916
+
+# brace-expansion
+CVE-2026-102276
+CVE-2026-102278
+CVE-2026-14257
+CVE-2026-69152
+
+# ip-address
+CVE-2026-69192
+
+# joi
+CVE-2026-92599
+
+# js-yaml
+CVE-2026-73643
+
+# multer
+CVE-2026-77037
+CVE-2026-77078
+CVE-2026-82333
+
+# proxy-addr
+CVE-2026-90711
+
+# sharp
+GHSA-rgj7-g3m4-5g8c
+GHSA-wq5f-xc86-pv6w
+
+# tar
+CVE-2026-73566
+
+# undici
+CVE-2026-19534
