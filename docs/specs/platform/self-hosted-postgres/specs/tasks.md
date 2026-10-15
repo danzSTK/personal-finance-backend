@@ -23,21 +23,21 @@ related:
 - [x] 8. Indexar a spec em `docs/specs/README.md`.
 - [x] 9. Validar `format:check`, `lint:check`, `typecheck`, `build`, testes unitários e E2E.
 - [x] 10. Provar as migrations do zero em PostgreSQL 16.13 sem TLS, usando `dist`.
-- [ ] 11. Abrir a PR para `develop` e aguardar o CI.
+- [x] 11. Abrir a PR para `develop` e aguardar o CI.
 
 ## danfy-infra
 
-- [ ] 12. Adicionar o serviço `postgres`, o volume e as dependências ao Compose de produção.
-- [ ] 13. Fixar `POSTGRES_HOST`, `POSTGRES_PORT` e `POSTGRES_SSL` no ambiente compartilhado de API e worker.
-- [ ] 14. Incluir `postgres` em `start_dependencies` do executor.
-- [ ] 15. Estender o teste do executor para provar que o PostgreSQL sobe antes das migrations.
-- [ ] 16. Atualizar `README.md` e `docs/runbooks/backend-deploy.md`.
-- [ ] 17. Validar Bash, ShellCheck, testes do executor e `docker compose config`.
-- [ ] 18. Abrir a PR e aguardar o Infra CI.
+- [x] 12. Adicionar o serviço `postgres`, o volume e as dependências ao Compose de produção.
+- [x] 13. Fixar `POSTGRES_HOST`, `POSTGRES_PORT` e `POSTGRES_SSL` no ambiente compartilhado de API e worker.
+- [x] 14. Incluir `postgres` em `start_dependencies` do executor.
+- [x] 15. Estender o teste do executor para provar que o PostgreSQL sobe antes das migrations.
+- [x] 16. Atualizar `README.md` e `docs/runbooks/backend-deploy.md`.
+- [x] 17. Validar Bash, ShellCheck, testes do executor e `docker compose config`.
+- [x] 18. Abrir a PR e aguardar o Infra CI.
 
 ## Integração e VM
 
-- [ ] 19. Mergear as PRs do backend e do `danfy-infra`.
+- [x] 19. Mergear as PRs do backend e do `danfy-infra`.
 - [ ] 20. Instalar Compose e executor na VM e atualizar `backend.env`, preservando backup do estado anterior.
 - [ ] 21. Subir `postgres` e validar o healthcheck e o `StartedAt`.
 - [ ] 22. Resetar os volumes dos dois Redis.
