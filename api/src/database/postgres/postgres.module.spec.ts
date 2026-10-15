@@ -44,4 +44,25 @@ describe('createPostgresOptions', () => {
       }),
     );
   });
+
+  it('disables PostgreSQL SSL in production when POSTGRES_SSL is false', () => {
+    const options = createPostgresOptions({ ...database, ssl: false }, {
+      nodeEnv: AppStatus.PRODUCTION,
+    } as ConfigType<typeof appConfig>);
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        logging: ['error'],
+        ssl: false,
+      }),
+    );
+  });
+
+  it('enables PostgreSQL SSL outside production when POSTGRES_SSL is true', () => {
+    const options = createPostgresOptions({ ...database, ssl: true }, {
+      nodeEnv: AppStatus.TEST,
+    } as ConfigType<typeof appConfig>);
+
+    expect(options).toEqual(expect.objectContaining({ ssl: { rejectUnauthorized: false } }));
+  });
 });

@@ -16,6 +16,7 @@ import appConfig from './app.config';
 import databaseConfig from './database.config';
 import googleOauthConfig from './google-oauth.config';
 import jwtConfig from './jwt.config';
+import { postgresEnvSchema } from './postgres-env.schema';
 import redisConfig from './redis.config';
 import throttleConfig from './throttle.config';
 
@@ -68,11 +69,7 @@ export const getEmailVerificationConfigInvariantError = (value: Record<string, u
       isGlobal: true,
       validationSchema: Joi.object({
         PROCESS_ROLE: Joi.string().valid(ProcessRoles.API, ProcessRoles.WORKER).default(ProcessRoles.API),
-        POSTGRES_HOST: Joi.string().required(),
-        POSTGRES_PORT: Joi.number().required(),
-        POSTGRES_USER: Joi.string().required(),
-        POSTGRES_PASSWORD: Joi.string().required(),
-        POSTGRES_DB: Joi.string().required(),
+        ...postgresEnvSchema,
 
         JWT_ACCESS_SECRET: Joi.when('PROCESS_ROLE', {
           is: ProcessRoles.API,

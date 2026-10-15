@@ -1,3 +1,4 @@
+import { parsePostgresSslFlag } from '@/database/postgres/postgres-ssl';
 import { registerAs } from '@nestjs/config';
 
 export default registerAs('database', () => ({
@@ -6,4 +7,5 @@ export default registerAs('database', () => ({
   username: process.env.POSTGRES_USER!,
   password: process.env.POSTGRES_PASSWORD!,
   dbName: process.env.POSTGRES_DB!,
+  ssl: parsePostgresSslFlag(process.env.POSTGRES_SSL),
 }));
