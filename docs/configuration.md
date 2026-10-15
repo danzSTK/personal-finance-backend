@@ -49,13 +49,16 @@ O serviço Compose do worker e os scripts `start:worker:*` definem `PROCESS_ROLE
 
 ### PostgreSQL
 
-| Variável            | Regra       | Default | Uso                                  |
-| ------------------- | ----------- | ------- | ------------------------------------ |
-| `POSTGRES_HOST`     | Obrigatória | —       | host do PostgreSQL                   |
-| `POSTGRES_PORT`     | Obrigatória | —       | porta do PostgreSQL                  |
-| `POSTGRES_USER`     | Obrigatória | —       | usuário da conexão                   |
-| `POSTGRES_PASSWORD` | Obrigatória | —       | senha da conexão                     |
-| `POSTGRES_DB`       | Obrigatória | —       | banco de dados da aplicação e outbox |
+| Variável            | Regra       | Default | Uso                                                  |
+| ------------------- | ----------- | ------- | ---------------------------------------------------- |
+| `POSTGRES_HOST`     | Obrigatória | —       | host do PostgreSQL                                   |
+| `POSTGRES_PORT`     | Obrigatória | —       | porta do PostgreSQL                                  |
+| `POSTGRES_USER`     | Obrigatória | —       | usuário da conexão                                   |
+| `POSTGRES_PASSWORD` | Obrigatória | —       | senha da conexão                                     |
+| `POSTGRES_DB`       | Obrigatória | —       | banco de dados da aplicação e outbox                 |
+| `POSTGRES_SSL`      | Opcional    | —       | `true` ou `false`; força ou desliga o TLS da conexão |
+
+Sem `POSTGRES_SSL`, a aplicação e a CLI de migrations usam TLS (com `rejectUnauthorized: false`) somente quando `NODE_ENV=production`. Um valor explícito prevalece sobre esse padrão em qualquer ambiente, e valores diferentes de `true` e `false` impedem o início do processo. Em produção, o Compose fixa `POSTGRES_SSL=false` porque o PostgreSQL roda na rede interna `app-network`; consulte [`deploy.md`](./deploy.md).
 
 ### Redis de cache e sessões
 
