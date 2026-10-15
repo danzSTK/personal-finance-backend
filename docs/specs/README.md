@@ -48,6 +48,7 @@ As specs registram requisitos, desenho, tarefas e decisões de mudanças relevan
 - [Infraestrutura de filas](./platform/queue-infrastructure/specs/requirements.md)
 - [Automação de releases](./platform/release-automation/specs/requirements.md)
 - [Objetos de resposta](./platform/response-objects/specs/requirements.md)
+- [PostgreSQL auto-hospedado](./platform/self-hosted-postgres/specs/requirements.md)
 
 ## Transactions
 

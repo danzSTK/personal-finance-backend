@@ -248,8 +248,8 @@ Refresh tokens são rotacionados a cada uso. O desenho permite listar sessões, 
 
 - **Oracle Cloud Infrastructure:** hospedagem da VPS de produção;
 - **Ubuntu Server 22.04 LTS:** sistema operacional do host;
-- **Amazon RDS:** PostgreSQL gerenciado e externo ao Docker Compose;
-- **Docker e Docker Compose:** empacotamento e execução da API, worker e serviços Redis;
+- **PostgreSQL 16:** banco de dados relacional executado em container no Docker Compose com persistência em volume local;
+- **Docker e Docker Compose:** empacotamento e execução da API, worker, PostgreSQL e serviços Redis;
 - **NGINX:** proxy reverso, terminação TLS e encaminhamento do IP real do cliente;
 - **Cloudflare:** DNS, proxy da aplicação, certificado de origem e entrega pública dos assets;
 - **GitHub Actions:** integração contínua, testes, publicação e deploy;
