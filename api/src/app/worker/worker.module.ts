@@ -1,6 +1,7 @@
 import { ConfigModule } from '@/config/config.module';
 import { PostgresModule } from '@/database/postgres/postgres.module';
 import { RedisModule } from '@/database/redis/redis.module';
+import { AssetsWorkerModule } from '@/modules/assets/assets-worker.module';
 import { NotificationsWorkerModule } from '@/modules/notifications/notifications-worker.module';
 import { AppEventsModule } from '@/shared/events';
 import { JobsModule } from '@/shared/jobs/jobs.module';
@@ -20,6 +21,7 @@ import { WorkerOperationsModule } from './operations/worker-operations.module';
     OutboxDispatcherModule,
     OutboxRehydratorsModule,
     WorkerEventConsumersModule,
+    AssetsWorkerModule,
     NotificationsWorkerModule,
     WorkerOperationsModule,
   ],

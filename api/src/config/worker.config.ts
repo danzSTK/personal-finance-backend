@@ -18,6 +18,13 @@ export interface WorkerConfig {
     batchSize: number;
     staleAfterMs: number;
   };
+  assetReconciliation: {
+    intervalMs: number;
+    batchSize: number;
+    deleteGracePeriodMs: number;
+    stalePendingUploadMs: number;
+    maxRetries: number;
+  };
   shutdownTimeoutMs: number;
   heartbeat: {
     intervalMs: number;
@@ -39,6 +46,13 @@ export default registerAs(
       intervalMs: readNumber('EMAIL_ENQUEUE_RECONCILE_INTERVAL_MS', 30_000),
       batchSize: readNumber('EMAIL_ENQUEUE_RECONCILE_BATCH_SIZE', 100),
       staleAfterMs: readNumber('EMAIL_ENQUEUE_STALE_AFTER_MS', 30_000),
+    },
+    assetReconciliation: {
+      intervalMs: readNumber('ASSET_RECONCILER_INTERVAL_MS', 60_000),
+      batchSize: readNumber('ASSET_RECONCILER_BATCH_SIZE', 50),
+      deleteGracePeriodMs: readNumber('ASSET_RECONCILER_DELETE_GRACE_PERIOD_MS', 30_000),
+      stalePendingUploadMs: readNumber('ASSET_RECONCILER_STALE_PENDING_MS', 7_200_000),
+      maxRetries: readNumber('ASSET_RECONCILER_MAX_RETRIES', 5),
     },
     shutdownTimeoutMs: readNumber('WORKER_SHUTDOWN_TIMEOUT_MS', 30_000),
     heartbeat: {

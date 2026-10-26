@@ -6,6 +6,10 @@ export interface AssetMetadata {
   width?: number;
   height?: number;
   format?: string;
+  delete_attempts?: number;
+  last_delete_error?: string;
+  last_delete_attempt_at?: string;
+  quarantine?: boolean;
 }
 
 export interface AssetProps {
@@ -160,10 +164,44 @@ export class Asset {
     this.ensureStatus(AssetStatus.DELETE_PENDING);
 
     const now = new Date();
+    const cleanMetadata: AssetMetadata = {};
+    if (this.props.metadata.width !== undefined) {
+      cleanMetadata.width = this.props.metadata.width;
+    }
+    if (this.props.metadata.height !== undefined) {
+      cleanMetadata.height = this.props.metadata.height;
+    }
+    if (this.props.metadata.format !== undefined) {
+      cleanMetadata.format = this.props.metadata.format;
+    }
 
     this.props.status = AssetStatus.DELETED;
+    this.props.metadata = cleanMetadata;
     this.props.deletedAt = now;
     this.props.updatedAt = now;
+  }
+
+  recordDeleteFailure(errorMessage: string, maxRetries: number): { attempts: number; quarantined: boolean } {
+    this.ensureStatus(AssetStatus.DELETE_PENDING);
+
+    if (!Number.isSafeInteger(maxRetries) || maxRetries < 1) {
+      throw new InvalidAssetError('Asset max retries must be a positive integer.');
+    }
+
+    const attempts = (this.props.metadata.delete_attempts ?? 0) + 1;
+    const quarantined = attempts >= maxRetries;
+    const now = new Date();
+
+    this.props.metadata = {
+      ...this.props.metadata,
+      delete_attempts: attempts,
+      last_delete_error: errorMessage.trim() || 'Unknown error',
+      last_delete_attempt_at: now.toISOString(),
+      quarantine: quarantined,
+    };
+    this.props.updatedAt = now;
+
+    return { attempts, quarantined };
   }
 
   markFailed(failureCode: string): void {

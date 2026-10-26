@@ -5,4 +5,8 @@ export abstract class IAssetRepository {
   abstract findByIdAndUserId(assetId: string, userId: string, options?: IRepositoryOptions): Promise<Asset | null>;
 
   abstract save(asset: Asset, options?: IRepositoryOptions): Promise<Asset>;
+
+  abstract findPendingDeletionBefore(cutoff: Date, limit: number, options?: IRepositoryOptions): Promise<Asset[]>;
+
+  abstract findStalePendingUploadsBefore(cutoff: Date, limit: number, options?: IRepositoryOptions): Promise<Asset[]>;
 }
