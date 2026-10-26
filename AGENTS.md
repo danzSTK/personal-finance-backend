@@ -51,9 +51,29 @@ For feature requests, start with a concise architecture-first response:
 
 Do not generate full implementation code on the first response unless the user explicitly says `Pode codar` or `Mostre o código`. When the user asks for a concrete code change in this Codex environment, follow the newest user request and implement once intent is clear.
 
+## Instruções do Projeto
+
+### Arquitetura
+- Preserve os limites entre módulos.
+- Antes de criar dependências entre módulos, leia `docs/architecture/module-boundaries.md`.
+- Não altere contratos públicos sem avaliar seus consumidores.
+
+### Antes de planejar ou editar
+1. Identifique todos os módulos envolvidos na tarefa.
+2. Procure `AGENTS.md` nos diretórios ancestrais dos arquivos-alvo, da raiz até o módulo (`api/src/modules/<modulo>/AGENTS.md`).
+3. Leia os arquivos encontrados antes de propor alterações.
+4. Leia a documentação indicada pelos `AGENTS.md` locais (em `docs/<modulo>/`).
+5. Se a mudança alcançar outro módulo, repita o processo nele.
+
+### Escopo das instruções
+- Instruções locais complementam as regras globais.
+- Restrições globais de segurança e limites arquiteturais não podem ser relaxadas por instruções locais.
+- Se houver conflito não resolvido, informe antes de prosseguir.
+
 ## Architecture Rules
 
 When implementing or changing error handling, use the repo skill `platform-errors`. Domain and application errors should be framework-independent and translated to the frontend HTTP contract by a global exception filter.
+When documenting domain concepts, operational flows, or architectural decisions, use the repo skill `modular-documentation` and follow the living documentation standards in `docs/<module>/`.
 
 Use Spec-Driven Development as the default workflow for new features and relevant feature changes. Before coding a feature, use the repo skill `spec-driven-development` and create or update:
 
