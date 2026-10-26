@@ -70,14 +70,14 @@ NGINX (host) — porta 80 → redireciona para HTTPS
 
 ## Requisitos da VM
 
-| Recurso             | Mínimo recomendado                |
-| ------------------- | --------------------------------- |
-| Sistema Operacional | Ubuntu 22.04 LTS                  |
-| CPU                 | 1 vCPU                            |
-| RAM                 | 1 GB (a stack usa ~1 GB no total) |
-| Disco               | 20 GB                             |
-| Porta 80            | Aberta no firewall (HTTP)         |
-| Porta 443           | Aberta no firewall (HTTPS)        |
+| Recurso             | Mínimo recomendado                        |
+| ------------------- | ----------------------------------------- |
+| Sistema Operacional | Ubuntu 24.04 LTS (x86_64 ou aarch64/ARM64)|
+| CPU                 | 1 vCPU / OCPU                             |
+| RAM                 | 2 GB (a stack completa com banco usa ~1.5 GB) |
+| Disco               | 30 GB (aloca containers e volume de dados) |
+| Porta 80            | Aberta no firewall (HTTP)                 |
+| Porta 443           | Aberta no firewall (HTTPS)                |
 
 ### Software necessário no host
 
@@ -173,15 +173,28 @@ WORKER_SHUTDOWN_TIMEOUT_MS=30000
 WORKER_HEARTBEAT_INTERVAL_MS=10000
 WORKER_HEARTBEAT_TTL_MS=30000
 
-# JWT (gere strings longas e aleatórias)
+# JWT e Autenticação (gere strings longas e aleatórias: openssl rand -hex 32)
 JWT_ACCESS_SECRET=...
 JWT_REFRESH_SECRET=...
+PASSWORD_CHANGE_RATE_LIMIT_HMAC_SECRET=...
 
 # Google OAuth
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GOOGLE_CALLBACK_URL=https://api.danfy.app/auth/google/callback
 GOOGLE_LINK_CALLBACK_URI=https://api.danfy.app/auth/providers/link/google/callback
+
+# E-mail transacional (Brevo)
+MAIL_ENABLED=true
+MAIL_PROVIDER=brevo
+MAIL_DEFAULT_FROM_EMAIL=contato@danfy.app
+MAIL_DEFAULT_FROM_NAME="Danfy"
+BREVO_API_KEY=...
+BREVO_API_BASE_URL=https://api.brevo.com/v3
+BREVO_TEMPLATE_WELCOME_EMAIL_V1_ID=1
+BREVO_TEMPLATE_EMAIL_VERIFICATION_V1_ID=2
+BREVO_TEMPLATE_PASSWORD_CHANGED_V1_ID=3
+BREVO_TEMPLATE_PASSWORD_CHANGE_BLOCKED_V1_ID=4
 
 # Cloudflare R2
 R2_ENDPOINT=...
@@ -361,6 +374,46 @@ Para migrar sem janela sem consumers:
 5. monitore backlog, mensagens `DEAD` e jobs falhos.
 
 Uma sobreposição curta com a versão anterior é tolerada por `SKIP LOCKED`, leases e idempotência. No rollback, pare o worker novo, restaure a imagem anterior e preserve PostgreSQL, Redis cache e Redis BullMQ. Não remova volumes nem limpe filas/outbox.
+
+---
+
+## 9. Rotinas de Backup e Operações do PostgreSQL
+
+Com o banco de dados auto-hospedado no Docker Compose, a persistência física reside no volume Docker `app_postgresdata` (`/var/lib/docker/volumes/app_postgresdata/_data`). A integridade, backups periódicos e plano de contingência são administrados diretamente no host e na infraestrutura da VM.
+
+### Backup lógico via `pg_dump`
+
+Para gerar um dump compactado e consistente sem parar a aplicação:
+
+```bash
+source /opt/danfy/secrets/backend.env
+sudo docker compose -f /opt/danfy/backend/compose.production.yml exec -T postgres \
+  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc > backup_$(date +%Y%m%d_%H%M%S).dump
+```
+
+### Restauração via `pg_restore`
+
+Para restaurar um backup a partir de arquivo `.dump`:
+
+```bash
+source /opt/danfy/secrets/backend.env
+
+# 1. Pare a API e o worker para fechar conexões ativas
+sudo docker compose -f /opt/danfy/backend/compose.production.yml stop api worker
+
+# 2. Restaure o dump limpando tabelas existentes
+cat backup_arquivo.dump | sudo docker compose -f /opt/danfy/backend/compose.production.yml exec -T postgres \
+  pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner
+
+# 3. Reinicie os serviços
+sudo docker compose -f /opt/danfy/backend/compose.production.yml start api worker
+```
+
+### Snapshots de Volume na nuvem (OCI)
+
+Para proteção contra falhas catastróficas de disco na VM Oracle:
+- Ative uma **Backup Policy automática** para o Boot Volume no console OCI (frequência diária com retenção mínima de 7 dias);
+- Para migração ou manutenção da VM, o volume `app_postgresdata` pode ser exportado com `docker run --rm -v app_postgresdata:/data -v $(pwd):/backup alpine tar czf /backup/postgresdata_backup.tar.gz /data`.
 
 ---
 

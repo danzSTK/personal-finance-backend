@@ -31,8 +31,10 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 | `email_messages`  | Intenções idempotentes de envio de e-mails transacionais.                           |
 | `outbox_messages` | Mensagens do transactional outbox para publicar eventos de domínio com resiliência. |
 
-## Convenções
+## Convenções e Topologia
 
+- **Engine e Versão**: PostgreSQL 16 (`postgres:16.13-alpine`), executado em container Docker no Compose de produção com persistência no volume nomeado `app_postgresdata`.
+- **Extensões**: A extensão `pgcrypto` é ativada pela migration inicial para suporte à geração de identificadores UUID via `gen_random_uuid()`.
 - `id` usa `uuid` gerado no banco com `gen_random_uuid()`.
 - `created_at` registra criação da linha.
 - `updated_at` é atualizado pela função `set_updated_at()` via trigger nas tabelas criadas pelas migrations.

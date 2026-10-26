@@ -128,9 +128,10 @@ As variáveis marcadas como condicionais abaixo são obrigatórias quando `PROCE
 | -------------------------- | ----------- | ------- | -------------------------------------------------------- |
 | `APP_URL`                  | Condicional | —       | URL pública da API e issuer dos tokens                   |
 | `PORT`                     | Default     | `3000`  | porta HTTP                                               |
-| `JWT_ACCESS_SECRET`        | Condicional | —       | assinatura do access token; mínimo de 32 caracteres      |
-| `JWT_REFRESH_SECRET`       | Condicional | —       | assinatura do refresh token; mínimo de 32 caracteres     |
-| `JWT_ACCESS_EXPIRES_IN`    | Condicional | —       | duração do access token                                  |
+| `JWT_ACCESS_SECRET`                    | Condicional | —       | assinatura do access token; mínimo de 32 caracteres                    |
+| `JWT_REFRESH_SECRET`                   | Condicional | —       | assinatura do refresh token; mínimo de 32 caracteres                   |
+| `PASSWORD_CHANGE_RATE_LIMIT_HMAC_SECRET` | Condicional | —     | chave HMAC para rate limit da troca de senha; mínimo de 32 caracteres  |
+| `JWT_ACCESS_EXPIRES_IN`                | Condicional | —       | duração do access token                                                |
 | `JWT_REFRESH_EXPIRES_IN`   | Condicional | —       | duração do refresh token                                 |
 | `GOOGLE_CLIENT_ID`         | Condicional | —       | client ID OAuth da aplicação Web                         |
 | `GOOGLE_CLIENT_SECRET`     | Condicional | —       | client secret OAuth                                      |

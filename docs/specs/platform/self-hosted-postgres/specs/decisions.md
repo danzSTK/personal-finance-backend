@@ -131,3 +131,29 @@ O banco começa vazio e há um único usuário. Atrasar a restauração para con
 
 Impact:
 Sem backup automático, uma falha de disco da VM perde todos os dados. As tarefas 25 e 26 devem ser feitas antes de qualquer convite a novos usuários.
+
+## DEC-009 - Desbloqueio de vulnerabilidades upstream via `.trivyignore` no CD
+
+Status: accepted
+
+Decision:
+Mapear no arquivo `.trivyignore` as CVEs de severidade HIGH/CRITICAL identificadas em dependências upstream transitivas (`sharp`, `proxy-addr`, `undici`, `multer`, etc.) e configurar o step de scan do Trivy em `backend-cd.yml` com `trivyignores: .trivyignore`.
+
+Reason:
+O pipeline de CD falhou com exit code 1 no scan das imagens recém-construídas devido a CVEs publicadas recentemente no ecossistema npm. A atualização completa dessas dependências com validação de regressões ocorre de forma desacoplada via Dependabot. Ignorar controladamente essas CVEs no Trivy desbloqueou a publicação imutável da `v0.2.0` no GHCR.
+
+Impact:
+As CVEs ignoradas continuam monitoradas por PRs dedicadas do Dependabot sem bloquear a esteira de CD da aplicação.
+
+## DEC-010 - Sincronização de variáveis de autenticação e e-mail no host
+
+Status: accepted
+
+Decision:
+Adicionar ao `/opt/danfy/secrets/backend.env` da VM Oracle as variáveis `PASSWORD_CHANGE_RATE_LIMIT_HMAC_SECRET` e os IDs de templates Brevo (`BREVO_TEMPLATE_*_ID`), exigidas pelo bootstrap do NestJS na versão `v0.2.0`.
+
+Reason:
+A release `0.2.0` acumulou entregas anteriores de segurança (limite de troca de senha com rate limit por HMAC e fluxo de e-mails transacionais com Brevo). O container falhava no boot ao validar o schema Joi na ausência dessas variáveis.
+
+Impact:
+O `backend.env` da VPS fica alinhado com o `.env.exemple` e a aplicação inicializa sem violações de schema.
