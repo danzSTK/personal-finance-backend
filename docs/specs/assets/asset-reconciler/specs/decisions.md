@@ -69,3 +69,48 @@ A entidade `Asset` possui o método `markFailed(failureCode)` que exige explicit
 
 Impact:
 Evita acúmulo infinito de linhas em `PENDING_UPLOAD` caso um cliente feche o navegador no meio do upload.
+
+---
+
+## DEC-005 - Separação em `AssetsWorkerModule` exclusivo para o processo Worker
+
+Status: accepted
+
+Decision:
+Criar `AssetsWorkerModule` (`api/src/modules/assets/assets-worker.module.ts`) para prover o `AssetReconcilerService` e importá-lo apenas em `WorkerModule`, mantendo `AssetsCoreModule` sem serviços de background.
+
+Reason:
+`AssetsCoreModule` é importado por `AssetsModule` -> `UsersCoreModule` -> `ApiModule`. Se `AssetReconcilerService` fosse registrado em `AssetsCoreModule`, o poller `setInterval` também seria iniciado dentro do processo da API HTTP.
+
+Impact:
+Isola a execução do reconciliador estritamente no processo `worker`, seguindo o mesmo padrão de `NotificationsWorkerModule`.
+
+---
+
+## DEC-006 - Claim em transação curta antes de I/O externo no R2
+
+Status: accepted
+
+Decision:
+Executar `FOR UPDATE SKIP LOCKED` dentro de uma transação curta de banco em `findPendingDeletionBefore` que já atualiza `updated_at = NOW()` nos registros selecionados antes de fechar a transação e retornar o lote ao reconciliador.
+
+Reason:
+O PostgreSQL exige uma transação aberta para `FOR UPDATE SKIP LOCKED`, mas manter uma transação aberta durante 50 chamadas HTTP externas ao Cloudflare R2 prenderia conexões do pool e locks de linha sob latência de rede. Ao atualizar `updated_at = NOW()` no claim e comitar imediatamente, as linhas ficam protegidas pela janela de carência contra outros workers sem segurar transação aberta durante o I/O no R2.
+
+Impact:
+Transações de banco duram poucos milissegundos e chamadas ao R2 ocorrem fora de lock transacional.
+
+---
+
+## DEC-007 - Isolamento de `try/catch` entre exclusão no R2 e persistência de `DELETED`
+
+Status: accepted
+
+Decision:
+Separar o bloco `try/catch` da chamada `objectStorage.deleteObject()` do bloco `try/catch` que executa `asset.markDeleted()` e `assetRepository.save(asset)`.
+
+Reason:
+Se `deleteObject()` tiver sucesso, `asset.markDeleted()` altera o status da entidade em memória para `DELETED`. Caso `assetRepository.save(asset)` lance uma exceção de banco no mesmo bloco `try`, o `catch` invocaria `asset.recordDeleteFailure()`, que exige `status === DELETE_PENDING` e lançaria `InvalidAssetStateTransitionError` não tratado, abortando todo o restante do lote. Além disso, uma falha de banco após o objeto já ter sido removido do R2 não deve ser contabilizada como falha de comunicação com o R2 rumo à quarentena.
+
+Impact:
+Preserva o isolamento de falhas do lote mesmo diante de instabilidades do PostgreSQL após a exclusão no R2.

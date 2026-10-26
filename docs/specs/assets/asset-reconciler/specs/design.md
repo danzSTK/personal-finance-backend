@@ -17,25 +17,29 @@ related:
 
 ## 1. Arquitetura e Camadas Envolvidas
 
-O serviço de reconciliação reside no módulo `assets`, desacoplado de qualquer módulo financeiro ou de autenticação, e é executado exclusivamente no runtime do **Worker** (`api/src/app/worker/`).
+O serviço de reconciliação reside no módulo `assets`, desacoplado de qualquer módulo financeiro ou de autenticação, e é executado exclusivamente no runtime do **Worker** (`api/src/app/worker/`) por meio de um `AssetsWorkerModule` dedicado.
 
 ```text
 api/src/
 ├── config/
-│   └── worker.config.ts                   # Variáveis de intervalo, batch size, grace period e retries
+│   ├── config.module.ts                    # Validação Joi das variáveis ASSET_RECONCILER_*
+│   └── worker.config.ts                    # Variáveis de intervalo, batch size, grace period e retries
 ├── modules/assets/
+│   ├── assets-worker.module.ts             # Módulo exclusivo do Worker (evita rodar poller na API)
 │   ├── domain/
+│   │   ├── entities/
+│   │   │   └── asset.entity.ts             # Método de domínio recordDeleteFailure e limpeza em markDeleted
 │   │   └── repositories/
 │   │       └── asset.repository.interface.ts # Port: findPendingDeletionBefore, findStalePendingUploadsBefore
 │   ├── infrastructure/
 │   │   └── persistence/
-│   │       └── asset.repository.ts        # TypeORM QueryBuilder com FOR UPDATE SKIP LOCKED
+│   │       └── asset.repository.ts         # Claim atômico com FOR UPDATE SKIP LOCKED
 │   └── application/
 │       └── services/
 │           ├── asset-reconciler.service.ts # Orquestrador com setInterval e lifecycle hooks
 │           └── asset-reconciler.service.spec.ts # Testes unitários do reconciliador
 └── app/worker/
-    └── worker.module.ts                   # Registro do AssetReconcilerService no container do Worker
+    └── worker.module.ts                    # Importa AssetsWorkerModule no container do Worker
 ```
 
 ---
@@ -75,9 +79,12 @@ Se `delete_attempts >= 5`:
 }
 ```
 
-### 3.3. Queries SQL Otimizadas
+### 3.3. Queries SQL e Isolamento Transacional (Sem I/O de Rede sob Lock)
 
-#### Busca de `DELETE_PENDING`:
+Como o PostgreSQL exige transação ativa para `FOR UPDATE SKIP LOCKED` e chamadas HTTP ao Cloudflare R2 **nunca** devem ocorrer com uma transação de banco aberta:
+
+#### 1. Claim de `DELETE_PENDING` (`findPendingDeletionBefore`):
+Executa uma transação curta no banco (`assetRepository.manager.transaction`) que seleciona o lote com `FOR UPDATE SKIP LOCKED` e atualiza `updated_at = NOW()` antes de retornar as entidades mapeadas. Isso libera o lock imediatamente e garante que nenhum outro worker selecione os mesmos registros durante a janela de carência enquanto o R2 é chamado fora da transação:
 ```sql
 SELECT * FROM assets
 WHERE status = 'DELETE_PENDING'
@@ -88,7 +95,8 @@ LIMIT :batchSize
 FOR UPDATE SKIP LOCKED;
 ```
 
-#### Busca de `PENDING_UPLOAD` Abandonados:
+#### 2. Claim de `PENDING_UPLOAD` Abandonados (`findStalePendingUploadsBefore`):
+Executa uma transação curta no banco com `FOR UPDATE SKIP LOCKED` e também atualiza `updated_at = NOW()` nos registros selecionados antes de encerrar a transação curta, impedindo que um segundo worker selecione o mesmo lote de uploads expirados após a liberação do lock:
 ```sql
 SELECT * FROM assets
 WHERE status = 'PENDING_UPLOAD'
@@ -97,8 +105,6 @@ ORDER BY updated_at ASC
 LIMIT :batchSize
 FOR UPDATE SKIP LOCKED;
 ```
-
----
 
 ## 4. Orquestrador (`AssetReconcilerService`)
 
@@ -135,9 +141,9 @@ export class AssetReconcilerService implements OnModuleInit, BeforeApplicationSh
    - Calcula `cutoff = now() - gracePeriodMs` (30s).
    - Busca até `batchSize` assets.
    - Itera sequencialmente sobre cada asset:
-     - Tenta `objectStorage.deleteObject({ bucket: asset.bucket, key: asset.storageKey })`.
-     - Sucesso ou 404: `asset.markDeleted()`, reseta flags de erro em `metadata`, salva via repositório.
-     - Falha (5xx/timeout): incrementa `metadata.delete_attempts`, atualiza `updated_at = now()`. Se atingir `maxRetries`, seta `metadata.quarantine = true` e emite log de erro crítico estruturado. Salva o asset.
+     - Tenta `objectStorage.deleteObject({ bucket: asset.bucket, key: asset.storageKey })` em um bloco `try/catch` dedicado exclusivamente ao I/O do storage.
+     - Se o `deleteObject` falhar (5xx/timeout): chama `asset.recordDeleteFailure(...)` (enquanto o status ainda é `DELETE_PENDING`), incrementa `metadata.delete_attempts`, atualiza `updated_at = now()`, aplica quarentena se atingir `maxRetries` e salva o asset.
+     - Se o `deleteObject` tiver sucesso (ou 404): em um bloco `try/catch` separado para persistência, executa `asset.markDeleted()` e salva via repositório. Se o `save` falhar no banco após a deleção no R2, apenas registra log de erro sem chamar `recordDeleteFailure` (pois o status em memória já é `DELETED` e no próximo ciclo o `deleteObject` idempotente concluirá a transição).
 4. Executa `reconcileStalePendingUploads()`:
    - Calcula `staleCutoff = now() - staleUploadMs` (2h).
    - Busca até `batchSize` assets em `PENDING_UPLOAD`.
