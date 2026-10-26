@@ -39,6 +39,7 @@ Para a infraestrutura técnica R2/S3, veja [Object Storage](../storage/README.md
 - [Persist asset metadata separately](./decisions/persist-asset-metadata-separately.md)
 - [Generate storage keys outside Asset](./decisions/generate-storage-keys-outside-asset.md)
 - [Retain deleted asset records](./decisions/retain-deleted-asset-records.md)
+- [Asynchronous deletion via reconciler](./decisions/asynchronous-deletion-via-reconciler.md)
 
 ### Referência
 

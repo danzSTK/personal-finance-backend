@@ -1,0 +1,4 @@
+interface:
+  display_name: "Modular Documentation"
+  short_description: "Governança e escrita de documentação modular viva de domínio"
+  default_prompt: "Use $modular-documentation para estruturar conceitos, fluxos, decisões e índices em docs/<modulo>/ seguindo o padrão vivo da Danfy."
