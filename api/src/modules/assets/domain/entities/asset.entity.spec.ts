@@ -1,6 +1,6 @@
 import { Asset } from '@/modules/assets/domain/entities/asset.entity';
-import { AssetPurpose, AssetStatus } from '@/modules/assets/domain/enums';
-import { InvalidAssetError, InvalidAssetStateTransitionError } from '@/modules/assets/domain/errors';
+import { AssetFailureCode, AssetPurpose, AssetStatus } from '@/modules/assets/domain/enums';
+import { InvalidAssetStateTransitionError } from '@/modules/assets/domain/errors';
 import { AssetStorageKeyFactory } from '@/modules/assets/domain/factories';
 
 describe('Asset', () => {
@@ -44,7 +44,7 @@ describe('Asset', () => {
     it('moves a failed upload through pending deletion to deleted', () => {
       const asset = createPendingAsset();
 
-      asset.markFailed('STORAGE_UPLOAD_FAILED');
+      asset.markFailed(AssetFailureCode.STORAGE_UPLOAD_FAILED);
       asset.markDeletePending();
       asset.markDeleted();
 
@@ -62,7 +62,7 @@ describe('Asset', () => {
         metadata: { width: 512, height: 512, format: 'webp' },
       });
       asset.markDeletePending();
-      asset.recordDeleteFailure('Temporary S3 timeout', 5);
+      asset.recordDeleteFailure('Temporary S3 timeout');
 
       expect(asset.metadata.delete_attempts).toBe(1);
       expect(asset.metadata.last_delete_error).toBe('Temporary S3 timeout');
@@ -77,49 +77,57 @@ describe('Asset', () => {
     it('rejects recordDeleteFailure when asset is not in DELETE_PENDING status', () => {
       const asset = createPendingAsset();
 
-      expect(() => asset.recordDeleteFailure('Error', 5)).toThrow(InvalidAssetStateTransitionError);
+      expect(() => asset.recordDeleteFailure('Error')).toThrow(InvalidAssetStateTransitionError);
     });
 
-    it('rejects recordDeleteFailure when maxRetries is not a positive safe integer', () => {
+    it('records consecutive delete failures and marks quarantine when reaching ASSET_MAX_DELETE_ATTEMPTS (5)', () => {
       const asset = createPendingAsset();
-      asset.markFailed('UPLOAD_FAILED');
+      asset.markFailed(AssetFailureCode.STORAGE_UPLOAD_FAILED);
       asset.markDeletePending();
 
-      expect(() => asset.recordDeleteFailure('Error', 0)).toThrow(InvalidAssetError);
-      expect(() => asset.recordDeleteFailure('Error', -1)).toThrow(InvalidAssetError);
-      expect(() => asset.recordDeleteFailure('Error', 1.5)).toThrow(InvalidAssetError);
-    });
+      for (let i = 1; i <= 4; i++) {
+        const result = asset.recordDeleteFailure(`Timeout ${i}`);
+        expect(result).toEqual({ attempts: i, quarantined: false });
+        expect(asset.metadata.delete_attempts).toBe(i);
+        expect(asset.metadata.quarantine).toBe(false);
+      }
 
-    it('records consecutive delete failures and marks quarantine when reaching maxRetries', () => {
-      const asset = createPendingAsset();
-      asset.markFailed('UPLOAD_FAILED');
-      asset.markDeletePending();
-
-      const firstResult = asset.recordDeleteFailure('Timeout 1', 3);
-      expect(firstResult).toEqual({ attempts: 1, quarantined: false });
-      expect(asset.metadata.delete_attempts).toBe(1);
-      expect(asset.metadata.last_delete_error).toBe('Timeout 1');
-      expect(asset.metadata.last_delete_attempt_at).toBeDefined();
-      expect(asset.metadata.quarantine).toBe(false);
-
-      const secondResult = asset.recordDeleteFailure('Timeout 2', 3);
-      expect(secondResult).toEqual({ attempts: 2, quarantined: false });
-      expect(asset.metadata.delete_attempts).toBe(2);
-      expect(asset.metadata.quarantine).toBe(false);
-
-      const thirdResult = asset.recordDeleteFailure('Timeout 3', 3);
-      expect(thirdResult).toEqual({ attempts: 3, quarantined: true });
-      expect(asset.metadata.delete_attempts).toBe(3);
+      const fifthResult = asset.recordDeleteFailure('Timeout 5');
+      expect(fifthResult).toEqual({ attempts: 5, quarantined: true });
+      expect(asset.metadata.delete_attempts).toBe(5);
       expect(asset.metadata.quarantine).toBe(true);
       expect(asset.status).toBe(AssetStatus.DELETE_PENDING);
     });
 
-    it('uses fallback error message if empty message is provided in recordDeleteFailure', () => {
+    it('reverts DELETED status to DELETE_PENDING and increments delete_attempts when recordDeleteFailure is called on DELETED', () => {
       const asset = createPendingAsset();
-      asset.markFailed('UPLOAD_FAILED');
+      asset.markFailed(AssetFailureCode.STORAGE_UPLOAD_FAILED);
       asset.markDeletePending();
 
-      asset.recordDeleteFailure('   ', 5);
+      asset.recordDeleteFailure('Initial failure 1');
+      expect(asset.metadata.delete_attempts).toBe(1);
+
+      asset.markDeleted();
+      expect(asset.status).toBe(AssetStatus.DELETED);
+      expect(asset.deletedAt).toBeInstanceOf(Date);
+      expect(asset.metadata.delete_attempts).toBeUndefined();
+
+      const result = asset.recordDeleteFailure('Database connection reset during save');
+
+      expect(result).toEqual({ attempts: 2, quarantined: false });
+      expect(asset.status).toBe(AssetStatus.DELETE_PENDING);
+      expect(asset.deletedAt).toBeNull();
+      expect(asset.metadata.delete_attempts).toBe(2);
+      expect(asset.metadata.last_delete_error).toBe('Database connection reset during save');
+      expect(asset.metadata.quarantine).toBe(false);
+    });
+
+    it('uses fallback error message if empty message is provided in recordDeleteFailure', () => {
+      const asset = createPendingAsset();
+      asset.markFailed(AssetFailureCode.STORAGE_UPLOAD_FAILED);
+      asset.markDeletePending();
+
+      asset.recordDeleteFailure('   ');
       expect(asset.metadata.last_delete_error).toBe('Unknown error');
     });
   });

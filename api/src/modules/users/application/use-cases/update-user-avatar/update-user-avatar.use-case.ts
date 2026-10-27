@@ -1,5 +1,5 @@
 import objectStorageConfig from '@/config/object-storage.config';
-import { AssetPurpose } from '@/modules/assets/domain/enums';
+import { AssetFailureCode, AssetPurpose } from '@/modules/assets/domain/enums';
 import { AssetFactory } from '@/modules/assets/domain/factories';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
 import { AvatarUploadFailedError, UserNotFoundError } from '@/modules/users/application/errors';
@@ -129,7 +129,7 @@ export class UpdateUserAvatarUseCase {
         return;
       }
 
-      const failureCode = error instanceof ObjectStorageError ? error.code : 'OBJECT_STORAGE_UNKNOWN';
+      const failureCode = error instanceof ObjectStorageError ? error.code : AssetFailureCode.STORAGE_UPLOAD_FAILED;
       failedAsset.markFailed(failureCode);
       await this.assetsRepository.save(failedAsset);
     } catch (persistenceError) {

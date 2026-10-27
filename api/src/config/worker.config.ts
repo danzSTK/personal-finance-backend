@@ -23,7 +23,6 @@ export interface WorkerConfig {
     batchSize: number;
     deleteGracePeriodMs: number;
     stalePendingUploadMs: number;
-    maxRetries: number;
   };
   shutdownTimeoutMs: number;
   heartbeat: {
@@ -52,7 +51,6 @@ export default registerAs(
       batchSize: readNumber('ASSET_RECONCILER_BATCH_SIZE', 50),
       deleteGracePeriodMs: readNumber('ASSET_RECONCILER_DELETE_GRACE_PERIOD_MS', 30_000),
       stalePendingUploadMs: readNumber('ASSET_RECONCILER_STALE_PENDING_MS', 7_200_000),
-      maxRetries: readNumber('ASSET_RECONCILER_MAX_RETRIES', 5),
     },
     shutdownTimeoutMs: readNumber('WORKER_SHUTDOWN_TIMEOUT_MS', 30_000),
     heartbeat: {

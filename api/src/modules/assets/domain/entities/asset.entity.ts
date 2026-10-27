@@ -1,3 +1,4 @@
+import { ASSET_MAX_DELETE_ATTEMPTS } from '@/common/models/constants';
 import { AssetPurpose, AssetStatus } from '@/modules/assets/domain/enums';
 import { InvalidAssetError, InvalidAssetStateTransitionError } from '@/modules/assets/domain/errors';
 import { StorageKey } from '@/modules/assets/domain/value-objects';
@@ -44,6 +45,8 @@ export interface MarkAssetReadyProps {
 }
 
 export class Asset {
+  private previousMetadataBeforeDelete: AssetMetadata | null = null;
+
   private constructor(
     private readonly props: AssetProps,
     public readonly id: string,
@@ -163,6 +166,8 @@ export class Asset {
   markDeleted(): void {
     this.ensureStatus(AssetStatus.DELETE_PENDING);
 
+    this.previousMetadataBeforeDelete = { ...this.props.metadata };
+
     const now = new Date();
     const cleanMetadata: AssetMetadata = {};
     if (this.props.metadata.width !== undefined) {
@@ -181,19 +186,27 @@ export class Asset {
     this.props.updatedAt = now;
   }
 
-  recordDeleteFailure(errorMessage: string, maxRetries: number): { attempts: number; quarantined: boolean } {
-    this.ensureStatus(AssetStatus.DELETE_PENDING);
-
-    if (!Number.isSafeInteger(maxRetries) || maxRetries < 1) {
-      throw new InvalidAssetError('Asset max retries must be a positive integer.');
+  recordDeleteFailure(errorMessage: string): { attempts: number; quarantined: boolean } {
+    if (this.props.status !== AssetStatus.DELETE_PENDING && this.props.status !== AssetStatus.DELETED) {
+      throw new InvalidAssetStateTransitionError(
+        `Expected asset status ${AssetStatus.DELETE_PENDING} or ${AssetStatus.DELETED}, received ${this.props.status}.`,
+      );
     }
 
-    const attempts = (this.props.metadata.delete_attempts ?? 0) + 1;
-    const quarantined = attempts >= maxRetries;
+    let baseMetadata = this.props.metadata;
+    if (this.props.status === AssetStatus.DELETED) {
+      baseMetadata = this.previousMetadataBeforeDelete ?? this.props.metadata;
+      this.props.status = AssetStatus.DELETE_PENDING;
+      this.props.deletedAt = null;
+      this.previousMetadataBeforeDelete = null;
+    }
+
+    const attempts = (baseMetadata.delete_attempts ?? 0) + 1;
+    const quarantined = attempts >= ASSET_MAX_DELETE_ATTEMPTS;
     const now = new Date();
 
     this.props.metadata = {
-      ...this.props.metadata,
+      ...baseMetadata,
       delete_attempts: attempts,
       last_delete_error: errorMessage.trim() || 'Unknown error',
       last_delete_attempt_at: now.toISOString(),

@@ -18,7 +18,12 @@ describe('DeleteAvatarAssetUseCase', () => {
     findByIdAndUserId = jest.fn();
     save = jest.fn().mockImplementation(asset => Promise.resolve(asset));
     deleteObject = jest.fn();
-    assetRepository = { findByIdAndUserId, save };
+    assetRepository = {
+      findByIdAndUserId,
+      save,
+      findPendingDeletionBefore: jest.fn(),
+      findStalePendingUploadsBefore: jest.fn(),
+    };
     objectStorage = {
       putObject: jest.fn(),
       deleteObject,

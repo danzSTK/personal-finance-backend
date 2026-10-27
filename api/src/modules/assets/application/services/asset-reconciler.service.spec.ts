@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import type { WorkerConfig } from '@/config/worker.config';
 import { Asset, AssetProps } from '@/modules/assets/domain/entities/asset.entity';
-import { AssetPurpose, AssetStatus } from '@/modules/assets/domain/enums';
+import { AssetFailureCode, AssetPurpose, AssetStatus } from '@/modules/assets/domain/enums';
 import { AssetStorageKeyFactory } from '@/modules/assets/domain/factories';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
 import { AssetReconcilerService } from '@/modules/assets/application/services/asset-reconciler.service';
@@ -49,7 +49,6 @@ describe('AssetReconcilerService', () => {
         batchSize: 50,
         deleteGracePeriodMs: 30000,
         stalePendingUploadMs: 7200000,
-        maxRetries: 5,
       },
       shutdownTimeoutMs: 30000,
       heartbeat: {
@@ -195,7 +194,7 @@ describe('AssetReconcilerService', () => {
       expect(asset2.status).toBe(AssetStatus.DELETED);
     });
 
-    it('catches and logs save failure when marking DELETED without invoking recordDeleteFailure and continues batch (DEC-007)', async () => {
+    it('catches save failure after deleteObject, reverts DELETED status to DELETE_PENDING, records failure retry and continues batch (DEC-007)', async () => {
       const asset1 = createTestAsset({ status: AssetStatus.DELETE_PENDING }, 'asset-1');
       const asset2 = createTestAsset({ status: AssetStatus.DELETE_PENDING }, 'asset-2');
       mockAssetRepository.findPendingDeletionBefore.mockResolvedValueOnce([asset1, asset2]);
@@ -204,9 +203,10 @@ describe('AssetReconcilerService', () => {
 
       mockAssetRepository.save
         .mockRejectedValueOnce(new Error('Postgres connection terminated'))
+        .mockResolvedValueOnce(asset1)
         .mockResolvedValueOnce(asset2);
 
-      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
       const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
 
       await service.reconcile();
@@ -215,11 +215,13 @@ describe('AssetReconcilerService', () => {
         bucket: asset1.bucket,
         key: asset1.storageKey,
       });
-      expect(asset1.status).toBe(AssetStatus.DELETED);
-      expect(recordDeleteFailureSpy).not.toHaveBeenCalled();
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to mark asset as DELETED in database after physical deletion. assetId=asset-1'),
-        expect.any(String),
+      expect(recordDeleteFailureSpy).toHaveBeenCalledWith('Postgres connection terminated');
+      expect(asset1.status).toBe(AssetStatus.DELETE_PENDING);
+      expect(asset1.deletedAt).toBeNull();
+      expect(asset1.metadata.delete_attempts).toBe(1);
+      expect(asset1.metadata.quarantine).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to delete asset from object storage; scheduled for retry. assetId=asset-1'),
       );
 
       expect(asset2.status).toBe(AssetStatus.DELETED);
@@ -267,7 +269,7 @@ describe('AssetReconcilerService', () => {
         mockConfig.assetReconciliation.batchSize,
       );
       expect(staleAsset.status).toBe(AssetStatus.FAILED);
-      expect(staleAsset.failureCode).toBe('UPLOAD_TIMEOUT');
+      expect(staleAsset.failureCode).toBe(AssetFailureCode.UPLOAD_TIMEOUT);
       expect(mockAssetRepository.save).toHaveBeenCalledWith(staleAsset);
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Stale pending upload expired to FAILED'));
     });

@@ -1,4 +1,5 @@
 import workerConfig from '@/config/worker.config';
+import { AssetFailureCode } from '@/modules/assets/domain/enums';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
 import { IObjectStorage } from '@/shared/object-storage/contracts/object-storage.interface';
 import { BeforeApplicationShutdown, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
@@ -63,20 +64,17 @@ export class AssetReconcilerService implements OnModuleInit, BeforeApplicationSh
       if (this.isDraining) {
         break;
       }
-      let physicallyDeleted = false;
-
       try {
         await this.objectStorage.deleteObject({
           bucket: asset.bucket,
           key: asset.storageKey,
         });
-        physicallyDeleted = true;
+        asset.markDeleted();
+        await this.assetRepository.save(asset);
+        this.logger.log(`Physical asset deleted and marked DELETED. assetId=${asset.id}`);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        const { attempts, quarantined } = asset.recordDeleteFailure(
-          errorMessage,
-          this.config.assetReconciliation.maxRetries,
-        );
+        const { attempts, quarantined } = asset.recordDeleteFailure(errorMessage);
 
         try {
           await this.assetRepository.save(asset);
@@ -98,19 +96,6 @@ export class AssetReconcilerService implements OnModuleInit, BeforeApplicationSh
           );
         }
       }
-
-      if (physicallyDeleted) {
-        try {
-          asset.markDeleted();
-          await this.assetRepository.save(asset);
-          this.logger.log(`Physical asset deleted and marked DELETED. assetId=${asset.id}`);
-        } catch (dbError) {
-          this.logger.error(
-            `Failed to mark asset as DELETED in database after physical deletion. assetId=${asset.id}`,
-            dbError instanceof Error ? dbError.stack : String(dbError),
-          );
-        }
-      }
     }
   }
 
@@ -127,7 +112,7 @@ export class AssetReconcilerService implements OnModuleInit, BeforeApplicationSh
       }
 
       try {
-        asset.markFailed('UPLOAD_TIMEOUT');
+        asset.markFailed(AssetFailureCode.UPLOAD_TIMEOUT);
         await this.assetRepository.save(asset);
         this.logger.log(`Stale pending upload expired to FAILED. assetId=${asset.id}`);
       } catch (error) {
