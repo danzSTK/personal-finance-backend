@@ -63,16 +63,15 @@ Atualmente, `DELETE_PENDING` só avança para `DELETED` por meio do fluxo síncr
 - **WHEN** a chamada ao R2 falhar para um asset específico no lote,
 - **THE SYSTEM SHALL** capturar a exceção individualmente, registrar os metadados de erro no asset e continuar processando os demais itens do lote.
 
-### 4. Limite de Tentativas e Quarentena
-- **WHEN** a exclusão física falhar por erro de rede ou instabilidade do R2 (5xx/Timeout),
-- **THE SYSTEM SHALL** incrementar `metadata.delete_attempts` e atualizar `updated_at = now()`.
-- **IF** `metadata.delete_attempts >= 5`,
-- **THEN** o sistema marca `metadata.quarantine = true`, emite log estruturado de nível `ERROR` (`[ASSET_DELETE_QUARANTINED]`) e exclui o asset de novos ciclos automáticos.
+### 4. Limite de Tentativas e Quarentena (Constante de Domínio)
+- **WHEN** a exclusão física no R2 ou a consolidação do status `DELETED` no banco falhar,
+- **THE SYSTEM SHALL** incrementar `metadata.delete_attempts` na própria entidade `Asset` e atualizar `updated_at = now()`.
+- **IF** `metadata.delete_attempts >= ASSET_MAX_DELETE_ATTEMPTS` (`5`, constante centralizada de domínio),
+- **THEN** a entidade marca `metadata.quarantine = true`, o serviço emite log estruturado de nível `ERROR` (`[ASSET_DELETE_QUARANTINED]`) e exclui o asset de novos ciclos automáticos (evitando loops infinitos tanto em falha do R2 quanto em falha de persistência de `DELETED`).
 
 ### 5. Expiração de Uploads Abandonados
 - **WHEN** um asset permanecer em `PENDING_UPLOAD` por mais de 2 horas (`updated_at < NOW() - INTERVAL '2 hours'`),
-- **THE SYSTEM SHALL** transicionar o status para `FAILED` com `failure_code: 'UPLOAD_TIMEOUT'`.
-
+- **THE SYSTEM SHALL** transicionar o status para `FAILED` com `failure_code: AssetFailureCode.UPLOAD_TIMEOUT` (sem magic strings).
 ### 6. Desligamento Seguro (*Graceful Shutdown*)
 - **WHEN** o processo Worker receber sinal de encerramento (`SIGTERM` / `SIGINT`),
 - **THE SYSTEM SHALL** sinalizar `isDraining = true`, limpar o timer do intervalo e aguardar a conclusão do batch atualmente em execução antes de encerrar.

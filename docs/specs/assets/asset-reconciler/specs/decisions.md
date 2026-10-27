@@ -102,15 +102,31 @@ Transações de banco duram poucos milissegundos e chamadas ao R2 ocorrem fora d
 
 ---
 
-## DEC-007 - Isolamento de `try/catch` entre exclusão no R2 e persistência de `DELETED`
+## DEC-007 - Reversão em memória e quarentena quando `save(DELETED)` falha após exclusão no R2
 
 Status: accepted
 
 Decision:
-Separar o bloco `try/catch` da chamada `objectStorage.deleteObject()` do bloco `try/catch` que executa `asset.markDeleted()` e `assetRepository.save(asset)`.
+Em `Asset.markDeleted()`, preservar uma cópia privada dos metadados anteriores (`previousMetadataBeforeDelete`). Caso `assetRepository.save(asset)` lance erro após `markDeleted()`, `Asset.recordDeleteFailure(errorMessage)` aceita reverter o status em memória de `DELETED` de volta para `DELETE_PENDING` (`deletedAt = null`), restaurando `previousMetadataBeforeDelete`, incrementando `delete_attempts` e aplicando quarentena na 5ª falha.
 
 Reason:
-Se `deleteObject()` tiver sucesso, `asset.markDeleted()` altera o status da entidade em memória para `DELETED`. Caso `assetRepository.save(asset)` lance uma exceção de banco no mesmo bloco `try`, o `catch` invocaria `asset.recordDeleteFailure()`, que exige `status === DELETE_PENDING` e lançaria `InvalidAssetStateTransitionError` não tratado, abortando todo o restante do lote. Além disso, uma falha de banco após o objeto já ter sido removido do R2 não deve ser contabilizada como falha de comunicação com o R2 rumo à quarentena.
+Se `deleteObject()` funcionar no R2 mas o `save(DELETED)` falhar repetidamente para um registro específico (ex.: falha de persistência ao gravar o estado final), apenas logar o erro deixaria o registro em `DELETE_PENDING` com `quarantine = false` para sempre, gerando um loop infinito a cada ciclo. Além disso, como `markDeleted()` limpa `delete_attempts` do `metadata`, sem preservar `previousMetadataBeforeDelete` a contagem reiniciaria em `1` a cada tentativa.
 
 Impact:
-Preserva o isolamento de falhas do lote mesmo diante de instabilidades do PostgreSQL após a exclusão no R2.
+Impede tanto o crash por `InvalidAssetStateTransitionError` quanto qualquer loop infinito caso a persistência de `DELETED` falhe repetidamente.
+
+---
+
+## DEC-008 - Centralização de `ASSET_MAX_DELETE_ATTEMPTS` e `AssetFailureCode` no Domínio
+
+Status: accepted
+
+Decision:
+1. Definir `ASSET_MAX_DELETE_ATTEMPTS = 5` em `api/src/common/models/constants/asset.constants.ts` e consumi-la diretamente dentro de `Asset.recordDeleteFailure(errorMessage: string)`, removendo o parâmetro `maxRetries` e a variável de ambiente `ASSET_RECONCILER_MAX_RETRIES`.
+2. Criar o enum `AssetFailureCode` (`STORAGE_UPLOAD_FAILED`, `UPLOAD_TIMEOUT`) em `api/src/modules/assets/domain/enums/asset-failure-code.enum.ts`, eliminando magic strings.
+
+Reason:
+Em DDD, o limite de tentativas antes da quarentena é uma invariante da própria entidade `Asset`, que deve saber se autogovernar sem depender de parâmetros de infraestrutura passados por fora. Da mesma forma, códigos de falha fazem parte do vocabulário do domínio e não devem ser magic strings espalhadas pelos serviços.
+
+Impact:
+Assinatura de domínio mais limpa (`asset.recordDeleteFailure(errorMessage)`), menos variáveis de ambiente desnecessárias e tipagem forte para códigos de falha.

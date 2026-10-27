@@ -21,14 +21,18 @@ O serviço de reconciliação reside no módulo `assets`, desacoplado de qualque
 
 ```text
 api/src/
+├── common/models/constants/
+│   └── asset.constants.ts                  # Constante centralizada ASSET_MAX_DELETE_ATTEMPTS = 5
 ├── config/
 │   ├── config.module.ts                    # Validação Joi das variáveis ASSET_RECONCILER_*
-│   └── worker.config.ts                    # Variáveis de intervalo, batch size, grace period e retries
+│   └── worker.config.ts                    # Variáveis de intervalo, batch size, grace period e stale timeout
 ├── modules/assets/
 │   ├── assets-worker.module.ts             # Módulo exclusivo do Worker (evita rodar poller na API)
 │   ├── domain/
+│   │   ├── enums/
+│   │   │   └── asset-failure-code.enum.ts  # Enum AssetFailureCode (STORAGE_UPLOAD_FAILED, UPLOAD_TIMEOUT)
 │   │   ├── entities/
-│   │   │   └── asset.entity.ts             # Método de domínio recordDeleteFailure e limpeza em markDeleted
+│   │   │   └── asset.entity.ts             # Método recordDeleteFailure(errorMessage) usando ASSET_MAX_DELETE_ATTEMPTS
 │   │   └── repositories/
 │   │       └── asset.repository.interface.ts # Port: findPendingDeletionBefore, findStalePendingUploadsBefore
 │   ├── infrastructure/
@@ -141,13 +145,12 @@ export class AssetReconcilerService implements OnModuleInit, BeforeApplicationSh
    - Calcula `cutoff = now() - gracePeriodMs` (30s).
    - Busca até `batchSize` assets.
    - Itera sequencialmente sobre cada asset:
-     - Tenta `objectStorage.deleteObject({ bucket: asset.bucket, key: asset.storageKey })` em um bloco `try/catch` dedicado exclusivamente ao I/O do storage.
-     - Se o `deleteObject` falhar (5xx/timeout): chama `asset.recordDeleteFailure(...)` (enquanto o status ainda é `DELETE_PENDING`), incrementa `metadata.delete_attempts`, atualiza `updated_at = now()`, aplica quarentena se atingir `maxRetries` e salva o asset.
-     - Se o `deleteObject` tiver sucesso (ou 404): em um bloco `try/catch` separado para persistência, executa `asset.markDeleted()` e salva via repositório. Se o `save` falhar no banco após a deleção no R2, apenas registra log de erro sem chamar `recordDeleteFailure` (pois o status em memória já é `DELETED` e no próximo ciclo o `deleteObject` idempotente concluirá a transição).
+     - No `try`: chama `objectStorage.deleteObject({ bucket: asset.bucket, key: asset.storageKey })`, executa `asset.markDeleted()` (que preserva em memória os metadados anteriores em `previousMetadataBeforeDelete`) e salva `assetRepository.save(asset)`.
+     - No `catch (error)`: tanto se falhar no R2 quanto se falhar ao persistir `DELETED` no banco, chama `asset.recordDeleteFailure(errorMessage)`. Se `markDeleted()` já havia sido chamado em memória antes do erro de banco, `recordDeleteFailure` reverte a entidade em memória para `DELETE_PENDING` (`deletedAt = null`), restaura `previousMetadataBeforeDelete`, incrementa `delete_attempts` até `ASSET_MAX_DELETE_ATTEMPTS` (`5`), aplica `quarantine = true` ao atingir o teto e persiste o retry/quarentena no banco, impedindo loops infinitos.
 4. Executa `reconcileStalePendingUploads()`:
    - Calcula `staleCutoff = now() - staleUploadMs` (2h).
    - Busca até `batchSize` assets em `PENDING_UPLOAD`.
-   - Para cada um: `asset.markFailed('UPLOAD_TIMEOUT')`, salva no repositório.
+   - Para cada um: `asset.markFailed(AssetFailureCode.UPLOAD_TIMEOUT)`, salva no repositório.
 5. Bloco `finally`: define `isRunning = false`.
 
 ---
@@ -160,7 +163,6 @@ assetReconciliation: {
   batchSize: Number(process.env.ASSET_RECONCILER_BATCH_SIZE ?? 50),
   deleteGracePeriodMs: Number(process.env.ASSET_RECONCILER_DELETE_GRACE_PERIOD_MS ?? 30000),
   stalePendingUploadMs: Number(process.env.ASSET_RECONCILER_STALE_PENDING_MS ?? 7200000),
-  maxRetries: Number(process.env.ASSET_RECONCILER_MAX_RETRIES ?? 5),
 }
 ```
 
