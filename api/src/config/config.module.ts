@@ -245,6 +245,10 @@ export const getEmailVerificationConfigInvariantError = (value: Record<string, u
         EMAIL_ENQUEUE_RECONCILE_INTERVAL_MS: Joi.number().integer().min(1000).default(30000),
         EMAIL_ENQUEUE_RECONCILE_BATCH_SIZE: Joi.number().integer().min(1).default(100),
         EMAIL_ENQUEUE_STALE_AFTER_MS: Joi.number().integer().min(0).default(30000),
+        ASSET_RECONCILER_INTERVAL_MS: Joi.number().integer().min(1000).default(60000),
+        ASSET_RECONCILER_BATCH_SIZE: Joi.number().integer().min(1).default(50),
+        ASSET_RECONCILER_DELETE_GRACE_PERIOD_MS: Joi.number().integer().min(0).default(30000),
+        ASSET_RECONCILER_STALE_PENDING_MS: Joi.number().integer().min(1000).default(7200000),
         WORKER_HEARTBEAT_INTERVAL_MS: Joi.number().integer().min(1000).default(10000),
         WORKER_HEARTBEAT_TTL_MS: Joi.number().integer().min(2000).default(30000),
 

@@ -1,0 +1,1 @@
+export const ASSET_MAX_DELETE_ATTEMPTS = 5;

@@ -22,6 +22,8 @@ describe('GetUserProfileUseCase', () => {
     assetRepository = {
       findByIdAndUserId: findAssetByIdAndUserId,
       save: jest.fn(),
+      findPendingDeletionBefore: jest.fn(),
+      findStalePendingUploadsBefore: jest.fn(),
     };
 
     objectStorage = {

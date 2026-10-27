@@ -30,6 +30,12 @@ describe('OutboxProcessorService', () => {
       leaseRenewIntervalMs: 100,
     },
     emailReconciliation: { intervalMs: 30_000, batchSize: 100, staleAfterMs: 30_000 },
+    assetReconciliation: {
+      intervalMs: 60_000,
+      batchSize: 50,
+      deleteGracePeriodMs: 30_000,
+      stalePendingUploadMs: 7_200_000,
+    },
     shutdownTimeoutMs: 1_000,
     heartbeat: { intervalMs: 10_000, ttlMs: 30_000 },
   };
