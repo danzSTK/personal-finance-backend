@@ -43,7 +43,7 @@ WHERE "status" IN ('PENDING_UPLOAD', 'DELETE_PENDING', 'FAILED');
    LIMIT 50
    FOR UPDATE SKIP LOCKED;
    ```
-   *Nota:* O `SKIP LOCKED` permite que, em uma eventual topologia com múltiplos containers de worker, cada container processe um lote distinto sem bloquear os demais nem duplicar chamadas ao R2.
+   *Nota:* Na transação curta de claim, os registros selecionados recebem `updated_at = now()` antes do `COMMIT` para liberar o lock do banco imediatamente antes do I/O no R2.
 3. **Desalocação Idempotente:** Para cada asset selecionado, chama `IObjectStorage.deleteObject({ bucket: asset.bucket, key: asset.storageKey })`.
 4. **Resolução de Sucesso:**
    - Se o objeto foi excluído com sucesso ou se o R2 retornou que o arquivo não existe mais (404 / `NotFound`), a remoção é considerada concluída.
@@ -93,3 +93,15 @@ Isso geraria:
 | Objeto deletado manualmente no R2 | Nenhum | O adapter trata 404 como sucesso idempotente e transiciona para `DELETED` |
 | Queda repentina do container Worker | Nenhum | Graças ao `SKIP LOCKED`, o lock é liberado pelo PostgreSQL; o próximo ciclo ou container retoma os itens pendentes |
 | Chave de acesso do R2 revogada | Alerta após 5 tentativas | Os assets entram em quarentena (`quarantine = true`) sem travar a CPU do worker nem inundar os logs |
+
+---
+
+## 4. Dívida Técnica — Escala Horizontal de Workers (Lease Explícito)
+
+Na implementação atual (pensada para 1 instância de Worker), a reserva do lote durante a transação curta de claim é feita atualizando `updated_at = now()`, apoiando-se na janela de carência (`ASSET_RECONCILER_DELETE_GRACE_PERIOD_MS = 30s`).
+
+- **Limitação sob múltiplos containers de Worker:** Esses 30 segundos funcionam como um *lease implícito* para o lote inteiro de 50 itens. Se a execução sequencial das 50 chamadas ao Cloudflare R2 ultrapassar 30 segundos (por exemplo, sob alta latência de rede), os últimos itens do lote ainda não atualizados para `DELETED` voltarão a ter `updated_at < now() - 30s` e poderão ser selecionados concorrentemente por um segundo container de Worker.
+- **Por que é seguro hoje:** A topologia atual roda com 1 único container de Worker (protegido contra sobreposição por `isRunning`) e `deleteObject` é idempotente.
+- **Evolução necessária para escala horizontal:** Antes de escalar horizontalmente para múltiplos containers de Worker, deve-se adotar o mesmo padrão de *lease explícito* utilizado em `outbox_messages`:
+  1. Separar a idade do registro do controle de concorrência adicionando `locked_by` e `locked_until` (ou controle equivalente);
+  2. Renovar periodicamente o lease (`leaseRenewIntervalMs`) enquanto o Worker estiver processando o lote.

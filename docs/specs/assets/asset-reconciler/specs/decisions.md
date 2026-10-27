@@ -100,6 +100,9 @@ O PostgreSQL exige uma transação aberta para `FOR UPDATE SKIP LOCKED`, mas man
 Impact:
 Transações de banco duram poucos milissegundos e chamadas ao R2 ocorrem fora de lock transacional.
 
+Technical Debt (Escala Horizontal):
+Como `updated_at = NOW()` utiliza o grace period de 30s como lease implícito para todo o lote de 50 itens, se o processamento do lote no R2 exceder 30s em um cenário futuro com múltiplos containers de Worker, os itens finais do lote poderiam ser selecionados por outro Worker. Para escala horizontal futura de Workers, deve-se evoluir para um mecanismo explícito de lease (`locked_by`, `locked_until` e heartbeat de renovação) análogo ao de `outbox_messages`.
+
 ---
 
 ## DEC-007 - Reversão em memória e quarentena quando `save(DELETED)` falha após exclusão no R2
