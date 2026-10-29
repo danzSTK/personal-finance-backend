@@ -705,6 +705,7 @@ Usada por:
 - `trg_accounts_updated_at`
 - `trg_categories_updated_at`
 - `trg_transactions_updated_at`
+- `trg_transaction_attachments_updated_at`
 - `trg_assets_updated_at`
 - `trg_email_messages_updated_at`
 - `trg_outbox_messages_updated_at`

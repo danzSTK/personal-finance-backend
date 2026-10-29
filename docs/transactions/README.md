@@ -26,6 +26,7 @@ O módulo atual cobre criação, listagem, busca por id, atualização, confirma
 - [Transaction date](./concepts/transaction-date.md)
 - [Transaction amount](./concepts/transaction-amount.md)
 - [Transaction deletion](./concepts/transaction-deletion.md)
+- [Transaction attachment (Galeria)](./concepts/transaction-attachment.md)
 
 ### Fluxos
 
@@ -34,6 +35,8 @@ O módulo atual cobre criação, listagem, busca por id, atualização, confirma
 - [Delete transaction](./flows/delete-transaction.md)
 - [Confirm pending transaction](./flows/confirm-pending-transaction.md)
 - [Balance adjustment](./flows/balance-adjustment.md)
+- [Add transaction attachments (Upload e Otimização)](./flows/add-transaction-attachment.md)
+- [Delete transaction attachments (Individual e em Cascata)](./flows/delete-transaction-attachment.md)
 
 ### Decisões
 
@@ -42,6 +45,8 @@ O módulo atual cobre criação, listagem, busca por id, atualização, confirma
 - [Transfers are neutral](./decisions/transfers-are-neutral.md)
 - [Adjustments are technical transactions](./decisions/adjustments-are-technical-transactions.md)
 - [Transactions can be deleted](./decisions/transactions-can-be-deleted.md)
+- [Private bucket and Presigned URLs](./decisions/private-bucket-and-presigned-urls.md)
+- [Attachment limits and types](./decisions/attachment-limits-and-types.md)
 
 ### Referência
 

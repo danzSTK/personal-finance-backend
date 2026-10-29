@@ -18,7 +18,7 @@ import {
 @Index('idx_assets_status_updated_at', ['status', 'updatedAt'], {
   where: `"status" IN ('PENDING_UPLOAD', 'DELETE_PENDING', 'FAILED')`,
 })
-@Check('CHK_assets_purpose', `"purpose" IN ('USER_AVATAR')`)
+@Check('CHK_assets_purpose', `"purpose" IN ('USER_AVATAR', 'TRANSACTION_ATTACHMENT')`)
 @Check('CHK_assets_status', `"status" IN ('PENDING_UPLOAD', 'READY', 'DELETE_PENDING', 'DELETED', 'FAILED')`)
 @Check('CHK_assets_bucket_not_empty', `length(btrim("bucket")) > 0`)
 @Check('CHK_assets_storage_key', `length(btrim("storage_key")) > 0 AND left("storage_key", 1) <> '/'`)

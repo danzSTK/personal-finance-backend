@@ -29,6 +29,8 @@ describe('AssetReconcilerService', () => {
       deleteObject: jest.fn().mockResolvedValue(undefined),
       headObject: jest.fn(),
       buildPublicUrl: jest.fn(),
+      buildSignedReadUrl: jest.fn(),
+      getObject: jest.fn(),
     };
 
     mockConfig = {

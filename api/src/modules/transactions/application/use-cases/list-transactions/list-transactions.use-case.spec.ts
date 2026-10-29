@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { TRANSACTION_LIST_DEFAULT_LIMIT, TRANSACTION_LIST_DEFAULT_PAGE } from '@/common/models/constants';
 import { TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
 import { DateOnlyString } from '@/common/utils/date-only';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
+import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
 import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ListTransactionsUseCase } from './list-transactions.use-case';
@@ -12,7 +14,7 @@ describe('ListTransactionsUseCase', () => {
   const categoryId = '4d8d1ac9-6ce7-4d51-8899-6e9dfd430952';
   let useCase: ListTransactionsUseCase;
   let transactionRepository: jest.Mocked<Pick<ITransactionRepository, 'list'>>;
-
+  let attachmentRepository: jest.Mocked<Pick<ITransactionAttachmentRepository, 'countActiveByTransactionIds'>>;
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -20,12 +22,19 @@ describe('ListTransactionsUseCase', () => {
       list: jest.fn(),
     };
 
+    attachmentRepository = {
+      countActiveByTransactionIds: jest.fn().mockResolvedValue(new Map()),
+    };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ListTransactionsUseCase,
         {
           provide: ITransactionRepository,
           useValue: transactionRepository,
+        },
+        {
+          provide: ITransactionAttachmentRepository,
+          useValue: attachmentRepository,
         },
       ],
     }).compile();
@@ -98,6 +107,26 @@ describe('ListTransactionsUseCase', () => {
           },
         },
       });
+    });
+
+    it('populates attachmentsCount on returned transaction items', async () => {
+      const tx = createTransaction();
+      tx.setAttachmentsCount = jest.fn();
+      transactionRepository.list.mockResolvedValue({
+        items: [tx],
+        total: 1,
+        summary: {
+          pendingCents: 0,
+          effectiveCents: 1000,
+          totalCents: 1000,
+        },
+      });
+      attachmentRepository.countActiveByTransactionIds.mockResolvedValue(new Map([[tx.id, 2]]));
+
+      await useCase.execute({ userId, page: 1, limit: 10 });
+
+      expect(attachmentRepository.countActiveByTransactionIds).toHaveBeenCalledWith([tx.id]);
+      expect(tx.setAttachmentsCount).toHaveBeenCalledWith(2);
     });
 
     it('passes filters, pagination and explicit sort to the repository', async () => {

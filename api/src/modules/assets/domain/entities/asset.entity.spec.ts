@@ -35,6 +35,29 @@ describe('Asset', () => {
       expect(asset.metadata).toEqual({ width: 512, height: 512, format: 'webp' });
     });
 
+    it('applies optimization to a ready asset', () => {
+      const asset = createPendingAsset();
+      asset.markReady({
+        contentType: 'image/jpeg',
+        sizeBytes: 2048,
+        checksum: 'a'.repeat(64),
+        metadata: { width: 1024, height: 1024, format: 'jpeg' },
+      });
+
+      asset.applyOptimization({
+        contentType: 'image/webp',
+        sizeBytes: 1024,
+        checksum: 'b'.repeat(64),
+        metadata: { width: 1024, height: 1024, format: 'webp' },
+      });
+
+      expect(asset.status).toBe(AssetStatus.READY);
+      expect(asset.contentType).toBe('image/webp');
+      expect(asset.sizeBytes).toBe(1024);
+      expect(asset.checksum).toBe('b'.repeat(64));
+      expect(asset.metadata).toEqual({ width: 1024, height: 1024, format: 'webp' });
+    });
+
     it('rejects deleting an asset before it is ready or failed', () => {
       const asset = createPendingAsset();
 
