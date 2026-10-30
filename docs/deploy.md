@@ -4,8 +4,8 @@ type: runbook
 status: current
 last_reviewed: 2026-07-23
 related:
-  - ./platform/continuous-delivery.md
-  - ./platform/worker-operations.md
+  - ./platform/ci-cd/README.md
+  - ./platform/workers/README.md
   - ./configuration.md
 ---
 
@@ -13,7 +13,7 @@ related:
 
 ## Visão Geral
 
-Este guia descreve a arquitetura e os requisitos operacionais do host de produção. A implantação da aplicação é automatizada pelo GitHub Actions e pelo executor restrito instalado na VPS; o fluxo completo está em [Releases e entrega contínua](./platform/continuous-delivery.md).
+Este guia descreve a arquitetura e os requisitos operacionais do host de produção. A implantação da aplicação é automatizada pelo GitHub Actions e pelo executor restrito instalado na VPS; o fluxo completo está em [Releases e entrega contínua](./platform/ci-cd/README.md).
 
 > **⚠️ Pré-requisitos de conhecimento**
 >
@@ -361,7 +361,7 @@ O worker não abre endpoint HTTP. O Compose executa dentro do container:
 npm run health:worker
 ```
 
-O comando verifica PostgreSQL, os dois Redis e o heartbeat da instância, retornando código diferente de zero em falha. O runbook com consultas e alertas está em [Worker operations](./platform/worker-operations.md).
+O comando verifica PostgreSQL, os dois Redis e o heartbeat da instância, retornando código diferente de zero em falha. O runbook com consultas e alertas está em [Worker operations](./platform/workers/README.md).
 
 ## 8. Rollout E Rollback
 

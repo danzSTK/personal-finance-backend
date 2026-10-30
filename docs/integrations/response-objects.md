@@ -3,7 +3,7 @@ area: integrations
 type: contract
 status: current
 related:
-  - ../platform/response-objects.md
+  - ../platform/response-objects/README.md
 ---
 
 # Response Objects

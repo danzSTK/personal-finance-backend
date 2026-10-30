@@ -7,8 +7,7 @@ related:
   - ./specs/platform/api-worker-separation/specs/design.md
   - ./specs/platform/api-worker-separation/specs/decisions.md
   - ./events/README.md
-  - ./platform/queue-infrastructure.md
-  - ./platform/worker-operations.md
+  - ./platform/workers/README.md
   - ./database/schema.md
 ---
 
@@ -547,7 +546,7 @@ Se o commit no PostgreSQL ocorrer e o enqueue falhar, o reconciliador do worker 
 
 Isso garante recuperação da intenção, mas não promete exactly-once no provider externo. Se o provider aceitar o e-mail e o processo morrer antes de persistir `SENT`, um retry pode repetir o envio.
 
-Detalhes operacionais estão em [Queue Infrastructure](./platform/queue-infrastructure.md) e [Worker Operations](./platform/worker-operations.md).
+Detalhes operacionais estão em [Workers e Filas](./platform/workers/README.md).
 
 ## Assets e Cloudflare R2
 
@@ -658,7 +657,7 @@ Dinheiro não usa `number` para cálculos financeiros arbitrários. No contrato 
 
 Nunca converta `DateOnly` para `Date` nem use `toISOString().slice(0, 10)`.
 
-Leia [Datas e Instantes](./platform/dates-and-times.md).
+Leia [Datas e Instantes](./platform/dates-and-times/README.md).
 
 ## Tratamento de erros
 
@@ -883,8 +882,7 @@ Essas decisões reduzem complexidade operacional na v0 e preservam caminhos clar
 
 - [Database Schema](./database/schema.md)
 - [Events](./events/README.md)
-- [Queue Infrastructure](./platform/queue-infrastructure.md)
-- [Worker Operations](./platform/worker-operations.md)
+- [Workers e Filas](./platform/workers/README.md)
 - [Assets](./assets/README.md)
 - [Object Storage](./storage/README.md)
 - [Auth](./auth/README.md)
