@@ -18,7 +18,7 @@ export class AddTransactionAttachmentsAndExpandAssetPurpose1788000000000 impleme
         CONSTRAINT "UQ_transaction_attachments_transaction_asset"
           UNIQUE ("transaction_id", "asset_id"),
         CONSTRAINT "UQ_transaction_attachments_transaction_position"
-          UNIQUE ("transaction_id", "position"),
+          UNIQUE ("transaction_id", "position") DEFERRABLE INITIALLY DEFERRED,
         CONSTRAINT "CHK_transaction_attachments_position"
           CHECK ("position" >= 0 AND "position" <= 2)
       )

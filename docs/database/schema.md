@@ -487,7 +487,7 @@ Representa a associação da galeria entre uma transação financeira e os asset
 | `FK_transaction_attachments_transaction` | foreign key | `transaction_id -> transactions.id ON DELETE CASCADE` | Remove a associação da galeria se a transação for fisicamente expurgada. |
 | `FK_transaction_attachments_asset` | foreign key | `asset_id -> assets.id ON DELETE RESTRICT` | Impede exclusão física do asset enquanto estiver referenciado. |
 | `UQ_transaction_attachments_transaction_asset` | unique | `(transaction_id, asset_id)` | Impede vincular o mesmo asset duas vezes à mesma transação. |
-| `UQ_transaction_attachments_transaction_position` | unique | `(transaction_id, position)` | Impede colisões de ordem na galeria. |
+| `UQ_transaction_attachments_transaction_position` | unique | `(transaction_id, position) DEFERRABLE INITIALLY DEFERRED` | Impede colisões de ordem na galeria e permite troca atômica de posições. |
 | `CHK_transaction_attachments_position` | check | `position >= 0 AND position <= 2` | Limita a galeria a até 3 anexos por transação. |
 
 ### Índices
