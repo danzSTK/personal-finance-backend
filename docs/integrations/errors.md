@@ -156,6 +156,13 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | `TRANSACTION_INVALID_STATE_TRANSITION` |  `409` | Transição de estado inválida, como confirmar estado incompatível |
 | `TRANSACTION_NOT_FOUND`                |  `404` | Transaction não existe, foi deletada ou não pertence ao usuário  |
 | `TRANSACTION_UPDATE_EMPTY`             |  `409` | PATCH não trouxe nenhum campo editável                           |
+| `TRANSACTION_TYPE_DOES_NOT_SUPPORT_ATTACHMENTS` | `409` | Tipo de transação (TRANSFER ou ADJUSTMENT) não aceita anexos |
+| `TRANSACTION_ATTACHMENT_LIMIT_EXCEEDED`         | `409` | Transação atingiu o teto máximo de 3 anexos ativos           |
+| `TRANSACTION_ATTACHMENT_NOT_FOUND`              | `404` | Anexo não existe ou não pertence a esta transação            |
+| `INVALID_ATTACHMENT_POSITION`                   | `400` | Reordenação enviou posições fora de 0..N-1 ou duplicadas     |
+| `UNSUPPORTED_ATTACHMENT_FILE`                   | `415` | Formato real não é PNG, JPEG ou WebP                         |
+| `ATTACHMENT_FILE_TOO_LARGE`                     | `413` | Arquivo do anexo excede o limite máximo de 5 MB              |
+| `ATTACHMENT_DIMENSIONS_EXCEEDED`                | `422` | Resolução da imagem excede o teto de 60 Megapixels           |
 
 ## Regras Para O Frontend
 

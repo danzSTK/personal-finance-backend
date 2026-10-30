@@ -29,7 +29,10 @@ O `userId` sempre vem da sessão autenticada. O frontend nunca deve enviar `user
 - [Update transaction](./update-transaction.md)
 - [Confirm transaction](./confirm-transaction.md)
 - [Delete transaction](./delete-transaction.md)
-
+- [List transaction attachments (Galeria)](./list-transaction-attachments.md)
+- [Add transaction attachments](./add-transaction-attachments.md)
+- [Delete transaction attachment](./delete-transaction-attachment.md)
+- [Reorder transaction attachments](./reorder-transaction-attachments.md)
 ## Modelo De Resposta
 
 ```json
@@ -45,6 +48,7 @@ O `userId` sempre vem da sessão autenticada. O frontend nunca deve enviar `user
   "effectiveAt": "2026-06-23T12:00:00.000Z",
   "description": "Mercado",
   "direction": null,
+  "attachmentsCount": 0,
   "createdAt": "2026-06-23T12:00:00.000Z",
   "updatedAt": "2026-06-23T12:00:00.000Z"
 }
@@ -95,3 +99,13 @@ Para outros types, `direction` deve ser omitido.
 Após mutations que retornam body, atualize o cache local com o response.
 
 Após `DELETE /transactions/:id`, remova a transaction da lista local ou recarregue `GET /transactions`.
+
+## Comprovantes e Anexos (Galeria)
+
+Transações dos tipos `INCOME` e `EXPENSE` podem conter até 3 comprovantes associados (imagens PNG, JPEG ou WebP de até 5 MB).
+
+- **Na listagem e no detalhe (`GET /transactions` e `GET /transactions/:id`):** o backend retorna apenas `attachmentsCount: number` (0 a 3).
+- **Para abrir a galeria:** utilize [GET /transactions/:id/attachments](./list-transaction-attachments.md). O endpoint retorna o array completo com URLs assinadas válidas por 5 minutos e indica `cacheMaxAgeSeconds = 240` (4 minutos) para configuração de `staleTime` no TanStack Query.
+- **Adicionar:** use [POST /transactions/:id/attachments](./add-transaction-attachments.md) com `multipart/form-data`.
+- **Remover:** use [DELETE /transactions/:id/attachments/:attachmentId](./delete-transaction-attachment.md).
+- **Reordenar:** use [PATCH /transactions/:id/attachments/positions](./reorder-transaction-attachments.md).
