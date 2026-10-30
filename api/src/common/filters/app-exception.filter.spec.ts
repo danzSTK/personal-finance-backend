@@ -1,3 +1,14 @@
+import {
+  TransactionTypeDoesNotSupportAttachmentsError,
+  TransactionAttachmentLimitExceededError,
+  InvalidAttachmentPositionError,
+} from '@/modules/transactions/domain/errors';
+import {
+  TransactionAttachmentNotFoundError,
+  UnsupportedAttachmentFileError,
+  AttachmentFileTooLargeError,
+  AttachmentDimensionsExceededError,
+} from '@/modules/transactions/application/errors';
 import { AppExceptionFilter } from '@/common/filters/app-exception.filter';
 import {
   CurrentPasswordInvalidError,
@@ -98,6 +109,30 @@ describe('AppExceptionFilter', () => {
           code: 'MAIL_TEMPLATE_MAPPING_MISSING',
         }),
       );
+    });
+
+    it('maps transaction attachment domain and application errors to their respective HTTP statuses', () => {
+      const filter = new AppExceptionFilter();
+      filter.catch(new TransactionTypeDoesNotSupportAttachmentsError(), host);
+      expect(response.status).toHaveBeenCalledWith(409);
+
+      filter.catch(new TransactionAttachmentLimitExceededError(), host);
+      expect(response.status).toHaveBeenCalledWith(409);
+
+      filter.catch(new TransactionAttachmentNotFoundError(), host);
+      expect(response.status).toHaveBeenCalledWith(404);
+
+      filter.catch(new InvalidAttachmentPositionError(), host);
+      expect(response.status).toHaveBeenCalledWith(400);
+
+      filter.catch(new UnsupportedAttachmentFileError(), host);
+      expect(response.status).toHaveBeenCalledWith(415);
+
+      filter.catch(new AttachmentFileTooLargeError(), host);
+      expect(response.status).toHaveBeenCalledWith(413);
+
+      filter.catch(new AttachmentDimensionsExceededError(), host);
+      expect(response.status).toHaveBeenCalledWith(422);
     });
   });
 });

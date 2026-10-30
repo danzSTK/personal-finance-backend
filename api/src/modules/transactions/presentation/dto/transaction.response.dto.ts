@@ -21,6 +21,9 @@ export class TransactionResponseDto {
   @ApiProperty({ enum: TransactionStatus, example: TransactionStatus.EFFECTIVE })
   status: TransactionStatus;
 
+  @ApiProperty({ example: 0, description: 'Quantidade de anexos ativos associados à transação' })
+  readonly attachmentsCount: number;
+
   @ApiProperty({ example: 1920, description: 'Valor absoluto em centavos' })
   amountCents: number;
 
@@ -55,6 +58,7 @@ export class TransactionResponseDto {
       effectiveAt: transaction.effectiveAt,
       description: transaction.description,
       direction: transaction.direction,
+      attachmentsCount: transaction.attachmentsCount,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
     };

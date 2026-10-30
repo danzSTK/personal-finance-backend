@@ -18,4 +18,4 @@ troca atômica de banco e aplicação.
 - [Schema atual](./schema.md)
 - [Rollout de migrations](./migration-rollout.md)
 - [Registro de compatibilidade](../architecture/compatibility.md)
-- [Datas e instantes](../platform/dates-and-times.md)
+- [Datas e instantes](../platform/dates-and-times/README.md)

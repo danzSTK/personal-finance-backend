@@ -6,7 +6,7 @@ last_reviewed: 2026-07-23
 related:
   - ./getting-started.md
   - ./database/schema.md
-  - ./platform/worker-operations.md
+  - ./platform/workers/README.md
 ---
 
 # Comandos principais
@@ -191,4 +191,4 @@ npm run test:e2e -- --runInBand
 npm run test:integration
 ```
 
-O smoke test completo da imagem possui configuração própria na CI. Consulte [Integração contínua](./platform/continuous-integration.md) para entender cada job.
+O smoke test completo da imagem possui configuração própria na CI. Consulte [Integração contínua](./platform/ci-cd/README.md) para entender cada job.

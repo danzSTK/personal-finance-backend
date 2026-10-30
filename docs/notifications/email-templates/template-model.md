@@ -5,7 +5,7 @@ status: current
 related:
   - ./README.md
   - ./design-system.md
-  - ../../platform/email-provider.md
+  - ../../platform/email/README.md
   - ../../database/schema.md
 ---
 

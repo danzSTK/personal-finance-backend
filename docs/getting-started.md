@@ -7,8 +7,7 @@ related:
   - ./configuration.md
   - ./commands.md
   - ./architecture.md
-  - ./platform/worker-operations.md
-  - ./platform/queue-infrastructure.md
+  - ./platform/workers/README.md
 ---
 
 # Desenvolvimento local
@@ -319,4 +318,4 @@ Confira endpoint, buckets, permissões do token R2 e `R2_PUBLIC_BASE_URL`. O tok
 - Consulte [Configuração por variáveis de ambiente](./configuration.md) ao separar env files ou alterar integrações.
 - Consulte [Comandos principais](./commands.md) para qualidade, testes e migrations.
 - Leia [Arquitetura e organização do código](./architecture.md) antes de alterar módulos.
-- Consulte [Operação do worker](./platform/worker-operations.md) ao trabalhar com processamento assíncrono.
+- Consulte [Operação do worker e filas](./platform/workers/README.md) ao trabalhar com processamento assíncrono.

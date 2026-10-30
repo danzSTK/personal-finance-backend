@@ -3,6 +3,7 @@ import { PostgresModule } from '@/database/postgres/postgres.module';
 import { RedisModule } from '@/database/redis/redis.module';
 import { AssetsWorkerModule } from '@/modules/assets/assets-worker.module';
 import { NotificationsWorkerModule } from '@/modules/notifications/notifications-worker.module';
+import { TransactionsWorkerModule } from '@/modules/transactions/transactions-worker.module';
 import { AppEventsModule } from '@/shared/events';
 import { JobsModule } from '@/shared/jobs/jobs.module';
 import { OutboxDispatcherModule } from '@/shared/outbox';
@@ -23,6 +24,7 @@ import { WorkerOperationsModule } from './operations/worker-operations.module';
     WorkerEventConsumersModule,
     AssetsWorkerModule,
     NotificationsWorkerModule,
+    TransactionsWorkerModule,
     WorkerOperationsModule,
   ],
 })

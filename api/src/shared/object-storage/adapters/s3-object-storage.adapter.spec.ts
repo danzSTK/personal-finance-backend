@@ -1,7 +1,13 @@
+import { Readable } from 'node:stream';
 import objectStorageConfig from '@/config/object-storage.config';
 import { S3ObjectStorageAdapter } from '@/shared/object-storage/adapters/s3-object-storage.adapter';
 import { ObjectStorageError, ObjectStorageErrorCode } from '@/shared/object-storage/errors';
-import { PutObjectCommand, S3Client, S3ServiceException } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client, S3ServiceException } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+jest.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: jest.fn(),
+}));
 import { Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 
@@ -45,6 +51,34 @@ describe('S3ObjectStorageAdapter', () => {
       const command = send.mock.calls[0]?.[0] as PutObjectCommand;
 
       expect(command.input.ChecksumSHA256).toBe(Buffer.from(checksumHex, 'hex').toString('base64'));
+    });
+
+    it('sets public immutable cache control when bucket is public', async () => {
+      send.mockResolvedValue({ ETag: 'etag' });
+
+      await adapter.putObject({
+        bucket: publicBucket,
+        key,
+        body: Buffer.from('image'),
+        contentType: 'image/webp',
+      });
+
+      const command = send.mock.calls[0]?.[0] as PutObjectCommand;
+      expect(command.input.CacheControl).toBe('public, max-age=31536000, immutable');
+    });
+
+    it('sets private 300s cache control when bucket is private', async () => {
+      send.mockResolvedValue({ ETag: 'etag' });
+
+      await adapter.putObject({
+        bucket: privateBucket,
+        key,
+        body: Buffer.from('image'),
+        contentType: 'image/webp',
+      });
+
+      const command = send.mock.calls[0]?.[0] as PutObjectCommand;
+      expect(command.input.CacheControl).toBe('private, max-age=300');
     });
 
     it('rejects an invalid hexadecimal checksum before sending', async () => {
@@ -96,6 +130,64 @@ describe('S3ObjectStorageAdapter', () => {
 
     it('rejects building a public URL for a private bucket', () => {
       expect(() => adapter.buildPublicUrl({ bucket: privateBucket, key })).toThrow(ObjectStorageError);
+    });
+  });
+
+  describe('buildSignedReadUrl', () => {
+    it('rejects building signed read url for a non-private bucket', async () => {
+      await expect(adapter.buildSignedReadUrl({ bucket: publicBucket, key })).rejects.toMatchObject({
+        code: ObjectStorageErrorCode.PRIVATE_URL_UNAVAILABLE,
+      });
+    });
+
+    it('generates a presigned read url with default 300s expiration for private bucket', async () => {
+      const mockSignedUrl = 'https://signed.r2.cloudflarestorage.com/path?token=xyz';
+      (getSignedUrl as jest.Mock).mockResolvedValue(mockSignedUrl);
+      const before = Date.now();
+
+      const result = await adapter.buildSignedReadUrl({ bucket: privateBucket, key });
+      const after = Date.now();
+
+      expect(result.url).toBe(mockSignedUrl);
+      expect(result.cacheMaxAgeSeconds).toBe(240);
+      expect(result.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 300 * 1000);
+      expect(result.expiresAt.getTime()).toBeLessThanOrEqual(after + 300 * 1000);
+      expect(getSignedUrl).toHaveBeenCalledWith(expect.anything(), expect.any(GetObjectCommand), { expiresIn: 300 });
+    });
+
+    it('supports custom expiresInSeconds option', async () => {
+      const mockSignedUrl = 'https://signed.r2.cloudflarestorage.com/path?token=custom';
+      (getSignedUrl as jest.Mock).mockResolvedValue(mockSignedUrl);
+
+      const result = await adapter.buildSignedReadUrl({ bucket: privateBucket, key }, { expiresInSeconds: 600 });
+
+      expect(result.url).toBe(mockSignedUrl);
+      expect(getSignedUrl).toHaveBeenCalledWith(expect.anything(), expect.any(GetObjectCommand), { expiresIn: 600 });
+    });
+  });
+
+  describe('getObject', () => {
+    it('downloads object and concatenates chunks into Buffer', async () => {
+      const chunk1 = Buffer.from('chunk1-');
+      const chunk2 = Buffer.from('chunk2');
+      send.mockResolvedValue({
+        Body: Readable.from([chunk1, chunk2]),
+        ContentType: 'image/png',
+      });
+
+      const result = await adapter.getObject({ bucket: privateBucket, key });
+
+      expect(result.body.toString()).toBe('chunk1-chunk2');
+      expect(result.contentType).toBe('image/png');
+    });
+
+    it('maps S3 errors when getObject fails', async () => {
+      send.mockRejectedValue(createS3Error('ServiceUnavailable', 503));
+
+      await expect(adapter.getObject({ bucket: privateBucket, key })).rejects.toMatchObject({
+        code: ObjectStorageErrorCode.UNAVAILABLE,
+        retryable: true,
+      });
     });
   });
 

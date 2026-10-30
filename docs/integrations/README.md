@@ -6,7 +6,7 @@ last_reviewed: 2026-07-23
 related:
   - ../architecture.md
   - ../auth/README.md
-  - ../platform/response-objects.md
+  - ../platform/response-objects/README.md
 ---
 
 # Guia de integração — Danfy API

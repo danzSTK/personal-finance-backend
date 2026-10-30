@@ -29,6 +29,8 @@ describe('DeleteAvatarAssetUseCase', () => {
       deleteObject,
       headObject: jest.fn(),
       buildPublicUrl: jest.fn(),
+      buildSignedReadUrl: jest.fn(),
+      getObject: jest.fn(),
     };
     useCase = new DeleteAvatarAssetUseCase(assetRepository, objectStorage);
   });

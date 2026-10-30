@@ -5,7 +5,7 @@ description: Classificar, redigir, revisar e publicar issues do GitHub para o pr
 
 # Danfy Issues
 
-Responda em português por padrão e trate `docs/platform/issue-standards.md` como a fonte canônica. Leia também o template correspondente em `.github/ISSUE_TEMPLATE/` antes de redigir ou publicar.
+Responda em português por padrão e trate `docs/platform/standards/` como a fonte canônica. Leia também o template correspondente em `.github/ISSUE_TEMPLATE/` antes de redigir ou publicar.
 
 ## Fluxo
 

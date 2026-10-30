@@ -5,7 +5,7 @@ status: current
 related:
   - ../database/schema.md
   - ../database/migration-rollout.md
-  - ../platform/continuous-delivery.md
+  - ../platform/ci-cd/README.md
 ---
 
 # Compatibilidade De Migrations

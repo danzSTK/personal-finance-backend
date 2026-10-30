@@ -27,6 +27,7 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 | `accounts`        | Contas financeiras do usuário, como `CASH`, `BANK`, `CREDIT_CARD` e `INVESTMENT`.   |
 | `categories`      | Categorias financeiras e técnicas do usuário, incluindo receita, despesa, transferência, ajuste e investimento. |
 | `transactions`    | Movimentações financeiras registradas para usuário, conta e categoria.              |
+| `transaction_attachments` | Galeria e associação de comprovantes/anexos às transações.           |
 | `assets`          | Metadados e ciclo de vida dos objetos armazenados no Object Storage.                 |
 | `email_messages`  | Intenções idempotentes de envio de e-mails transacionais.                           |
 | `outbox_messages` | Mensagens do transactional outbox para publicar eventos de domínio com resiliência. |
@@ -463,6 +464,44 @@ Transactions pendentes não afetam saldo atual. Apenas transactions `EFFECTIVE` 
 
 Mais detalhes de domínio estão em [Transactions](../transactions/README.md).
 
+## `transaction_attachments`
+
+Representa a associação da galeria entre uma transação financeira e os assets armazenados no Object Storage (bucket privado).
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identificador único do vínculo na galeria. |
+| `transaction_id` | `uuid` | `not null` | Transação à qual o comprovante está associado (`FK ON DELETE CASCADE`). |
+| `asset_id` | `uuid` | `not null` | Asset que contém os metadados e localização do arquivo (`FK ON DELETE RESTRICT`). |
+| `position` | `smallint` | `not null` | Ordem visual do comprovante na galeria da transação (0 a 2). |
+| `created_at` | `timestamptz` | `not null default now()` | Criação da associação. |
+| `updated_at` | `timestamptz` | `not null default now()` | Atualização da associação ou reordenação. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_transaction_attachments` | primary key | `id` | Garante identidade única do anexo. |
+| `FK_transaction_attachments_transaction` | foreign key | `transaction_id -> transactions.id ON DELETE CASCADE` | Remove a associação da galeria se a transação for fisicamente expurgada. |
+| `FK_transaction_attachments_asset` | foreign key | `asset_id -> assets.id ON DELETE RESTRICT` | Impede exclusão física do asset enquanto estiver referenciado. |
+| `UQ_transaction_attachments_transaction_asset` | unique | `(transaction_id, asset_id)` | Impede vincular o mesmo asset duas vezes à mesma transação. |
+| `UQ_transaction_attachments_transaction_position` | unique | `(transaction_id, position) DEFERRABLE INITIALLY DEFERRED` | Impede colisões de ordem na galeria e permite troca atômica de posições. |
+| `CHK_transaction_attachments_position` | check | `position >= 0 AND position <= 2` | Limita a galeria a até 3 anexos por transação. |
+
+### Índices
+
+| Nome | Colunas/filtro | Utilidade |
+| --- | --- | --- |
+| `idx_transaction_attachments_transaction_position` | `(transaction_id, position)` | Otimiza a ordenação e leitura rápida da galeria de comprovantes. |
+
+### Triggers
+
+| Nome | Função | Utilidade |
+| --- | --- | --- |
+| `trg_transaction_attachments_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente. |
+
 ## `assets`
 
 Representa o registro relacional dos objetos armazenados no Object Storage. Os bytes ficam no R2; esta tabela controla propriedade, finalidade, localização e ciclo de vida.
@@ -493,7 +532,7 @@ Representa o registro relacional dos objetos armazenados no Object Storage. Os b
 | --- | --- | --- | --- |
 | `PK_assets` | primary key | `id` | Garante identidade única do asset. |
 | `FK_assets_user` | foreign key | `user_id -> users.id ON DELETE RESTRICT` | Preserva metadata necessária à limpeza do R2 antes da exclusão do usuário. |
-| `CHK_assets_purpose` | check | `purpose IN ('USER_AVATAR')` | Impede finalidades arbitrárias ou desconhecidas. |
+| `CHK_assets_purpose` | check | `purpose IN ('USER_AVATAR', 'TRANSACTION_ATTACHMENT')` | Impede finalidades arbitrárias ou desconhecidas. |
 | `CHK_assets_status` | check | status dentro do ciclo definido | Impede estados operacionais não reconhecidos. |
 | `CHK_assets_bucket_not_empty` | check | bucket não vazio | Evita localização incompleta. |
 | `CHK_assets_storage_key` | check | key não vazia e sem `/` inicial | Mantém a key relativa ao bucket. |
@@ -666,6 +705,7 @@ Usada por:
 - `trg_accounts_updated_at`
 - `trg_categories_updated_at`
 - `trg_transactions_updated_at`
+- `trg_transaction_attachments_updated_at`
 - `trg_assets_updated_at`
 - `trg_email_messages_updated_at`
 - `trg_outbox_messages_updated_at`

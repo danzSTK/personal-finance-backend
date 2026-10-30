@@ -5,7 +5,7 @@ Este módulo expõe probes de liveness e readiness para orquestradores (Docker, 
 ## Documentação Obrigatória
 Antes de planejar ou alterar código neste módulo, leia:
 - `docs/deploy.md` — Seção de monitoramento e probes HTTP de readiness.
-- `docs/platform/continuous-integration.md` — Verificações operacionais de saúde.
+- `docs/platform/ci-cd/` — Verificações operacionais de saúde e CI.
 
 ## Regras de Fronteira e Invariantes
 - **Endpoints Públicos:** Endpoints `/health` são públicos e utilizam o decorator `@Public()`.
