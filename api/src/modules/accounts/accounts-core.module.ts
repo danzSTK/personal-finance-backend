@@ -40,6 +40,7 @@ import { CachedAccountRepository } from './infrastructure/persistence/cached-acc
   ],
   exports: [
     IAccountRepository,
+    IAccountBalanceRepository,
     CreateAccountUseCase,
     ListAccountsUseCase,
     GetAccountSummaryUseCase,

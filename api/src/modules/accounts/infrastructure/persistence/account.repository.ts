@@ -55,6 +55,28 @@ export class AccountRepository implements IAccountRepository {
     return AccountMapper.toDomain(account);
   }
 
+  async findByIdAndUserIdForUpdate(
+    accountId: string,
+    userId: string,
+    options: Required<IRepositoryOptions>,
+  ): Promise<Account | null> {
+    const repository = options.manager.getRepository(AccountOrmEntity);
+
+    const account = await repository.findOne({
+      where: {
+        id: accountId,
+        user_id: userId,
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!account) {
+      return null;
+    }
+
+    return AccountMapper.toDomain(account);
+  }
+
   async listByUserId(userId: string, includeArchived: boolean, options?: IRepositoryOptions): Promise<Account[]> {
     const repository = options?.manager ? options.manager.getRepository(AccountOrmEntity) : this.accountRepository;
 

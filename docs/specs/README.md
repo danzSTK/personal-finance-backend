@@ -54,6 +54,7 @@ As specs registram requisitos, desenho, tarefas e decisões de mudanças relevan
 
 - [Core de transações](./transactions/core/specs/requirements.md)
 - [Filtros, paginação e resumo](./transactions/list-filters-summary/specs/requirements.md)
+- [Reajuste automático de saldo](./transactions/balance-adjustment/specs/requirements.md)
 
 ## Users
 

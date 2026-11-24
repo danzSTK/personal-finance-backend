@@ -64,6 +64,7 @@ Implementado:
 - status `PENDING` e `EFFECTIVE`;
 - soft delete técnico por `deleted_at`;
 - tabela `transaction_attachments` com galeria ordenada de até 3 comprovantes privados por transação (`INCOME`/`EXPENSE`), Presigned URLs e otimização assíncrona via BullMQ;
+- reajuste automático de saldo por saldo alvo (`POST /transactions/balance-adjustments`) com cálculo de delta e lock transacional na account;
 - endpoints HTTP protegidos em `TransactionsController` e `TransactionAttachmentsController`.
 
 Planejado:

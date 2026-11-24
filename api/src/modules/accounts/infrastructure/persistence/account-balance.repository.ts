@@ -1,3 +1,4 @@
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import {
   AccountBalanceSummary,
   AccountSummary,
@@ -23,14 +24,18 @@ interface AccountSummaryRow {
 export class AccountBalanceRepository implements IAccountBalanceRepository {
   constructor(private readonly dataSource: DataSource) {}
 
-  async getSummaries(input: GetAccountBalanceSummariesInput): Promise<AccountBalanceSummary[]> {
+  async getSummaries(
+    input: GetAccountBalanceSummariesInput,
+    options?: IRepositoryOptions,
+  ): Promise<AccountBalanceSummary[]> {
     if (input.accountIds.length === 0) {
       return [];
     }
 
     const projectedUntil = input.projectedUntil ?? null;
+    const executor = options?.manager ?? this.dataSource;
 
-    const rows = await this.dataSource.query<AccountBalanceRow[]>(
+    const rows = await executor.query<AccountBalanceRow[]>(
       `
         WITH target_accounts AS (
           SELECT

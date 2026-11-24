@@ -26,6 +26,7 @@ describe('CreateAccountUseCase', () => {
 
     accountRepository = {
       findByIdAndUserId: jest.fn(),
+      findByIdAndUserIdForUpdate: jest.fn(),
       listByUserId: jest.fn(),
       findWithoutTemplateForUpdate: jest.fn(),
       save: jest.fn((account: Account): Promise<Account> => Promise.resolve(account)),

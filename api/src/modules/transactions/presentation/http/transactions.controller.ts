@@ -1,6 +1,7 @@
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { ConfirmTransactionUseCase } from '@/modules/transactions/application/use-cases/confirm-transaction/confirm-transaction.use-case';
+import { CreateBalanceAdjustmentUseCase } from '@/modules/transactions/application/use-cases/create-balance-adjustment/create-balance-adjustment.use-case';
 import { CreateTransactionUseCase } from '@/modules/transactions/application/use-cases/create-transaction/create-transaction.use-case';
 import { DeleteTransactionUseCase } from '@/modules/transactions/application/use-cases/delete-transaction/delete-transaction.use-case';
 import { GetTransactionUseCase } from '@/modules/transactions/application/use-cases/get-transaction/get-transaction.use-case';
@@ -8,6 +9,7 @@ import { ListTransactionsUseCase } from '@/modules/transactions/application/use-
 import { UpdateTransactionPatch } from '@/modules/transactions/application/use-cases/update-transaction/update-transaction.dto';
 import { UpdateTransactionUseCase } from '@/modules/transactions/application/use-cases/update-transaction/update-transaction.use-case';
 import { ConfirmTransactionDto } from '@/modules/transactions/presentation/dto/confirm-transaction.dto';
+import { CreateBalanceAdjustmentDto } from '@/modules/transactions/presentation/dto/create-balance-adjustment.dto';
 import { CreateTransactionDto } from '@/modules/transactions/presentation/dto/create-transaction.dto';
 import { ListTransactionsQueryDto } from '@/modules/transactions/presentation/dto/list-transactions.query.dto';
 import { ListTransactionsResponseDto } from '@/modules/transactions/presentation/dto/list-transactions.response.dto';
@@ -59,6 +61,7 @@ function buildPatch(body: UpdateTransactionDto | undefined): UpdateTransactionPa
 export class TransactionsController {
   constructor(
     private readonly createTransactionUseCase: CreateTransactionUseCase,
+    private readonly createBalanceAdjustmentUseCase: CreateBalanceAdjustmentUseCase,
     private readonly listTransactionsUseCase: ListTransactionsUseCase,
     private readonly getTransactionUseCase: GetTransactionUseCase,
     private readonly updateTransactionUseCase: UpdateTransactionUseCase,
@@ -94,6 +97,37 @@ export class TransactionsController {
       date: body.date,
       description: body.description,
       direction: body.direction,
+    });
+
+    return TransactionResponseDto.fromDomain(transaction);
+  }
+
+  @Post('balance-adjustments')
+  @ApiCookieAuth('accessToken')
+  @ApiOperation({
+    summary: 'Criar reajuste automático de saldo',
+    description:
+      'Calcula a diferença entre o saldo alvo informado (targetBalanceCents) e o saldo atual derivado da conta, criando uma transaction EFFECTIVE do tipo ADJUSTMENT.',
+  })
+  @ApiResponse({ status: 201, description: 'Reajuste de saldo criado com sucesso', type: TransactionResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Body inválido, categoria técnica indisponível ou delta fora do limite permitido',
+    type: PlatformErrorResponseDto,
+  })
+  @ApiConflictResponse({
+    description: 'Account indisponível ou saldo atual já corresponde ao saldo alvo informado',
+    type: PlatformErrorResponseDto,
+  })
+  async createBalanceAdjustment(
+    @CurrentUser() user: User,
+    @Body() body: CreateBalanceAdjustmentDto,
+  ): Promise<TransactionResponseDto> {
+    const transaction = await this.createBalanceAdjustmentUseCase.execute({
+      userId: user.id,
+      accountId: body.accountId,
+      targetBalanceCents: body.targetBalanceCents,
+      date: body.date,
+      description: body.description,
     });
 
     return TransactionResponseDto.fromDomain(transaction);

@@ -24,6 +24,7 @@ O `userId` sempre vem da sessão autenticada. O frontend nunca deve enviar `user
 ## Endpoints
 
 - [Create transaction](./create-transaction.md)
+- [Create balance adjustment](./create-balance-adjustment.md)
 - [List transactions](./list-transactions.md)
 - [Get transaction](./get-transaction.md)
 - [Update transaction](./update-transaction.md)

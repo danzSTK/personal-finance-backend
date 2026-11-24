@@ -147,6 +147,7 @@ Erros de DTO usam `VALIDATION_ERROR`.
 
 | Code                                   | Status | Quando                                                           |
 | -------------------------------------- | -----: | ---------------------------------------------------------------- |
+| `BALANCE_ADJUSTMENT_NO_DIFFERENCE`     |  `409` | Saldo atual da account já corresponde ao `targetBalanceCents`    |
 | `INVALID_TRANSACTION`                  |  `400` | Campos violam invariantes do domínio de transactions             |
 | `TRANSACTION_ACCOUNT_UNAVAILABLE`      |  `409` | Account não existe, está arquivada ou não pode ser usada         |
 | `TRANSACTION_ALREADY_EFFECTIVE`        |  `409` | Tentativa de confirmar transaction já efetivada                  |
