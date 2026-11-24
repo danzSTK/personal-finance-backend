@@ -25,11 +25,6 @@ export class AddTransactionAttachmentsAndExpandAssetPurpose1788000000000 impleme
     `);
 
     await queryRunner.query(`
-      CREATE INDEX "idx_transaction_attachments_transaction_position"
-      ON "transaction_attachments" ("transaction_id", "position")
-    `);
-
-    await queryRunner.query(`
       CREATE TRIGGER trg_transaction_attachments_updated_at
       BEFORE UPDATE ON "transaction_attachments"
       FOR EACH ROW
@@ -44,16 +39,15 @@ export class AddTransactionAttachmentsAndExpandAssetPurpose1788000000000 impleme
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "assets" DROP CONSTRAINT IF EXISTS "CHK_assets_purpose"`);
-    await queryRunner.query(`
-      ALTER TABLE "assets" ADD CONSTRAINT "CHK_assets_purpose"
-        CHECK ("purpose" IN ('USER_AVATAR'))
-    `);
-
     await queryRunner.query(
       `DROP TRIGGER IF EXISTS trg_transaction_attachments_updated_at ON "transaction_attachments"`,
     );
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_transaction_attachments_transaction_position"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "transaction_attachments"`);
+
+    await queryRunner.query(`ALTER TABLE "assets" DROP CONSTRAINT IF EXISTS "CHK_assets_purpose"`);
+    await queryRunner.query(`
+      ALTER TABLE "assets" ADD CONSTRAINT "CHK_assets_purpose"
+        CHECK ("purpose" IN ('USER_AVATAR')) NOT VALID
+    `);
   }
 }

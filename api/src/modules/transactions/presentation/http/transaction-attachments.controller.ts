@@ -10,6 +10,7 @@ import { TransactionAttachmentResponseDto } from '@/modules/transactions/present
 import { User } from '@/modules/users/domain/entities/user.entity';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -73,6 +74,7 @@ export class TransactionAttachmentsController {
   @ApiBody({
     schema: {
       type: 'object',
+      required: ['files'],
       properties: {
         files: {
           type: 'array',
@@ -104,9 +106,13 @@ export class TransactionAttachmentsController {
   async addAttachments(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) transactionId: string,
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFiles() files: Express.Multer.File[] | undefined,
   ): Promise<TransactionAttachmentResponseDto[]> {
-    const inputFiles = (files ?? []).map(file => ({
+    if (!files || files.length === 0) {
+      throw new BadRequestException('At least one file is required.');
+    }
+
+    const inputFiles = files.map(file => ({
       buffer: file.buffer,
       originalname: file.originalname,
     }));

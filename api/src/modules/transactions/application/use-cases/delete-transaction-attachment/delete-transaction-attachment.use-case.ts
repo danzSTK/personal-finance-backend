@@ -5,7 +5,7 @@ import {
 } from '@/modules/transactions/application/errors';
 import { DeleteTransactionAttachmentInput } from '@/modules/transactions/application/use-cases/delete-transaction-attachment/delete-transaction-attachment.dto';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
-import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
+import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -15,18 +15,20 @@ export class DeleteTransactionAttachmentUseCase {
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly transactionRepository: ITransactionRepository,
     private readonly attachmentRepository: ITransactionAttachmentRepository,
     private readonly assetRepository: IAssetRepository,
   ) {}
 
   async execute(input: DeleteTransactionAttachmentInput): Promise<void> {
     await this.dataSource.transaction(async manager => {
-      const tx = await manager.findOne(TransactionOrmEntity, {
-        where: { id: input.transactionId, user_id: input.userId },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const transaction = await this.transactionRepository.findByIdAndUserIdForUpdate(
+        input.transactionId,
+        input.userId,
+        { manager },
+      );
 
-      if (!tx || tx.deleted_at !== null) {
+      if (!transaction) {
         throw new TransactionNotFoundError();
       }
 

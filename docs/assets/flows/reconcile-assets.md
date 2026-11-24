@@ -79,9 +79,10 @@ Isso geraria:
    LIMIT 50
    FOR UPDATE SKIP LOCKED;
    ```
-3. **Transição Terminal:** Para cada asset localizado:
-   - Executa `asset.markFailed('UPLOAD_TIMEOUT')`.
-   - Persiste no banco com `status = 'FAILED'`, liberando imediatamente as validações de limite de uploads ativos da entidade de negócio.
+3. **Limpeza Idempotente e Transição Terminal:** Para cada asset localizado:
+   - Executa `IObjectStorage.deleteObject({ bucket: asset.bucket, key: asset.storageKey })` para remover eventuais bytes órfãos que tenham chegado ao R2 antes de uma queda da API entre o upload e o `markReady()` (tratando `404`/`NotFound` como sucesso idempotente).
+   - Se a remoção no R2 falhar por indisponibilidade transitória, o erro é registrado em log e o asset permanece em `PENDING_UPLOAD` para nova tentativa no ciclo seguinte.
+   - Após confirmação da limpeza, executa `asset.markFailed('UPLOAD_TIMEOUT')` e persiste no banco com `status = 'FAILED'`, liberando imediatamente as validações de limite de uploads ativos da entidade de negócio.
 
 ---
 

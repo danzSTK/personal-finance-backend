@@ -119,6 +119,14 @@ export class Transaction {
     return this.props.status === TransactionStatus.EFFECTIVE;
   }
 
+  static supportsAttachmentsForType(type: TransactionType): boolean {
+    return type === TransactionType.INCOME || type === TransactionType.EXPENSE;
+  }
+
+  supportsAttachments(): boolean {
+    return Transaction.supportsAttachmentsForType(this.props.type);
+  }
+
   applyPatch(patch: UpdateTransactionProps): void {
     const nextType = patch.type ?? this.props.type;
     const nextDestinationAccountId =

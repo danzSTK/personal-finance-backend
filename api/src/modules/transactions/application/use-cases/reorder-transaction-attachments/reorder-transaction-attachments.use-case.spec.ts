@@ -1,28 +1,37 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { InvalidAttachmentPositionError } from '@/modules/transactions/domain/errors';
 import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import { ReorderTransactionAttachmentsUseCase } from '@/modules/transactions/application/use-cases/reorder-transaction-attachments/reorder-transaction-attachments.use-case';
+import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import { TransactionAttachment } from '@/modules/transactions/domain/entities/transaction-attachment.entity';
+import { InvalidAttachmentPositionError } from '@/modules/transactions/domain/errors';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
+import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { DataSource, EntityManager } from 'typeorm';
 
 describe('ReorderTransactionAttachmentsUseCase', () => {
   const userId = '11111111-1111-4111-a111-111111111111';
   const transactionId = '22222222-2222-4222-a222-222222222222';
+  const mockTransaction = { id: transactionId, userId } as unknown as Transaction;
 
   let useCase: ReorderTransactionAttachmentsUseCase;
   let dataSource: jest.Mocked<DataSource>;
   let manager: jest.Mocked<EntityManager>;
+  let transactionRepository: jest.Mocked<ITransactionRepository>;
   let attachmentRepository: jest.Mocked<ITransactionAttachmentRepository>;
 
   beforeEach(() => {
-    manager = {
-      findOne: jest.fn(),
-    } as unknown as jest.Mocked<EntityManager>;
+    manager = {} as unknown as jest.Mocked<EntityManager>;
 
     dataSource = {
       transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => cb(manager)),
     } as unknown as jest.Mocked<DataSource>;
+
+    transactionRepository = {
+      findByIdAndUserId: jest.fn(),
+      findByIdAndUserIdForUpdate: jest.fn(),
+      list: jest.fn(),
+      save: jest.fn(),
+    } as unknown as jest.Mocked<ITransactionRepository>;
 
     attachmentRepository = {
       findByTransactionId: jest.fn(),
@@ -38,7 +47,7 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
       reorderPositions: jest.fn(),
     } as unknown as jest.Mocked<ITransactionAttachmentRepository>;
 
-    useCase = new ReorderTransactionAttachmentsUseCase(dataSource, attachmentRepository);
+    useCase = new ReorderTransactionAttachmentsUseCase(dataSource, transactionRepository, attachmentRepository);
   });
 
   it('does nothing when positions array is empty', async () => {
@@ -52,7 +61,7 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
   });
 
   it('rejects when transaction does not exist or is deleted', async () => {
-    manager.findOne.mockResolvedValue(null);
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(null);
 
     await expect(
       useCase.execute({
@@ -64,7 +73,7 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
   });
 
   it('rejects when position list length does not match existing attachments count', async () => {
-    manager.findOne.mockResolvedValue({ id: transactionId, user_id: userId, deleted_at: null });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTransaction);
 
     const att1 = TransactionAttachment.create({ id: 'att-1', transactionId, assetId: 'a1', position: 0 });
     const att2 = TransactionAttachment.create({ id: 'att-2', transactionId, assetId: 'a2', position: 1 });
@@ -80,7 +89,7 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
   });
 
   it('rejects when an attachment ID does not belong to the transaction', async () => {
-    manager.findOne.mockResolvedValue({ id: transactionId, user_id: userId, deleted_at: null });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTransaction);
 
     const att1 = TransactionAttachment.create({ id: 'att-1', transactionId, assetId: 'a1', position: 0 });
     attachmentRepository.findByTransactionId.mockResolvedValue([att1]);
@@ -95,7 +104,7 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
   });
 
   it('rejects when duplicate positions are provided', async () => {
-    manager.findOne.mockResolvedValue({ id: transactionId, user_id: userId, deleted_at: null });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTransaction);
 
     const att1 = TransactionAttachment.create({ id: 'att-1', transactionId, assetId: 'a1', position: 0 });
     const att2 = TransactionAttachment.create({ id: 'att-2', transactionId, assetId: 'a2', position: 1 });
@@ -114,7 +123,7 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
   });
 
   it('successfully reorders positions', async () => {
-    manager.findOne.mockResolvedValue({ id: transactionId, user_id: userId, deleted_at: null });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTransaction);
 
     const att1 = TransactionAttachment.create({ id: 'att-1', transactionId, assetId: 'a1', position: 0 });
     const att2 = TransactionAttachment.create({ id: 'att-2', transactionId, assetId: 'a2', position: 1 });
@@ -131,6 +140,7 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
       positions: targetPositions,
     });
 
+    expect(transactionRepository.findByIdAndUserIdForUpdate).toHaveBeenCalledWith(transactionId, userId, { manager });
     expect(attachmentRepository.deleteInactiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
     expect(attachmentRepository.reorderPositions).toHaveBeenCalledWith(transactionId, targetPositions, { manager });
   });

@@ -4,13 +4,18 @@ import objectStorageConfig from '@/config/object-storage.config';
 import { Asset } from '@/modules/assets/domain/entities/asset.entity';
 import { AssetStatus } from '@/modules/assets/domain/enums';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
-import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
+import {
+  TransactionAttachmentFilesEmptyError,
+  TransactionNotFoundError,
+} from '@/modules/transactions/application/errors';
 import { AddTransactionAttachmentsUseCase } from '@/modules/transactions/application/use-cases/add-transaction-attachments/add-transaction-attachments.use-case';
+import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import {
   TransactionAttachmentLimitExceededError,
   TransactionTypeDoesNotSupportAttachmentsError,
 } from '@/modules/transactions/domain/errors';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
+import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { TransactionAttachmentImageValidator } from '@/modules/transactions/infrastructure/image-processing/transaction-attachment-image.validator';
 import { TransactionAttachmentJobQueueProducer } from '@/modules/transactions/infrastructure/queues/transaction-attachment-job-queue-producer.port';
 import { IObjectStorage } from '@/shared/object-storage';
@@ -25,9 +30,18 @@ describe('AddTransactionAttachmentsUseCase', () => {
     publicBucketName: 'public-bucket',
   } as unknown as ConfigType<typeof objectStorageConfig>;
 
+  const createMockTransaction = (type: TransactionType): Transaction =>
+    ({
+      id: transactionId,
+      userId,
+      type,
+      supportsAttachments: () => Transaction.supportsAttachmentsForType(type),
+    }) as unknown as Transaction;
+
   let useCase: AddTransactionAttachmentsUseCase;
   let dataSource: jest.Mocked<DataSource>;
   let manager: jest.Mocked<EntityManager>;
+  let transactionRepository: jest.Mocked<ITransactionRepository>;
   let attachmentRepository: jest.Mocked<ITransactionAttachmentRepository>;
   let assetRepository: jest.Mocked<IAssetRepository>;
   let imageValidator: jest.Mocked<TransactionAttachmentImageValidator>;
@@ -35,14 +49,18 @@ describe('AddTransactionAttachmentsUseCase', () => {
   let jobQueueProducer: jest.Mocked<TransactionAttachmentJobQueueProducer>;
 
   beforeEach(() => {
-    manager = {
-      findOne: jest.fn(),
-      save: jest.fn(),
-    } as unknown as jest.Mocked<EntityManager>;
+    manager = {} as unknown as jest.Mocked<EntityManager>;
 
     dataSource = {
       transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => cb(manager)),
     } as unknown as jest.Mocked<DataSource>;
+
+    transactionRepository = {
+      findByIdAndUserId: jest.fn(),
+      findByIdAndUserIdForUpdate: jest.fn(),
+      list: jest.fn(),
+      save: jest.fn(),
+    } as unknown as jest.Mocked<ITransactionRepository>;
 
     attachmentRepository = {
       findByTransactionId: jest.fn().mockResolvedValue([]),
@@ -95,6 +113,7 @@ describe('AddTransactionAttachmentsUseCase', () => {
     useCase = new AddTransactionAttachmentsUseCase(
       dataSource,
       storageConfig,
+      transactionRepository,
       attachmentRepository,
       assetRepository,
       imageValidator,
@@ -103,14 +122,14 @@ describe('AddTransactionAttachmentsUseCase', () => {
     );
   });
 
-  it('returns empty array when no files are provided', async () => {
-    const result = await useCase.execute({
-      userId,
-      transactionId,
-      files: [],
-    });
-
-    expect(result).toEqual([]);
+  it('rejects when no files are provided', async () => {
+    await expect(
+      useCase.execute({
+        userId,
+        transactionId,
+        files: [],
+      }),
+    ).rejects.toThrow(TransactionAttachmentFilesEmptyError);
   });
 
   it('rejects more than 3 files', async () => {
@@ -131,7 +150,7 @@ describe('AddTransactionAttachmentsUseCase', () => {
   });
 
   it('rejects when transaction does not exist', async () => {
-    manager.findOne.mockResolvedValue(null);
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(null);
 
     await expect(
       useCase.execute({
@@ -143,12 +162,7 @@ describe('AddTransactionAttachmentsUseCase', () => {
   });
 
   it('rejects when transaction is a TRANSFER', async () => {
-    manager.findOne.mockResolvedValue({
-      id: transactionId,
-      user_id: userId,
-      type: TransactionType.TRANSFER,
-      deleted_at: null,
-    });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(createMockTransaction(TransactionType.TRANSFER));
 
     await expect(
       useCase.execute({
@@ -160,12 +174,7 @@ describe('AddTransactionAttachmentsUseCase', () => {
   });
 
   it('rejects when active count plus incoming files exceeds 3', async () => {
-    manager.findOne.mockResolvedValue({
-      id: transactionId,
-      user_id: userId,
-      type: TransactionType.EXPENSE,
-      deleted_at: null,
-    });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(createMockTransaction(TransactionType.EXPENSE));
     attachmentRepository.countActiveByTransactionId.mockResolvedValue(2);
 
     await expect(
@@ -181,12 +190,7 @@ describe('AddTransactionAttachmentsUseCase', () => {
   });
 
   it('purges stale inactive links before checking active count and returns signed urls on success', async () => {
-    manager.findOne.mockResolvedValue({
-      id: transactionId,
-      user_id: userId,
-      type: TransactionType.EXPENSE,
-      deleted_at: null,
-    });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(createMockTransaction(TransactionType.EXPENSE));
     attachmentRepository.countActiveByTransactionId.mockResolvedValue(0);
 
     const result = await useCase.execute({
@@ -195,6 +199,7 @@ describe('AddTransactionAttachmentsUseCase', () => {
       files: [{ buffer: Buffer.from('image bytes'), originalname: 'receipt.png' }],
     });
 
+    expect(transactionRepository.findByIdAndUserIdForUpdate).toHaveBeenCalledWith(transactionId, userId, { manager });
     expect(attachmentRepository.deleteInactiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
     expect(result).toHaveLength(1);
     expect(result[0].position).toBe(0);
@@ -205,12 +210,7 @@ describe('AddTransactionAttachmentsUseCase', () => {
   });
 
   it('compensates reserved attachments and schedules storage cleanup when a batch upload fails mid-way', async () => {
-    manager.findOne.mockResolvedValue({
-      id: transactionId,
-      user_id: userId,
-      type: TransactionType.EXPENSE,
-      deleted_at: null,
-    });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(createMockTransaction(TransactionType.EXPENSE));
 
     objectStorage.putObject
       .mockResolvedValueOnce({ etag: 'etag-1', versionId: null })
@@ -239,7 +239,6 @@ describe('AddTransactionAttachmentsUseCase', () => {
       { manager },
     );
 
-    // Last 3 saves are the compensation saves for file-1, file-2, file-3
     const compensatedAssets = savedAssets.slice(-3);
     expect(compensatedAssets[0].status).toBe(AssetStatus.DELETE_PENDING);
     expect(compensatedAssets[1].status).toBe(AssetStatus.DELETE_PENDING);
@@ -248,19 +247,9 @@ describe('AddTransactionAttachmentsUseCase', () => {
   });
 
   it('deletes attachment links and marks uploaded assets DELETE_PENDING if transaction is deleted concurrently', async () => {
-    manager.findOne
-      .mockResolvedValueOnce({
-        id: transactionId,
-        user_id: userId,
-        type: TransactionType.EXPENSE,
-        deleted_at: null,
-      })
-      .mockResolvedValueOnce({
-        id: transactionId,
-        user_id: userId,
-        type: TransactionType.EXPENSE,
-        deleted_at: new Date(),
-      });
+    transactionRepository.findByIdAndUserIdForUpdate
+      .mockResolvedValueOnce(createMockTransaction(TransactionType.EXPENSE))
+      .mockResolvedValueOnce(null);
 
     const savedAssets: Asset[] = [];
     assetRepository.save.mockImplementation(asset => {

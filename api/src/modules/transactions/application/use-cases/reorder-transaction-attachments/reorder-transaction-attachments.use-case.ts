@@ -2,7 +2,7 @@ import { TransactionNotFoundError } from '@/modules/transactions/application/err
 import { ReorderTransactionAttachmentsInput } from '@/modules/transactions/application/use-cases/reorder-transaction-attachments/reorder-transaction-attachments.dto';
 import { InvalidAttachmentPositionError } from '@/modules/transactions/domain/errors';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
-import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
+import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -12,6 +12,7 @@ export class ReorderTransactionAttachmentsUseCase {
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly transactionRepository: ITransactionRepository,
     private readonly attachmentRepository: ITransactionAttachmentRepository,
   ) {}
 
@@ -21,12 +22,13 @@ export class ReorderTransactionAttachmentsUseCase {
     }
 
     await this.dataSource.transaction(async manager => {
-      const tx = await manager.findOne(TransactionOrmEntity, {
-        where: { id: input.transactionId, user_id: input.userId },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const transaction = await this.transactionRepository.findByIdAndUserIdForUpdate(
+        input.transactionId,
+        input.userId,
+        { manager },
+      );
 
-      if (!tx || tx.deleted_at !== null) {
+      if (!transaction) {
         throw new TransactionNotFoundError();
       }
 

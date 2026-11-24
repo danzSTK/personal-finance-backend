@@ -13,7 +13,6 @@ import {
 } from 'typeorm';
 
 @Entity('transaction_attachments')
-@Index('idx_transaction_attachments_transaction_position', ['transactionId', 'position'])
 @Index('UQ_transaction_attachments_transaction_asset', ['transactionId', 'assetId'], { unique: true })
 @Index('UQ_transaction_attachments_transaction_position', ['transactionId', 'position'], { unique: true })
 @Check('CHK_transaction_attachments_position', `"position" >= 0 AND "position" <= 2`)

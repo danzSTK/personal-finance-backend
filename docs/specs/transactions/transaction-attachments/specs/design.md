@@ -125,9 +125,6 @@ CREATE TABLE "transaction_attachments" (
   CONSTRAINT "CHK_transaction_attachments_position"
     CHECK ("position" >= 0 AND "position" <= 2)
 );
-
-CREATE INDEX "idx_transaction_attachments_transaction_position"
-ON "transaction_attachments" ("transaction_id", "position");
 ```
 
 ### 3.2. Expansão de Purpose em `assets`

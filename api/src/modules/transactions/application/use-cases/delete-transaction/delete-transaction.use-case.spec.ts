@@ -22,9 +22,7 @@ describe('DeleteTransactionUseCase', () => {
   let assetRepository: jest.Mocked<IAssetRepository>;
 
   beforeEach(() => {
-    manager = {
-      findOne: jest.fn(),
-    } as unknown as jest.Mocked<EntityManager>;
+    manager = {} as unknown as jest.Mocked<EntityManager>;
 
     dataSource = {
       transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => cb(manager)),
@@ -32,6 +30,7 @@ describe('DeleteTransactionUseCase', () => {
 
     transactionRepository = {
       findByIdAndUserId: jest.fn(),
+      findByIdAndUserIdForUpdate: jest.fn(),
       list: jest.fn(),
       save: jest.fn(),
     } as unknown as jest.Mocked<ITransactionRepository>;
@@ -61,7 +60,7 @@ describe('DeleteTransactionUseCase', () => {
   });
 
   it('rejects when transaction does not exist or is already deleted', async () => {
-    manager.findOne.mockResolvedValue(null);
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(null);
 
     await expect(
       useCase.execute({
@@ -72,17 +71,11 @@ describe('DeleteTransactionUseCase', () => {
   });
 
   it('marks transaction as deleted and transitions active attachments to DELETE_PENDING', async () => {
-    manager.findOne.mockResolvedValue({
-      id: transactionId,
-      user_id: userId,
-      deleted_at: null,
-    });
-
     const mockTx = {
       id: transactionId,
       delete: jest.fn(),
     } as unknown as Transaction;
-    transactionRepository.findByIdAndUserId.mockResolvedValue(mockTx);
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTx);
 
     const attachment = TransactionAttachment.create({
       id: 'att-1',
@@ -105,6 +98,7 @@ describe('DeleteTransactionUseCase', () => {
       transactionId,
     });
 
+    expect(transactionRepository.findByIdAndUserIdForUpdate).toHaveBeenCalledWith(transactionId, userId, { manager });
     expect(mockTx.delete).toHaveBeenCalled();
     expect(transactionRepository.save).toHaveBeenCalledWith(mockTx, { manager });
     expect(mockAsset.markDeletePending).toHaveBeenCalled();

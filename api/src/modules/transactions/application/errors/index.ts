@@ -4,6 +4,7 @@ export * from './transaction-category-incompatible.error';
 export * from './transaction-category-unavailable.error';
 export * from './transaction-not-found.error';
 export * from './transaction-update-empty.error';
+export * from './transaction-attachment-files-empty.error';
 export * from './transaction-attachment-not-found.error';
 export * from './unsupported-attachment-file.error';
 export * from './attachment-file-too-large.error';

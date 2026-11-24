@@ -3,17 +3,19 @@ import {
   TRANSACTION_ATTACHMENT_MAX_POSITION,
   TRANSACTION_ATTACHMENT_MIN_POSITION,
 } from '@/common/models/constants';
-import { TransactionType } from '@/common/models/enums';
 import objectStorageConfig from '@/config/object-storage.config';
 import { Asset } from '@/modules/assets/domain/entities/asset.entity';
 import { AssetFailureCode, AssetPurpose } from '@/modules/assets/domain/enums';
 import { AssetFactory } from '@/modules/assets/domain/factories';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
-import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import {
-  AttachmentFileInput,
+  TransactionAttachmentFilesEmptyError,
+  TransactionNotFoundError,
+} from '@/modules/transactions/application/errors';
+import {
   AddTransactionAttachmentsInput,
   AddTransactionAttachmentsOutput,
+  AttachmentFileInput,
 } from '@/modules/transactions/application/use-cases/add-transaction-attachments/add-transaction-attachments.dto';
 import { TransactionAttachment } from '@/modules/transactions/domain/entities/transaction-attachment.entity';
 import {
@@ -21,11 +23,11 @@ import {
   TransactionTypeDoesNotSupportAttachmentsError,
 } from '@/modules/transactions/domain/errors';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
+import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import {
   TransactionAttachmentImageValidator,
   ValidatedAttachmentImage,
 } from '@/modules/transactions/infrastructure/image-processing/transaction-attachment-image.validator';
-import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { TransactionAttachmentJobQueueProducer } from '@/modules/transactions/infrastructure/queues/transaction-attachment-job-queue-producer.port';
 import { IObjectStorage, ObjectStorageError } from '@/shared/object-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -52,6 +54,7 @@ export class AddTransactionAttachmentsUseCase {
     private readonly dataSource: DataSource,
     @Inject(objectStorageConfig.KEY)
     private readonly storageConfig: ConfigType<typeof objectStorageConfig>,
+    private readonly transactionRepository: ITransactionRepository,
     private readonly attachmentRepository: ITransactionAttachmentRepository,
     private readonly assetRepository: IAssetRepository,
     private readonly imageValidator: TransactionAttachmentImageValidator,
@@ -61,7 +64,7 @@ export class AddTransactionAttachmentsUseCase {
 
   async execute(input: AddTransactionAttachmentsInput): Promise<AddTransactionAttachmentsOutput> {
     if (!input.files || input.files.length === 0) {
-      return [];
+      throw new TransactionAttachmentFilesEmptyError();
     }
 
     if (input.files.length > TRANSACTION_ATTACHMENT_MAX_COUNT) {
@@ -81,16 +84,17 @@ export class AddTransactionAttachmentsUseCase {
 
     // 2. Short transaction: acquire lock, purge stale inactive links, validate limits, reserve PENDING_UPLOAD assets
     const preparedItems = await this.dataSource.transaction<PreparedAttachmentItem[]>(async manager => {
-      const tx = await manager.findOne(TransactionOrmEntity, {
-        where: { id: input.transactionId, user_id: input.userId },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const transaction = await this.transactionRepository.findByIdAndUserIdForUpdate(
+        input.transactionId,
+        input.userId,
+        { manager },
+      );
 
-      if (!tx || tx.deleted_at !== null) {
+      if (!transaction) {
         throw new TransactionNotFoundError();
       }
 
-      if (tx.type !== TransactionType.INCOME && tx.type !== TransactionType.EXPENSE) {
+      if (!transaction.supportsAttachments()) {
         throw new TransactionTypeDoesNotSupportAttachmentsError();
       }
 
@@ -171,12 +175,13 @@ export class AddTransactionAttachmentsUseCase {
 
     // 4. Short transaction: lock again and confirm assets (markReady) or discard if transaction was deleted concurrently
     await this.dataSource.transaction(async manager => {
-      const tx = await manager.findOne(TransactionOrmEntity, {
-        where: { id: input.transactionId, user_id: input.userId },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const transaction = await this.transactionRepository.findByIdAndUserIdForUpdate(
+        input.transactionId,
+        input.userId,
+        { manager },
+      );
 
-      if (!tx || tx.deleted_at !== null) {
+      if (!transaction || !transaction.supportsAttachments()) {
         await this.attachmentRepository.deleteByIds(
           preparedItems.map(item => item.attachment.id),
           { manager },
@@ -187,7 +192,11 @@ export class AddTransactionAttachmentsUseCase {
           await this.assetRepository.save(item.asset, { manager });
         }
 
-        throw new TransactionNotFoundError();
+        if (!transaction) {
+          throw new TransactionNotFoundError();
+        }
+
+        throw new TransactionTypeDoesNotSupportAttachmentsError();
       }
 
       for (const item of preparedItems) {
@@ -252,10 +261,7 @@ export class AddTransactionAttachmentsUseCase {
 
     try {
       await this.dataSource.transaction(async manager => {
-        await manager.findOne(TransactionOrmEntity, {
-          where: { id: transactionId, user_id: userId },
-          lock: { mode: 'pessimistic_write' },
-        });
+        await this.transactionRepository.findByIdAndUserIdForUpdate(transactionId, userId, { manager });
 
         await this.attachmentRepository.deleteByIds(
           preparedItems.map(item => item.attachment.id),

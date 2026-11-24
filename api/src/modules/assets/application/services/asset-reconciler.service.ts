@@ -112,6 +112,10 @@ export class AssetReconcilerService implements OnModuleInit, BeforeApplicationSh
       }
 
       try {
+        await this.objectStorage.deleteObject({
+          bucket: asset.bucket,
+          key: asset.storageKey,
+        });
         asset.markFailed(AssetFailureCode.UPLOAD_TIMEOUT);
         await this.assetRepository.save(asset);
         this.logger.log(`Stale pending upload expired to FAILED. assetId=${asset.id}`);
