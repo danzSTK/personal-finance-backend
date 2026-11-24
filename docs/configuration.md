@@ -6,8 +6,7 @@ last_reviewed: 2026-07-23
 related:
   - ./getting-started.md
   - ./deploy.md
-  - ./platform/worker-operations.md
-  - ./platform/queue-infrastructure.md
+  - ./platform/workers/README.md
 ---
 
 # Configuração por variáveis de ambiente

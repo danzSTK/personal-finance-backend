@@ -74,7 +74,7 @@ EMAIL_ENQUEUE_RECONCILE_BATCH_SIZE
 EMAIL_ENQUEUE_STALE_AFTER_MS
 ```
 
-Detalhes de health, backlog e recuperação: [Worker operations](../platform/worker-operations.md).
+Detalhes de health, backlog e recuperação: [Workers e Filas](../platform/workers/README.md).
 
 ## Mapa
 

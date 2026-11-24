@@ -31,6 +31,8 @@ describe('GetUserProfileUseCase', () => {
       deleteObject: jest.fn(),
       headObject: jest.fn(),
       buildPublicUrl,
+      buildSignedReadUrl: jest.fn(),
+      getObject: jest.fn(),
     };
 
     useCase = new GetUserProfileUseCase(assetRepository, objectStorage);

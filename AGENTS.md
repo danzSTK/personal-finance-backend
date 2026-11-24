@@ -73,6 +73,21 @@ Do not generate full implementation code on the first response unless the user e
 4. Leia a documentação indicada pelos `AGENTS.md` locais (em `docs/<modulo>/`).
 5. Se a mudança alcançar outro módulo, repita o processo nele.
 
+
+### Leitura Direcionada por Pastas de Contexto (Just-in-Time Routing)
+Para evitar leitura desnecessária e sobrecarga de contexto, **nunca leia todas as documentações de uma vez**. Consulte apenas a pasta de contexto correspondente ao escopo da tarefa:
+
+| Se a tarefa envolver... | Consulte a pasta: | O que contém: |
+|---|---|---|
+| **Fronteiras entre módulos ou dependências** | `docs/architecture/` | Limites modulares (`module-boundaries.md`) e compatibilidade N/N+1 |
+| **Banco de dados, schema, SQL ou migrations** | `docs/database/` | Schema atual (`schema.md`), rollout de migrations e convenções |
+| **Workers, filas BullMQ, jobs ou concorrência** | `docs/platform/workers/` | Infraestrutura de filas, operações de worker e confiabilidade |
+| **E-mails transacionais ou templates** | `docs/platform/email/` | Contratos do provedor de e-mail e configurações |
+| **Pipelines de CI/CD, deploy ou GitHub Actions** | `docs/platform/ci-cd/` | Workflows de integração, entrega contínua e dependências |
+| **Tratamento de datas, fusos ou instantes** | `docs/platform/dates-and-times/` | Regras para `DateOnly` vs `Instant` |
+| **Contratos de resposta da API (`object`)** | `docs/platform/response-objects/` | Padrão discriminador e serialização de DTOs |
+| **Classificação ou abertura de issues** | `docs/platform/standards/` | Padrões de issues e taxonomia da plataforma |
+| **Ciclo de vida de arquivos ou storage** | `docs/assets/` e `docs/storage/` | Gerenciamento de assets, R2 público e R2 privado |
 ### Escopo das instruções
 - Instruções locais complementam as regras globais.
 - Restrições globais de segurança e limites arquiteturais não podem ser relaxadas por instruções locais.
@@ -273,7 +288,7 @@ When reviewing a change, treat the most specific applicable documentation as the
 - `docs/database/migration-rollout.md` for the mandatory `expand -> migrate -> contract` rollout process.
 - `docs/architecture/compatibility.md` for active N/N+1 rollout contracts and deferred cleanup.
 - `docs/errors/README.md`, `docs/events/README.md`, and `docs/notifications/README.md` for platform contracts.
-- `docs/platform/queue-infrastructure.md`, `docs/platform/worker-operations.md`, `docs/platform/response-objects.md`, and `docs/platform/dates-and-times.md` for platform reliability and contracts.
+- `docs/platform/workers/`, `docs/platform/response-objects/`, and `docs/platform/dates-and-times/` for platform reliability and contracts.
 - `docs/tests/README.md` for test suite governance and CI dependencies.
 - `docs/integrations/` for consumer-facing HTTP contracts, and each domain's `docs/<module>/` (`concepts/`, `flows/`, `decisions/`, `reference/invariants.md`) for business invariants.
 

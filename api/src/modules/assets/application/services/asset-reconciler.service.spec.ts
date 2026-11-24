@@ -29,6 +29,8 @@ describe('AssetReconcilerService', () => {
       deleteObject: jest.fn().mockResolvedValue(undefined),
       headObject: jest.fn(),
       buildPublicUrl: jest.fn(),
+      buildSignedReadUrl: jest.fn(),
+      getObject: jest.fn(),
     };
 
     mockConfig = {
@@ -268,10 +270,38 @@ describe('AssetReconcilerService', () => {
         expect.any(Date),
         mockConfig.assetReconciliation.batchSize,
       );
+      expect(mockObjectStorage.deleteObject).toHaveBeenCalledWith({
+        bucket: staleAsset.bucket,
+        key: staleAsset.storageKey,
+      });
       expect(staleAsset.status).toBe(AssetStatus.FAILED);
       expect(staleAsset.failureCode).toBe(AssetFailureCode.UPLOAD_TIMEOUT);
       expect(mockAssetRepository.save).toHaveBeenCalledWith(staleAsset);
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Stale pending upload expired to FAILED'));
+    });
+
+    it('keeps stale pending upload retryable if storage cleanup fails and continues batch', async () => {
+      const staleAsset1 = createTestAsset({ status: AssetStatus.PENDING_UPLOAD }, 'stale-storage-1');
+      const staleAsset2 = createTestAsset({ status: AssetStatus.PENDING_UPLOAD }, 'stale-storage-2');
+      mockAssetRepository.findStalePendingUploadsBefore.mockResolvedValueOnce([staleAsset1, staleAsset2]);
+
+      mockObjectStorage.deleteObject
+        .mockRejectedValueOnce(new Error('R2 temporary unavailable'))
+        .mockResolvedValueOnce(undefined);
+
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+      await service.reconcile();
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to expire stale pending upload. assetId=stale-storage-1'),
+        expect.any(String),
+      );
+      expect(staleAsset1.status).toBe(AssetStatus.PENDING_UPLOAD);
+      expect(mockAssetRepository.save).toHaveBeenCalledTimes(1);
+      expect(mockAssetRepository.save).toHaveBeenCalledWith(staleAsset2);
+      expect(staleAsset2.status).toBe(AssetStatus.FAILED);
+      expect(staleAsset2.failureCode).toBe(AssetFailureCode.UPLOAD_TIMEOUT);
     });
 
     it('handles failure when expiring stale upload without breaking loop', async () => {

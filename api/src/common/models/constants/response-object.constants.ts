@@ -3,6 +3,7 @@ export const RESPONSE_OBJECT_TYPES = {
   ACCOUNT_LIST: 'account.list',
   ACCOUNT_TEMPLATE_ITEM: 'account_template.item',
   ACCOUNT_SUMMARY: 'account.summary',
+  TRANSACTION_ATTACHMENT_ITEM: 'transaction_attachment.item',
   TRANSACTION_LIST: 'transaction.list',
   TRANSACTION_SUMMARY_TYPE: 'transaction_summary.type',
   TRANSACTION_SUMMARY_OVERVIEW: 'transaction_summary.overview',

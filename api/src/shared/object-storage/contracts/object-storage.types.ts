@@ -21,3 +21,13 @@ export interface StoredObjectMetadata {
   etag: string | null;
   metadata: Readonly<Record<string, string>>;
 }
+
+export interface SignedUrlOptions {
+  expiresInSeconds?: number;
+}
+
+export interface SignedUrlOutput {
+  url: string;
+  expiresAt: Date;
+  cacheMaxAgeSeconds: number;
+}

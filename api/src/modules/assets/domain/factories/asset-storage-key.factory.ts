@@ -11,6 +11,7 @@ type StorageKeyBuilder = (input: CreateAssetStorageKeyInput) => string;
 
 const STORAGE_KEY_BUILDERS = {
   [AssetPurpose.USER_AVATAR]: ({ assetId, userId }) => `users/${userId}/avatars/${assetId}.webp`,
+  [AssetPurpose.TRANSACTION_ATTACHMENT]: ({ assetId, userId }) => `users/${userId}/transaction-attachments/${assetId}`,
 } satisfies Record<AssetPurpose, StorageKeyBuilder>;
 
 export class AssetStorageKeyFactory {

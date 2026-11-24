@@ -5,6 +5,7 @@ import { EmailMessageOrmEntity } from '@/modules/notifications/infrastructure/pe
 import { EmailVerificationChallengeOrmEntity } from '@/modules/auth/infrastructure/persistence/email-verification-challenge-orm.entity';
 import { PasswordChangeEventOrmEntity } from '@/modules/auth/infrastructure/persistence/password-change-event-orm.entity';
 import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
+import { TransactionAttachmentOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-attachment-orm.entity';
 import { CategoryOrmEntity } from '../modules/categories/infrastructure/persistence/model/category.entity';
 import { AuthProviderOrmEntity } from '../modules/users/infrastructure/persistence/auth-provider-orm.entity';
 import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
@@ -18,6 +19,7 @@ export const ENTITIES = [
   AssetOrmEntity,
   CategoryOrmEntity,
   TransactionOrmEntity,
+  TransactionAttachmentOrmEntity,
   EmailMessageOrmEntity,
   EmailVerificationChallengeOrmEntity,
   PasswordChangeEventOrmEntity,

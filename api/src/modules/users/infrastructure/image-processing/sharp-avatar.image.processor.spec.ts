@@ -1,12 +1,12 @@
 import { USER_AVATAR_HEIGHT, USER_AVATAR_MAX_INPUT_BYTES, USER_AVATAR_WIDTH } from '@/common/models/constants';
 import { AvatarFileTooLargeError, UnsupportedAvatarFileError } from '@/modules/users/application/errors';
-import { IImageFileTypeDetector } from '@/modules/users/application/ports/image-file-type-detector.interface';
 import { SharpAvatarImageProcessor } from '@/modules/users/infrastructure/image-processing/sharp-avatar.image.processor';
+import { IFileSignatureDetector } from '@/shared/file-detection';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 
 describe('SharpAvatarImageProcessor', () => {
-  let detect: jest.MockedFunction<IImageFileTypeDetector['detect']>;
+  let detect: jest.MockedFunction<IFileSignatureDetector['detect']>;
   let processor: SharpAvatarImageProcessor;
 
   beforeEach(() => {

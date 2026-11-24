@@ -49,6 +49,11 @@ export abstract class ITransactionRepository {
     userId: string,
     options?: IRepositoryOptions,
   ): Promise<Transaction | null>;
+  abstract findByIdAndUserIdForUpdate(
+    transactionId: string,
+    userId: string,
+    options: Required<IRepositoryOptions>,
+  ): Promise<Transaction | null>;
   abstract list(input: ListTransactionsInput, options?: IRepositoryOptions): Promise<ListTransactionsOutput>;
   abstract save(transaction: Transaction, options?: IRepositoryOptions): Promise<Transaction>;
 }

@@ -3,7 +3,7 @@ area: integrations
 type: contract
 status: current
 related:
-  - ../platform/response-objects.md
+  - ../platform/response-objects/README.md
 ---
 
 # Response Objects
@@ -33,6 +33,7 @@ Valores iniciais:
 | Object                         | Uso                                                            |
 | ------------------------------ | -------------------------------------------------------------- |
 | `transaction.list`             | Response raiz de `GET /transactions`.                          |
+| `transaction_attachment.item`  | Item de anexo retornado por `GET` e `POST /transactions/:id/attachments`. |
 | `transaction_summary.type`     | Summary simples quando `GET /transactions` recebe `type`.      |
 | `transaction_summary.overview` | Summary agrupado quando `GET /transactions` não recebe `type`. |
 | `account.list`                 | Shape reservado para listagem de accounts.                     |

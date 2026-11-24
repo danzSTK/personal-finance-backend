@@ -176,7 +176,7 @@ Ao alterar o pipeline:
 8. valide migrations quanto à compatibilidade de rollback;
 9. alinhe mudanças do workflow com o executor em `danfy-infra`;
 10. execute o teste manual de conectividade quando identidade, ACLs ou privilégios mudarem;
-11. atualize este documento e o [guia de deploy](../deploy.md).
+11. atualize este documento e o [guia de deploy](../../deploy.md).
 
 ## Configuração necessária no GitHub
 

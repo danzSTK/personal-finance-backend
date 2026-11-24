@@ -32,7 +32,7 @@ o teste, suas dependências, a pipeline e a documentação como uma única mudan
    - a página correspondente em `docs/tests/e2e/` ou
      `docs/tests/integration/`;
    - o índice e a matriz de dependências quando necessário;
-   - `docs/platform/continuous-integration.md` e a spec de CI se o fluxo
+   - `docs/platform/ci-cd/` e a spec de CI se o fluxo
      operacional mudar.
 9. Executar primeiro o teste direcionado para diagnóstico e depois o comando
    agregado da categoria. O teste direcionado nunca substitui a suíte completa.

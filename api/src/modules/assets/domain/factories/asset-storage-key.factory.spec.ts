@@ -11,5 +11,14 @@ describe('AssetStorageKeyFactory', () => {
 
       expect(key.value).toBe(`users/${userId}/avatars/${assetId}.webp`);
     });
+
+    it('creates the canonical transaction attachment key without extension', () => {
+      const assetId = '9e587d6d-dd96-4c74-ab06-6e6f11d4027d';
+      const userId = '85423f76-b2e0-4499-8b94-da58b1df6f74';
+
+      const key = AssetStorageKeyFactory.create({ assetId, userId, purpose: AssetPurpose.TRANSACTION_ATTACHMENT });
+
+      expect(key.value).toBe(`users/${userId}/transaction-attachments/${assetId}`);
+    });
   });
 });

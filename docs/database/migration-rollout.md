@@ -5,7 +5,7 @@ status: current
 related:
   - ./schema.md
   - ../architecture/compatibility.md
-  - ../platform/continuous-delivery.md
+  - ../platform/ci-cd/README.md
 ---
 
 # Rollout De Migrations

@@ -1,12 +1,12 @@
 import {
-  DetectedImageFileType,
-  IImageFileTypeDetector,
-} from '@/modules/users/application/ports/image-file-type-detector.interface';
+  DetectedFileSignature,
+  IFileSignatureDetector,
+} from '@/shared/file-detection/contracts/file-signature-detector.interface';
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
-export class FileTypeImageDetector implements IImageFileTypeDetector {
-  async detect(input: Uint8Array): Promise<DetectedImageFileType | null> {
+export class FileTypeSignatureDetector implements IFileSignatureDetector {
+  async detect(input: Uint8Array): Promise<DetectedFileSignature | null> {
     const { fileTypeFromBuffer } = await import('file-type');
     const detected = await fileTypeFromBuffer(input);
 

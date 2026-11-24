@@ -17,7 +17,7 @@ Antes de planejar ou editar SQL, leia completamente:
 3. `docs/database/schema.md` e as migrations relevantes para o estado atual;
 4. a spec da feature e as ORM entities afetadas.
 
-Leia `docs/platform/continuous-delivery.md` quando a ordem de deploy, rollback,
+Leia `docs/platform/ci-cd/` quando a ordem de deploy, rollback,
 lock ou duração operacional influenciar a decisão.
 
 ## Decisão De Rollout

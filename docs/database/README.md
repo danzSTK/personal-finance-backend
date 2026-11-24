@@ -19,4 +19,4 @@ troca atômica de banco e aplicação.
 - [Rollout de migrations](./migration-rollout.md)
 - [Revisão de SQL e modelagem lógica](./review-guidelines.md)
 - [Registro de compatibilidade](../architecture/compatibility.md)
-- [Datas e instantes](../platform/dates-and-times.md)
+- [Datas e instantes](../platform/dates-and-times/README.md)

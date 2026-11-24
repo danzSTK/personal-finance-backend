@@ -4,6 +4,8 @@ import {
   ObjectLocation,
   PutObjectInput,
   PutObjectOutput,
+  SignedUrlOptions,
+  SignedUrlOutput,
   StoredObjectMetadata,
 } from '@/shared/object-storage/contracts/object-storage.types';
 import {
@@ -14,7 +16,14 @@ import {
   ObjectStorageOperation,
 } from '@/shared/object-storage/errors';
 import { OBJECT_STORAGE_CLIENT } from '@/shared/object-storage/object-storage.tokens';
-import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type ConfigType } from '@nestjs/config';
 
@@ -32,6 +41,9 @@ export class S3ObjectStorageAdapter extends IObjectStorage {
   }
   async putObject(input: PutObjectInput): Promise<PutObjectOutput> {
     try {
+      const isPrivate = input.bucket === this.config.privateBucketName;
+      const cacheControl = isPrivate ? 'private, max-age=300' : 'public, max-age=31536000, immutable';
+
       const command = new PutObjectCommand({
         Bucket: input.bucket,
         Key: input.key,
@@ -39,7 +51,7 @@ export class S3ObjectStorageAdapter extends IObjectStorage {
         ContentType: input.contentType,
         Metadata: input.metadata,
         ChecksumSHA256: this.toBase64Checksum(input.checksumSha256Hex),
-        CacheControl: 'public, max-age=31536000, immutable',
+        CacheControl: cacheControl,
       });
 
       const response = await this.client.send(command);
@@ -110,6 +122,60 @@ export class S3ObjectStorageAdapter extends IObjectStorage {
       .join('/');
 
     return `${baseUrl}/${encodedKey}`;
+  }
+
+  async buildSignedReadUrl(location: ObjectLocation, options?: SignedUrlOptions): Promise<SignedUrlOutput> {
+    if (location.bucket !== this.config.privateBucketName) {
+      throw new ObjectStorageError({
+        code: ObjectStorageErrorCode.PRIVATE_URL_UNAVAILABLE,
+        operation: 'BUILD_SIGNED_READ_URL',
+        retryable: false,
+      });
+    }
+
+    const expiresIn = options?.expiresInSeconds ?? 300;
+
+    try {
+      const command = new GetObjectCommand({
+        Bucket: location.bucket,
+        Key: location.key,
+      });
+
+      const url = await getSignedUrl(this.client, command, { expiresIn });
+
+      return {
+        url,
+        expiresAt: new Date(Date.now() + expiresIn * 1000),
+        cacheMaxAgeSeconds: 240,
+      };
+    } catch (error) {
+      throw this.handleError(error, 'BUILD_SIGNED_READ_URL', location);
+    }
+  }
+
+  async getObject(location: ObjectLocation): Promise<{ body: Buffer; contentType: string | null }> {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: location.bucket,
+        Key: location.key,
+      });
+
+      const response = await this.client.send(command);
+      const chunks: Buffer[] = [];
+
+      if (response.Body) {
+        for await (const chunk of response.Body as AsyncIterable<Uint8Array | Buffer | string>) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+      }
+
+      return {
+        body: Buffer.concat(chunks),
+        contentType: response.ContentType ?? null,
+      };
+    } catch (error) {
+      throw this.handleError(error, 'GET', location);
+    }
   }
 
   private toBase64Checksum(checksumHex?: string): string | undefined {

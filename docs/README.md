@@ -41,15 +41,15 @@ Esta é a entrada principal para a documentação do Danfy Backend. O índice se
 - [Rollout de migrations](./database/migration-rollout.md)
 - [Revisão de SQL e modelagem lógica](./database/review-guidelines.md)
 - [Arquitetura de eventos e outbox](./events/README.md)
-- [Infraestrutura de filas](./platform/queue-infrastructure.md)
-- [Datas civis e instantes](./platform/dates-and-times.md)
+- [Infraestrutura de filas e workers](./platform/workers/README.md)
+- [Datas civis e instantes](./platform/dates-and-times/README.md)
 
 ## Plataforma
 
 - [Mapa da plataforma](./platform/README.md)
-- [Objetos de resposta](./platform/response-objects.md)
-- [Email provider](./platform/email-provider.md)
-- [Padrões de issues](./platform/issue-standards.md)
+- [Objetos de resposta](./platform/response-objects/README.md)
+- [Email provider](./platform/email/README.md)
+- [Padrões de issues](./platform/standards/README.md)
 
 ## Operação
 
@@ -57,11 +57,8 @@ Esta é a entrada principal para a documentação do Danfy Backend. O índice se
 - [Configuração por variáveis de ambiente](./configuration.md)
 - [Comandos principais](./commands.md)
 - [Guia de deploy na VPS](./deploy.md)
-- [Operação do worker](./platform/worker-operations.md)
-- [Infraestrutura de filas](./platform/queue-infrastructure.md)
-- [Integração contínua](./platform/continuous-integration.md)
-- [Atualizações de dependências](./platform/dependency-updates.md)
-- [Releases e entrega contínua](./platform/continuous-delivery.md)
+- [Operação do worker e filas](./platform/workers/README.md)
+- [Integração e entrega contínua (CI/CD)](./platform/ci-cd/README.md)
 
 ## Domínios
 

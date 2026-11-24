@@ -16,6 +16,7 @@ related:
 | Purpose | Significado |
 | --- | --- |
 | `USER_AVATAR` | Imagem pública de perfil pertencente a um usuário. |
+| `TRANSACTION_ATTACHMENT` | Comprovante privado (recibo, cupom ou nota) vinculado a uma transação financeira. |
 
 Purpose não é MIME type, nome de pasta nem descrição livre enviada pelo frontend. Um novo valor deve representar uma nova finalidade real e entrar explicitamente no catálogo do domínio.
 

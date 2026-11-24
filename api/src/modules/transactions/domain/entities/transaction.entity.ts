@@ -23,6 +23,7 @@ export interface TransactionProps {
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  attachmentsCount?: number;
 }
 
 export interface UpdateTransactionProps {
@@ -98,6 +99,14 @@ export class Transaction {
     return new Date(this.props.updatedAt);
   }
 
+  get attachmentsCount(): number {
+    return this.props.attachmentsCount ?? 0;
+  }
+
+  setAttachmentsCount(count: number): void {
+    this.props.attachmentsCount = count;
+  }
+
   get isDeleted(): boolean {
     return this.props.deletedAt !== null;
   }
@@ -108,6 +117,14 @@ export class Transaction {
 
   get isEffective(): boolean {
     return this.props.status === TransactionStatus.EFFECTIVE;
+  }
+
+  static supportsAttachmentsForType(type: TransactionType): boolean {
+    return type === TransactionType.INCOME || type === TransactionType.EXPENSE;
+  }
+
+  supportsAttachments(): boolean {
+    return Transaction.supportsAttachmentsForType(this.props.type);
   }
 
   applyPatch(patch: UpdateTransactionProps): void {
@@ -171,6 +188,7 @@ export class Transaction {
   static create(props: TransactionProps, id: string): Transaction {
     const normalizedProps = {
       ...props,
+      attachmentsCount: props.attachmentsCount ?? 0,
       description: Transaction.normalizeDescription(props.description),
     };
 
@@ -180,7 +198,7 @@ export class Transaction {
   }
 
   static reconstitute(props: TransactionProps, id: string): Transaction {
-    return new Transaction(props, id);
+    return new Transaction({ ...props, attachmentsCount: props.attachmentsCount ?? 0 }, id);
   }
 
   private static validate(props: TransactionProps): void {

@@ -34,6 +34,8 @@ Também podem ser enviados:
 
 Ao atualizar para `TRANSFER` ou `ADJUSTMENT`, não envie `categoryId` técnico. O backend resolve a category técnica correta.
 
+Não é permitido converter uma transação para `TRANSFER` ou `ADJUSTMENT` enquanto ela possuir anexos ativos — remova os anexos antes de alterar o tipo.
+
 ## Response
 
 `200 OK`
@@ -49,3 +51,4 @@ Retorna o modelo atualizado.
 - `TRANSACTION_ACCOUNT_UNAVAILABLE`
 - `TRANSACTION_CATEGORY_UNAVAILABLE`
 - `TRANSACTION_CATEGORY_INCOMPATIBLE`
+- `TRANSACTION_TYPE_DOES_NOT_SUPPORT_ATTACHMENTS`

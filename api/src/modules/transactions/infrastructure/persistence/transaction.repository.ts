@@ -59,6 +59,29 @@ export class TransactionRepository implements ITransactionRepository {
     return TransactionMapper.toDomain(transaction);
   }
 
+  async findByIdAndUserIdForUpdate(
+    transactionId: string,
+    userId: string,
+    options: Required<IRepositoryOptions>,
+  ): Promise<Transaction | null> {
+    const repository = options.manager.getRepository(TransactionOrmEntity);
+
+    const transaction = await repository.findOne({
+      where: {
+        id: transactionId,
+        user_id: userId,
+        deleted_at: IsNull(),
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!transaction) {
+      return null;
+    }
+
+    return TransactionMapper.toDomain(transaction);
+  }
+
   async list(input: ListTransactionsInput, options?: IRepositoryOptions): Promise<ListTransactionsOutput> {
     const repository = options?.manager
       ? options.manager.getRepository(TransactionOrmEntity)
