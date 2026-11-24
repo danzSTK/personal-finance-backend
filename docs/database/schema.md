@@ -506,7 +506,7 @@ Representa o registro relacional dos objetos armazenados no Object Storage. Os b
 | --- | --- | --- | --- |
 | `id` | `uuid` | `default gen_random_uuid()` | Identidade do asset e componente estável da storage key. |
 | `user_id` | `uuid` | `not null` | Proprietário do objeto para isolamento multi-tenant e autorização. |
-| `purpose` | `varchar(50)` | `not null` | Finalidade estável do produto. Inicialmente aceita `USER_AVATAR`. |
+| `purpose` | `varchar(50)` | `not null` | Finalidade estável do produto (`USER_AVATAR` ou `TRANSACTION_ATTACHMENT`). |
 | `status` | `varchar(30)` | `not null default 'PENDING_UPLOAD'` | Estado operacional do objeto: `PENDING_UPLOAD`, `READY`, `DELETE_PENDING`, `DELETED` ou `FAILED`. |
 | `bucket` | `varchar(63)` | `not null` | Nome do bucket definido pela configuração do backend. Não faz parte da storage key. |
 | `storage_key` | `varchar(1024)` | `not null` | Caminho relativo e único do objeto dentro do bucket. |

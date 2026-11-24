@@ -156,7 +156,8 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | `TRANSACTION_INVALID_STATE_TRANSITION` |  `409` | Transição de estado inválida, como confirmar estado incompatível |
 | `TRANSACTION_NOT_FOUND`                |  `404` | Transaction não existe, foi deletada ou não pertence ao usuário  |
 | `TRANSACTION_UPDATE_EMPTY`             |  `409` | PATCH não trouxe nenhum campo editável                           |
-| `TRANSACTION_TYPE_DOES_NOT_SUPPORT_ATTACHMENTS` | `409` | Tipo de transação (TRANSFER ou ADJUSTMENT) não aceita anexos |
+| `TRANSACTION_ATTACHMENT_FILES_EMPTY`            | `400` | Nenhum arquivo foi informado para upload de anexo            |
+| `TRANSACTION_TYPE_DOES_NOT_SUPPORT_ATTACHMENTS` | `409` | Tipo de transação (`TRANSFER` ou `ADJUSTMENT`) não aceita anexos ou a transação possui anexos ativos ao tentar converter de tipo |
 | `TRANSACTION_ATTACHMENT_LIMIT_EXCEEDED`         | `409` | Transação atingiu o teto máximo de 3 anexos ativos           |
 | `TRANSACTION_ATTACHMENT_NOT_FOUND`              | `404` | Anexo não existe ou não pertence a esta transação            |
 | `INVALID_ATTACHMENT_POSITION`                   | `400` | Reordenação enviou posições fora de 0..N-1 ou duplicadas     |

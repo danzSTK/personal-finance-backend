@@ -73,7 +73,7 @@ docker compose --env-file .env \
   up -d postgres redis bullmq-redis
 ```
 
-O fluxo completo, incluindo configuração do ambiente, migrations, API e worker, está no [guia de desenvolvimento local](../getting-started.md).
+O fluxo completo, incluindo configuração do ambiente, migrations, API e worker, está no [guia de desenvolvimento local](../../getting-started.md).
 
 Para a API rodando localmente fora do Docker, use:
 

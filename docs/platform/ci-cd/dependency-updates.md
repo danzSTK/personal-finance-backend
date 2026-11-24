@@ -10,7 +10,7 @@ related:
 
 # Atualizações de dependências
 
-O Dependabot monitora semanalmente as dependências npm, GitHub Actions e imagens Docker do Danfy Backend. A configuração executável está em [`.github/dependabot.yml`](../../.github/dependabot.yml).
+O Dependabot monitora semanalmente as dependências npm, GitHub Actions e imagens Docker do Danfy Backend. A configuração executável está em [`.github/dependabot.yml`](../../../.github/dependabot.yml).
 
 O serviço propõe alterações por pull request; ele não aprova nem faz merge automaticamente.
 
@@ -77,7 +77,7 @@ Se nenhuma atualização compatível estiver disponível, o alert pode permanece
 
 Os valores de `open-pull-requests-limit` configurados para cada ecossistema controlam version updates. Security updates usam um limite interno separado do GitHub.
 
-Não publique detalhes exploráveis da vulnerabilidade em uma issue. Siga a [Política de Segurança](../../SECURITY.md).
+Não publique detalhes exploráveis da vulnerabilidade em uma issue. Siga a [Política de Segurança](../../../SECURITY.md).
 
 ## Como revisar uma PR
 

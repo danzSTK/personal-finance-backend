@@ -61,22 +61,25 @@ Cliente                  API (AddUseCase)              PostgreSQL            R2 
 ### 2. Reserva Transacional Curta (PostgreSQL)
 - Adquire lock pessimista (`SELECT FOR UPDATE`) na transação;
 - Valida tipo (`INCOME` ou `EXPENSE`) e que a transação não está deletada;
+- Expurga vínculos antigos cujos assets não estão mais ativos (`FAILED`, `DELETE_PENDING` ou `DELETED`) para liberar slots;
 - Valida que `activeCount + files.length <= 3`;
 - Gera `Asset` com status `PENDING_UPLOAD` no bucket privado;
-- Gera `TransactionAttachment` com posições ordinais sequenciais (0, 1, 2);
+- Gera `TransactionAttachment` com posições ordinais disponíveis (0, 1, 2);
 - Salva no banco e faz commit liberando o lock imediatamente.
 
-### 3. Upload Físico ao Cloudflare R2
+### 3. Upload Físico ao Cloudflare R2 (com Compensação de Lote)
 - Executa fora do lock do banco para não segurar conexões durante transferências de rede;
 - Grava o arquivo original na storage key definitiva: `users/{userId}/transaction-attachments/{assetId}`;
-- Aplica header `Cache-Control: private, max-age=300`.
+- Aplica header `Cache-Control: private, max-age=300`;
+- Se algum arquivo do lote falhar durante o `putObject`, a compensação transacional remove todos os vínculos `transaction_attachments` reservados no lote, move os assets já enviados/tentados para `DELETE_PENDING` via `discardUploadedPendingAsset` (para limpeza pelo reconciliador) e marca os ainda não enviados como `FAILED`.
 
 ### 4. Confirmação Transacional (`markReady`)
 - Adquire lock curto novamente na transação;
-- Se a transação tiver sido deletada durante o upload:
-  - Marca os assets como `FAILED (TRANSACTION_DELETED)` -> `DELETE_PENDING`;
-  - Rejeita a requisição com 404 (os bytes órfãos serão limpos pelo `AssetReconcilerService`);
-- Se ativa:
+- Se a transação tiver sido deletada ou convertida para tipo incompatível durante o upload:
+  - Remove os vínculos `transaction_attachments` do lote;
+  - Move os assets enviados para `DELETE_PENDING` via `discardUploadedPendingAsset(TRANSACTION_DELETED)`;
+  - Rejeita a requisição com 404 (se deletada) ou 409 (se tipo incompatível), delegando a limpeza física ao `AssetReconcilerService`;
+- Se ativa e elegível:
   - Invoca `asset.markReady(...)` registrando metadados, checksum SHA-256 e tamanho original;
   - Enfileira jobs de otimização na fila BullMQ `transaction-attachments-optimization`.
 
@@ -90,5 +93,5 @@ Cliente                  API (AddUseCase)              PostgreSQL            R2 
 - Baixa o original via `getObject`;
 - Processa no Sharp: rotação por EXIF, redimensionamento proporcional cabendo em 2560x2560 sem ampliação, conversão para WebP qualidade 80;
 - Sobrescreve o objeto no R2 na mesma key;
-- Sob lock pessimista no asset, verifica novamente se continua `READY`;
-- Atualiza `content_type = 'image/webp'`, novo checksum, novo tamanho e metadados no PostgreSQL.
+- Sob lock pessimista no asset, verifica novamente se continua `READY`; se tiver sido movido para `DELETE_PENDING` ou `DELETED` durante o processamento, executa `deleteObject` compensatório no R2 para não recriar um arquivo excluído;
+- Se ainda `READY`, atualiza `content_type = 'image/webp'`, novo checksum, novo tamanho e metadados no PostgreSQL.

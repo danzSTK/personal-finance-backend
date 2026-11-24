@@ -63,7 +63,8 @@ Implementado:
 - types `INCOME`, `EXPENSE`, `TRANSFER` e `ADJUSTMENT`;
 - status `PENDING` e `EFFECTIVE`;
 - soft delete técnico por `deleted_at`;
-- endpoints HTTP protegidos em `TransactionsController`.
+- tabela `transaction_attachments` com galeria ordenada de até 3 comprovantes privados por transação (`INCOME`/`EXPENSE`), Presigned URLs e otimização assíncrona via BullMQ;
+- endpoints HTTP protegidos em `TransactionsController` e `TransactionAttachmentsController`.
 
 Planejado:
 

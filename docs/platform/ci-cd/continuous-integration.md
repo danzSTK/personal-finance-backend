@@ -65,7 +65,7 @@ Executa `npm run test:integration`. Testcontainers provisiona PostgreSQL, Redis 
 Resultado esperado: cenários que dependem do comportamento real das dependências, incluindo concorrência e recuperação de falhas, aprovados sem serviços persistentes configurados no GitHub Actions.
 
 O catálogo de cada suíte, seus componentes reais, imagens e requisitos locais está
-em [Testes do backend](../tests/README.md). `npm run test:integration` é o comando
+em [Testes do backend](../../tests/README.md). `npm run test:integration` é o comando
 agregado e executa todos os arquivos `api/test/*.integration-spec.ts`; filtros por
 arquivo são apenas atalhos de diagnóstico local.
 
@@ -99,7 +99,7 @@ Não reexecute repetidamente uma falha determinística. Reproduza o comando loca
 
 ## Reprodução local
 
-Os comandos equivalentes estão em [Comandos principais](../commands.md). Para validar os arquivos de desenvolvimento:
+Os comandos equivalentes estão em [Comandos principais](../../commands.md). Para validar os arquivos de desenvolvimento:
 
 ```bash
 docker compose --env-file .env \

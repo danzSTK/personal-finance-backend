@@ -36,7 +36,8 @@ stateDiagram-v2
     [*] --> PENDING_UPLOAD: Reserva de ID e Storage Key
 
     PENDING_UPLOAD --> READY: Upload e validação concluídos (markReady)
-    PENDING_UPLOAD --> FAILED: Falha no upload inicial ou Timeout > 2h (markFailed)
+    PENDING_UPLOAD --> FAILED: Falha antes do upload ou Timeout > 2h (markFailed)
+    PENDING_UPLOAD --> DELETE_PENDING: Descarte após envio parcial/concorrente ao R2 (discardUploadedPendingAsset)
 
     READY --> DELETE_PENDING: Entidade desvinculada / excluída (markDeletePending)
     FAILED --> DELETE_PENDING: Descarte de registro falho (markDeletePending)
@@ -68,5 +69,5 @@ Se a chamada ao Cloudflare R2 falhar repetidamente (ex.: credenciais corrompidas
 ### 3.3. Expiração de `PENDING_UPLOAD` (Uploads Zumbis)
 Se um cliente inicia um upload e perde a conexão ou fecha a aba antes de enviar os bytes ao R2:
 - O asset ficaria indefinidamente em `PENDING_UPLOAD`, travando limites lógicos de slots (como os 3 anexos por transaction);
-- O reconciliador localiza registros em `PENDING_UPLOAD` com mais de 2 horas de inatividade e executa `markFailed('UPLOAD_TIMEOUT')`;
+- O reconciliador localiza registros em `PENDING_UPLOAD` com mais de 2 horas de inatividade, executa `deleteObject` idempotente no R2 (para limpar eventuais bytes órfãos de uma queda entre upload e confirmação) e então executa `markFailed('UPLOAD_TIMEOUT')`;
 - O estado `FAILED` é terminal e libera a cota para novas tentativas legítimas.

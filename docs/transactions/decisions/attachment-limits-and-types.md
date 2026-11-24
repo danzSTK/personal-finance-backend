@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: decision
-status: accepted
+status: current
 related:
   - ../README.md
   - ../concepts/transaction-attachment.md
@@ -20,7 +20,7 @@ Além disso, permitir upload irrestrito de comprovantes geraria custos excessivo
 
 ## Decisão
 
-1. **Restrição por Tipo:** Apenas transações dos tipos `INCOME` e `EXPENSE` aceitam anexos. Tentativas de upload em `TRANSFER` ou `ADJUSTMENT` são rejeitadas com erro semântico de domínio (HTTP 409 `TransactionTypeDoesNotSupportAttachmentsError`).
+1. **Restrição por Tipo:** Apenas transações dos tipos `INCOME` e `EXPENSE` aceitam anexos. Tentativas de upload em `TRANSFER` ou `ADJUSTMENT` — assim como tentativas de converter uma transação com anexos ativos para `TRANSFER` ou `ADJUSTMENT` via edição ou confirmação — são rejeitadas com erro semântico de domínio (HTTP 409 `TRANSACTION_TYPE_DOES_NOT_SUPPORT_ATTACHMENTS`).
 2. **Capacidade Máxima de 3 Anexos:** Cada transação pode ter no máximo 3 anexos ativos simultaneamente (`activeCount + incomingFiles <= 3`).
 3. **Validação de Formatos:** Apenas imagens nos formatos PNG, JPEG e WebP são aceitas (validação estrita por magic bytes via `file-type`).
 4. **Teto de Resolução e Tamanho:** Limite de 5 MB por arquivo e teto de 60 Megapixels (`width * height <= 60_000_000`) para mitigar ataques de descompressão (*pixel flood*).

@@ -1,7 +1,7 @@
 ---
 area: transactions
 type: decision
-status: accepted
+status: current
 related:
   - ../README.md
   - ../../storage/README.md
