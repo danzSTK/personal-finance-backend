@@ -1,0 +1,4 @@
+interface:
+  display_name: "Danfy Review"
+  short_description: "Revisao completa de codigo, arquitetura, banco, seguranca e lag documental."
+  default_prompt: "Use $danfy-review para revisar minhas mudancas atuais verificando arquitetura, seguranca, banco/SQL e alinhamento com a documentacao."
