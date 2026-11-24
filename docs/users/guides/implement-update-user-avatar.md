@@ -13,7 +13,7 @@ related:
 
 Este guia registra o raciocínio usado para implementar o primeiro fluxo de avatar sobre a base atual. A implementação funcional já faz parte da aplicação; consulte os arquivos fonte quando houver diferença entre um trecho didático e o código atual.
 
-Nota de implementação: `file-type@22` é ESM-only. O código final separa `IImageFileTypeDetector` e `FileTypeImageDetector`, que carrega `file-type` com import dinâmico. `SharpAvatarImageProcessor` depende dessa porta, o que mantém os testes compatíveis com o Jest atual.
+Nota de implementação: `file-type@22` é ESM-only. O código final separa a porta compartilhada `IFileSignatureDetector` e o adapter `FileTypeSignatureDetector` (em `api/src/shared/file-detection/`), que carrega `file-type` com import dinâmico. `SharpAvatarImageProcessor` depende dessa porta, o que mantém os testes compatíveis com o Jest atual.
 
 ## Escopo
 

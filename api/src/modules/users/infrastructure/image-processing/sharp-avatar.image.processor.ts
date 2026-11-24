@@ -15,27 +15,24 @@ import {
   IAvatarImageProcessor,
   ProcessedAvatarImage,
 } from '@/modules/users/application/ports/avatar-image-processor.interface';
-import {
-  DetectedImageFileType,
-  IImageFileTypeDetector,
-} from '@/modules/users/application/ports/image-file-type-detector.interface';
+import { DetectedFileSignature, IFileSignatureDetector } from '@/shared/file-detection';
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 
 @Injectable()
 export class SharpAvatarImageProcessor implements IAvatarImageProcessor {
-  constructor(private readonly fileTypeDetector: IImageFileTypeDetector) {}
+  constructor(private readonly fileSignatureDetector: IFileSignatureDetector) {}
 
   async process(input: Uint8Array): Promise<ProcessedAvatarImage> {
     if (input.byteLength > USER_AVATAR_MAX_INPUT_BYTES) {
       throw new AvatarFileTooLargeError();
     }
 
-    let detectedType: DetectedImageFileType | null;
+    let detectedType: DetectedFileSignature | null;
 
     try {
-      detectedType = await this.fileTypeDetector.detect(input);
+      detectedType = await this.fileSignatureDetector.detect(input);
     } catch {
       throw new InvalidAvatarImageError();
     }
