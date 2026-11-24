@@ -31,6 +31,7 @@ Retorna um array com até 3 anexos ativos ordenados por `position ASC`:
 ```json
 [
   {
+    "object": "transaction_attachment.item",
     "id": "b9344403-c4bd-4e64-8a9b-10f2c44b4434",
     "assetId": "25f9382f-d990-4759-b24e-761336431fc0",
     "position": 0,
@@ -47,6 +48,7 @@ Retorna um array com até 3 anexos ativos ordenados por `position ASC`:
 
 | Campo                | Tipo     | Descrição                                                                                             |
 | -------------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `object`             | `string` | Discriminador de shape: sempre `"transaction_attachment.item"`.                                       |
 | `id`                 | `uuid`   | Identificador único do anexo na galeria da transação.                                                 |
 | `assetId`            | `uuid`   | Identificador do asset subjacente que gerencia o arquivo físico.                                      |
 | `position`           | `number` | Posição visual na galeria (inteiro de `0` a `2`).                                                     |

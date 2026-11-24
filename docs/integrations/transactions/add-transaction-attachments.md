@@ -58,6 +58,7 @@ Retorna um array com os anexos recém-criados e suas Presigned URLs prontas para
 ```json
 [
   {
+    "object": "transaction_attachment.item",
     "id": "b9344403-c4bd-4e64-8a9b-10f2c44b4434",
     "assetId": "25f9382f-d990-4759-b24e-761336431fc0",
     "position": 0,

@@ -41,11 +41,16 @@ export class ReorderTransactionAttachmentsUseCase {
       }
 
       const existingIds = new Set(existing.map(item => item.id));
+      const seenIds = new Set<string>();
       const assignedPositions = new Set<number>();
 
       for (const item of input.positions) {
         if (!existingIds.has(item.id)) {
           throw new InvalidAttachmentPositionError(`Attachment ${item.id} does not belong to the transaction.`);
+        }
+
+        if (seenIds.has(item.id)) {
+          throw new InvalidAttachmentPositionError(`Duplicate attachment ID ${item.id} detected.`);
         }
 
         if (!Number.isInteger(item.position) || item.position < 0 || item.position >= existing.length) {
@@ -56,6 +61,7 @@ export class ReorderTransactionAttachmentsUseCase {
           throw new InvalidAttachmentPositionError('Duplicate attachment position detected.');
         }
 
+        seenIds.add(item.id);
         assignedPositions.add(item.position);
       }
 

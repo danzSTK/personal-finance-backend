@@ -122,6 +122,27 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
     ).rejects.toThrow(InvalidAttachmentPositionError);
   });
 
+  it('rejects when duplicate attachment IDs are provided with distinct positions', async () => {
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTransaction);
+
+    const att1 = TransactionAttachment.create({ id: 'att-1', transactionId, assetId: 'a1', position: 0 });
+    const att2 = TransactionAttachment.create({ id: 'att-2', transactionId, assetId: 'a2', position: 1 });
+    attachmentRepository.findByTransactionId.mockResolvedValue([att1, att2]);
+
+    await expect(
+      useCase.execute({
+        userId,
+        transactionId,
+        positions: [
+          { id: 'att-1', position: 0 },
+          { id: 'att-1', position: 1 },
+        ],
+      }),
+    ).rejects.toThrow(InvalidAttachmentPositionError);
+
+    expect(attachmentRepository.reorderPositions).not.toHaveBeenCalled();
+  });
+
   it('successfully reorders positions', async () => {
     transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTransaction);
 

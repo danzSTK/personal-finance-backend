@@ -1,6 +1,21 @@
+import { RESPONSE_OBJECT_TYPES } from '@/common/models/constants';
 import { ApiProperty } from '@nestjs/swagger';
 
+export interface TransactionAttachmentResponseSource {
+  id: string;
+  assetId: string;
+  position: number;
+  contentType: string;
+  sizeBytes: number;
+  url: string;
+  expiresAt: Date;
+  cacheMaxAgeSeconds: number;
+}
+
 export class TransactionAttachmentResponseDto {
+  @ApiProperty({ example: RESPONSE_OBJECT_TYPES.TRANSACTION_ATTACHMENT_ITEM })
+  readonly object: typeof RESPONSE_OBJECT_TYPES.TRANSACTION_ATTACHMENT_ITEM;
+
   @ApiProperty({ format: 'uuid', example: '9e587d6d-dd96-4c74-ab06-6e6f11d4027d' })
   readonly id: string;
 
@@ -24,4 +39,22 @@ export class TransactionAttachmentResponseDto {
 
   @ApiProperty({ example: 240, description: 'Janela de cache recomendada em segundos para o cliente' })
   readonly cacheMaxAgeSeconds: number;
+
+  static fromOutput(item: TransactionAttachmentResponseSource): TransactionAttachmentResponseDto {
+    return {
+      object: RESPONSE_OBJECT_TYPES.TRANSACTION_ATTACHMENT_ITEM,
+      id: item.id,
+      assetId: item.assetId,
+      position: item.position,
+      contentType: item.contentType,
+      sizeBytes: item.sizeBytes,
+      url: item.url,
+      expiresAt: item.expiresAt,
+      cacheMaxAgeSeconds: item.cacheMaxAgeSeconds,
+    };
+  }
+
+  static fromOutputList(items: TransactionAttachmentResponseSource[]): TransactionAttachmentResponseDto[] {
+    return items.map(item => TransactionAttachmentResponseDto.fromOutput(item));
+  }
 }

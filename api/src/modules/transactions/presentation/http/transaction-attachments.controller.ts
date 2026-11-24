@@ -60,10 +60,12 @@ export class TransactionAttachmentsController {
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) transactionId: string,
   ): Promise<TransactionAttachmentResponseDto[]> {
-    return this.listTransactionAttachmentsUseCase.execute({
+    const items = await this.listTransactionAttachmentsUseCase.execute({
       userId: user.id,
       transactionId,
     });
+
+    return TransactionAttachmentResponseDto.fromOutputList(items);
   }
 
   @Post()
@@ -117,11 +119,13 @@ export class TransactionAttachmentsController {
       originalname: file.originalname,
     }));
 
-    return this.addTransactionAttachmentsUseCase.execute({
+    const items = await this.addTransactionAttachmentsUseCase.execute({
       userId: user.id,
       transactionId,
       files: inputFiles,
     });
+
+    return TransactionAttachmentResponseDto.fromOutputList(items);
   }
 
   @Delete(':attachmentId')
