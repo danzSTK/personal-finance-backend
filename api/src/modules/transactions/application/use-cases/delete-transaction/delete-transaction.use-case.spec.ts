@@ -45,6 +45,8 @@ describe('DeleteTransactionUseCase', () => {
       save: jest.fn(),
       saveAll: jest.fn(),
       delete: jest.fn(),
+      deleteByIds: jest.fn(),
+      deleteInactiveByTransactionId: jest.fn(),
       reorderPositions: jest.fn(),
     } as unknown as jest.Mocked<ITransactionAttachmentRepository>;
 
@@ -93,6 +95,7 @@ describe('DeleteTransactionUseCase', () => {
     const mockAsset = {
       id: 'asset-1',
       status: AssetStatus.READY,
+      canMarkDeletePending: jest.fn().mockReturnValue(true),
       markDeletePending: jest.fn(),
     } as unknown as Asset;
     assetRepository.findByIdAndUserId.mockResolvedValue(mockAsset);

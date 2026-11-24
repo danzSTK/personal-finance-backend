@@ -37,6 +37,10 @@ export abstract class ITransactionAttachmentRepository {
 
   abstract delete(id: string, options?: IRepositoryOptions): Promise<void>;
 
+  abstract deleteByIds(ids: string[], options?: IRepositoryOptions): Promise<void>;
+
+  abstract deleteInactiveByTransactionId(transactionId: string, options?: IRepositoryOptions): Promise<void>;
+
   abstract reorderPositions(
     transactionId: string,
     positions: Array<{ id: string; position: number }>,

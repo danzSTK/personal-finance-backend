@@ -1,29 +1,47 @@
+import {
+  TRANSACTION_ATTACHMENT_MAX_COUNT,
+  TRANSACTION_ATTACHMENT_MAX_POSITION,
+  TRANSACTION_ATTACHMENT_MIN_POSITION,
+} from '@/common/models/constants';
 import { TransactionType } from '@/common/models/enums';
 import objectStorageConfig from '@/config/object-storage.config';
 import { Asset } from '@/modules/assets/domain/entities/asset.entity';
-import { AssetPurpose } from '@/modules/assets/domain/enums';
+import { AssetFailureCode, AssetPurpose } from '@/modules/assets/domain/enums';
 import { AssetFactory } from '@/modules/assets/domain/factories';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
-import {
-  TransactionAttachmentLimitExceededError,
-  TransactionTypeDoesNotSupportAttachmentsError,
-} from '@/modules/transactions/domain/errors';
 import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import {
+  AttachmentFileInput,
   AddTransactionAttachmentsInput,
   AddTransactionAttachmentsOutput,
 } from '@/modules/transactions/application/use-cases/add-transaction-attachments/add-transaction-attachments.dto';
 import { TransactionAttachment } from '@/modules/transactions/domain/entities/transaction-attachment.entity';
+import {
+  TransactionAttachmentLimitExceededError,
+  TransactionTypeDoesNotSupportAttachmentsError,
+} from '@/modules/transactions/domain/errors';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
-import { TransactionAttachmentImageValidator } from '@/modules/transactions/infrastructure/image-processing/transaction-attachment-image.validator';
-import { TransactionAttachmentJobQueueProducer } from '@/modules/transactions/infrastructure/queues/transaction-attachment-job-queue-producer.port';
+import {
+  TransactionAttachmentImageValidator,
+  ValidatedAttachmentImage,
+} from '@/modules/transactions/infrastructure/image-processing/transaction-attachment-image.validator';
 import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
-import { IObjectStorage } from '@/shared/object-storage';
+import { TransactionAttachmentJobQueueProducer } from '@/modules/transactions/infrastructure/queues/transaction-attachment-job-queue-producer.port';
+import { IObjectStorage, ObjectStorageError } from '@/shared/object-storage';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type ConfigType } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
+
+interface PreparedAttachmentItem {
+  file: AttachmentFileInput;
+  validated: ValidatedAttachmentImage;
+  checksum: string;
+  asset: Asset;
+  attachment: TransactionAttachment;
+  uploadAttempted: boolean;
+}
 
 @Injectable()
 export class AddTransactionAttachmentsUseCase {
@@ -46,15 +64,23 @@ export class AddTransactionAttachmentsUseCase {
       return [];
     }
 
-    if (input.files.length > 3) {
-      throw new TransactionAttachmentLimitExceededError('Cannot upload more than 3 files per request.');
+    if (input.files.length > TRANSACTION_ATTACHMENT_MAX_COUNT) {
+      throw new TransactionAttachmentLimitExceededError(
+        `Cannot upload more than ${TRANSACTION_ATTACHMENT_MAX_COUNT} files per request.`,
+      );
     }
 
-    // 1. Synchronously validate image files
-    const validatedFiles = await Promise.all(input.files.map(file => this.imageValidator.validate(file.buffer)));
+    // 1. Synchronously validate image files and precompute SHA-256 checksums
+    const validatedInputs = await Promise.all(
+      input.files.map(async file => ({
+        file,
+        validated: await this.imageValidator.validate(file.buffer),
+        checksum: createHash('sha256').update(file.buffer).digest('hex'),
+      })),
+    );
 
-    // 2. Short transaction: acquire lock, validate limits, create PENDING_UPLOAD assets and attachments
-    const reservation = await this.dataSource.transaction(async manager => {
+    // 2. Short transaction: acquire lock, purge stale inactive links, validate limits, reserve PENDING_UPLOAD assets
+    const preparedItems = await this.dataSource.transaction<PreparedAttachmentItem[]>(async manager => {
       const tx = await manager.findOne(TransactionOrmEntity, {
         where: { id: input.transactionId, user_id: input.userId },
         lock: { mode: 'pessimistic_write' },
@@ -68,29 +94,28 @@ export class AddTransactionAttachmentsUseCase {
         throw new TransactionTypeDoesNotSupportAttachmentsError();
       }
 
+      // Release slots previously occupied by FAILED / DELETE_PENDING / DELETED assets
+      await this.attachmentRepository.deleteInactiveByTransactionId(input.transactionId, { manager });
+
       const activeCount = await this.attachmentRepository.countActiveByTransactionId(input.transactionId, { manager });
 
-      if (activeCount + input.files.length > 3) {
+      if (activeCount + validatedInputs.length > TRANSACTION_ATTACHMENT_MAX_COUNT) {
         throw new TransactionAttachmentLimitExceededError();
       }
 
       const existingAttachments = await this.attachmentRepository.findByTransactionId(input.transactionId, { manager });
-      const occupiedPositions: Record<number, true> = {};
-      existingAttachments.forEach(att => {
-        occupiedPositions[att.position] = true;
-      });
+      const occupiedPositions = new Set(existingAttachments.map(att => att.position));
 
       const availablePositions: number[] = [];
-      for (let p = 0; p <= 2; p++) {
-        if (!occupiedPositions[p]) {
+      for (let p = TRANSACTION_ATTACHMENT_MIN_POSITION; p <= TRANSACTION_ATTACHMENT_MAX_POSITION; p++) {
+        if (!occupiedPositions.has(p)) {
           availablePositions.push(p);
         }
       }
 
-      const createdAssets: Asset[] = [];
-      const createdAttachments: TransactionAttachment[] = [];
+      const items: PreparedAttachmentItem[] = [];
 
-      for (let i = 0; i < input.files.length; i++) {
+      for (let i = 0; i < validatedInputs.length; i++) {
         const position = availablePositions[i];
         const asset = AssetFactory.createPendingUpload({
           userId: input.userId,
@@ -105,42 +130,46 @@ export class AddTransactionAttachmentsUseCase {
         });
 
         await this.assetRepository.save(asset, { manager });
-        createdAssets.push(asset);
-        createdAttachments.push(attachment);
+
+        items.push({
+          ...validatedInputs[i],
+          asset,
+          attachment,
+          uploadAttempted: false,
+        });
       }
 
-      await this.attachmentRepository.saveAll(createdAttachments, { manager });
+      await this.attachmentRepository.saveAll(
+        items.map(item => item.attachment),
+        { manager },
+      );
 
-      return {
-        assets: createdAssets,
-        attachments: createdAttachments,
-      };
+      return items;
     });
 
-    // 3. Outside of lock: upload original files to private bucket
-    const fileChecksums: string[] = [];
-    for (let i = 0; i < input.files.length; i++) {
-      const file = input.files[i];
-      const asset = reservation.assets[i];
-      const validated = validatedFiles[i];
-      const checksum = createHash('sha256').update(file.buffer).digest('hex');
-      fileChecksums.push(checksum);
-
-      await this.objectStorage.putObject({
-        bucket: this.storageConfig.privateBucketName,
-        key: asset.storageKey,
-        body: file.buffer,
-        contentType: validated.contentType,
-        checksumSha256Hex: checksum,
-        metadata: {
-          userId: input.userId,
-          transactionId: input.transactionId,
-          assetId: asset.id,
-        },
-      });
+    // 3. Outside of lock: upload original files to private bucket (with batch compensation on failure)
+    try {
+      for (const item of preparedItems) {
+        item.uploadAttempted = true;
+        await this.objectStorage.putObject({
+          bucket: this.storageConfig.privateBucketName,
+          key: item.asset.storageKey,
+          body: item.file.buffer,
+          contentType: item.validated.contentType,
+          checksumSha256Hex: item.checksum,
+          metadata: {
+            userId: input.userId,
+            transactionId: input.transactionId,
+            assetId: item.asset.id,
+          },
+        });
+      }
+    } catch (error) {
+      await this.compensateBatchUploadFailure(input.transactionId, input.userId, preparedItems, error);
+      throw error;
     }
 
-    // 4. Short transaction: lock again and confirm assets (markReady) or handle deletion race
+    // 4. Short transaction: lock again and confirm assets (markReady) or discard if transaction was deleted concurrently
     await this.dataSource.transaction(async manager => {
       const tx = await manager.findOne(TransactionOrmEntity, {
         where: { id: input.transactionId, user_id: input.userId },
@@ -148,64 +177,61 @@ export class AddTransactionAttachmentsUseCase {
       });
 
       if (!tx || tx.deleted_at !== null) {
-        for (const asset of reservation.assets) {
-          asset.markFailed('TRANSACTION_DELETED');
-          asset.markDeletePending();
-          await this.assetRepository.save(asset, { manager });
+        await this.attachmentRepository.deleteByIds(
+          preparedItems.map(item => item.attachment.id),
+          { manager },
+        );
+
+        for (const item of preparedItems) {
+          item.asset.discardUploadedPendingAsset(AssetFailureCode.TRANSACTION_DELETED);
+          await this.assetRepository.save(item.asset, { manager });
         }
+
         throw new TransactionNotFoundError();
       }
 
-      for (let i = 0; i < reservation.assets.length; i++) {
-        const asset = reservation.assets[i];
-        const validated = validatedFiles[i];
-        const checksum = fileChecksums[i];
-
-        asset.markReady({
-          contentType: validated.contentType,
-          sizeBytes: validated.sizeBytes,
-          checksum,
+      for (const item of preparedItems) {
+        item.asset.markReady({
+          contentType: item.validated.contentType,
+          sizeBytes: item.validated.sizeBytes,
+          checksum: item.checksum,
           metadata: {
-            width: validated.width,
-            height: validated.height,
-            format: validated.format,
+            width: item.validated.width,
+            height: item.validated.height,
+            format: item.validated.format,
           },
         });
 
-        await this.assetRepository.save(asset, { manager });
+        await this.assetRepository.save(item.asset, { manager });
       }
     });
 
     // 5. Enqueue background optimization jobs
-    for (const asset of reservation.assets) {
+    for (const item of preparedItems) {
       try {
         await this.jobQueueProducer.enqueueOptimizationJob({
-          assetId: asset.id,
+          assetId: item.asset.id,
           userId: input.userId,
         });
       } catch (error) {
-        this.logger.warn(`Failed to enqueue optimization job for asset ${asset.id}: ${(error as Error).message}`);
+        this.logger.warn(`Failed to enqueue optimization job for asset ${item.asset.id}: ${(error as Error).message}`);
       }
     }
 
     // 6. Generate presigned URLs for newly created attachments
     const results: AddTransactionAttachmentsOutput = [];
-    for (let i = 0; i < reservation.attachments.length; i++) {
-      const attachment = reservation.attachments[i];
-      const asset = reservation.assets[i];
-      const validated = validatedFiles[i];
-
+    for (const item of preparedItems) {
       const signed = await this.objectStorage.buildSignedReadUrl({
         bucket: this.storageConfig.privateBucketName,
-        key: asset.storageKey,
+        key: item.asset.storageKey,
       });
 
       results.push({
-        id: attachment.id,
-        assetId: attachment.assetId,
-        position: attachment.position,
-        contentType: validated.contentType,
-        sizeBytes: validated.sizeBytes,
+        id: item.attachment.id,
+        assetId: item.attachment.assetId,
+        position: item.attachment.position,
+        contentType: item.validated.contentType,
+        sizeBytes: item.validated.sizeBytes,
         url: signed.url,
         expiresAt: signed.expiresAt,
         cacheMaxAgeSeconds: signed.cacheMaxAgeSeconds,
@@ -213,5 +239,44 @@ export class AddTransactionAttachmentsUseCase {
     }
 
     return results;
+  }
+
+  private async compensateBatchUploadFailure(
+    transactionId: string,
+    userId: string,
+    preparedItems: PreparedAttachmentItem[],
+    uploadError: unknown,
+  ): Promise<void> {
+    const failureCode =
+      uploadError instanceof ObjectStorageError ? uploadError.code : AssetFailureCode.STORAGE_UPLOAD_FAILED;
+
+    try {
+      await this.dataSource.transaction(async manager => {
+        await manager.findOne(TransactionOrmEntity, {
+          where: { id: transactionId, user_id: userId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        await this.attachmentRepository.deleteByIds(
+          preparedItems.map(item => item.attachment.id),
+          { manager },
+        );
+
+        for (const item of preparedItems) {
+          if (item.uploadAttempted) {
+            item.asset.discardUploadedPendingAsset(failureCode);
+          } else {
+            item.asset.markFailed(failureCode);
+          }
+
+          await this.assetRepository.save(item.asset, { manager });
+        }
+      });
+    } catch (compensationError) {
+      this.logger.error(
+        `Failed to compensate batch attachment upload failure for transactionId=${transactionId}`,
+        compensationError instanceof Error ? compensationError.stack : String(compensationError),
+      );
+    }
   }
 }

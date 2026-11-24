@@ -9,7 +9,9 @@ import {
 import { TransactionAttachmentOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-attachment-orm.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+
+const ACTIVE_ATTACHMENT_ASSET_STATUSES = [AssetStatus.PENDING_UPLOAD, AssetStatus.READY] as const;
 
 @Injectable()
 export class TransactionAttachmentRepository implements ITransactionAttachmentRepository {
@@ -71,7 +73,7 @@ export class TransactionAttachmentRepository implements ITransactionAttachmentRe
       .innerJoin('ta.asset', 'asset')
       .where('ta.transaction_id = :transactionId', { transactionId })
       .andWhere('asset.status IN (:...statuses)', {
-        statuses: [AssetStatus.PENDING_UPLOAD, AssetStatus.READY],
+        statuses: ACTIVE_ATTACHMENT_ASSET_STATUSES,
       })
       .getCount();
   }
@@ -93,7 +95,7 @@ export class TransactionAttachmentRepository implements ITransactionAttachmentRe
       .addSelect('COUNT(ta.id)', 'count')
       .where('ta.transaction_id IN (:...transactionIds)', { transactionIds })
       .andWhere('asset.status IN (:...statuses)', {
-        statuses: [AssetStatus.PENDING_UPLOAD, AssetStatus.READY],
+        statuses: ACTIVE_ATTACHMENT_ASSET_STATUSES,
       })
       .groupBy('ta.transaction_id')
       .getRawMany<{ transactionId: string; count: string }>();
@@ -126,6 +128,29 @@ export class TransactionAttachmentRepository implements ITransactionAttachmentRe
   async delete(id: string, options?: IRepositoryOptions): Promise<void> {
     const repo = this.getRepository(options);
     await repo.delete({ id });
+  }
+
+  async deleteByIds(ids: string[], options?: IRepositoryOptions): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+
+    const repo = this.getRepository(options);
+    await repo.delete({ id: In(ids) });
+  }
+
+  async deleteInactiveByTransactionId(transactionId: string, options?: IRepositoryOptions): Promise<void> {
+    const repo = this.getRepository(options);
+    await repo.query(
+      `
+      DELETE FROM transaction_attachments ta
+      USING assets a
+      WHERE ta.asset_id = a.id
+        AND ta.transaction_id = $1
+        AND a.status NOT IN ($2, $3)
+      `,
+      [transactionId, AssetStatus.PENDING_UPLOAD, AssetStatus.READY],
+    );
   }
 
   async reorderPositions(

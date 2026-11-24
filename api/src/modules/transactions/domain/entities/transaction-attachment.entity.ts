@@ -1,3 +1,4 @@
+import { TRANSACTION_ATTACHMENT_MAX_POSITION, TRANSACTION_ATTACHMENT_MIN_POSITION } from '@/common/models/constants';
 import { InvalidAttachmentPositionError } from '@/modules/transactions/domain/errors';
 import { randomUUID } from 'node:crypto';
 
@@ -75,8 +76,14 @@ export class TransactionAttachment {
   }
 
   private static validatePosition(position: number): void {
-    if (!Number.isInteger(position) || position < 0 || position > 2) {
-      throw new InvalidAttachmentPositionError('Attachment position must be an integer between 0 and 2.');
+    if (
+      !Number.isInteger(position) ||
+      position < TRANSACTION_ATTACHMENT_MIN_POSITION ||
+      position > TRANSACTION_ATTACHMENT_MAX_POSITION
+    ) {
+      throw new InvalidAttachmentPositionError(
+        `Attachment position must be an integer between ${TRANSACTION_ATTACHMENT_MIN_POSITION} and ${TRANSACTION_ATTACHMENT_MAX_POSITION}.`,
+      );
     }
   }
 

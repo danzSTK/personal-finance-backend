@@ -1,4 +1,3 @@
-import { AssetStatus } from '@/modules/assets/domain/enums';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
 import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import { DeleteTransactionUseCaseInput } from '@/modules/transactions/application/use-cases/delete-transaction/delete-transaction.dto';
@@ -50,7 +49,7 @@ export class DeleteTransactionUseCase {
       for (const attachment of attachments) {
         const asset = await this.assetRepository.findByIdAndUserId(attachment.assetId, input.userId, { manager });
 
-        if (asset && (asset.status === AssetStatus.READY || asset.status === AssetStatus.FAILED)) {
+        if (asset?.canMarkDeletePending()) {
           asset.markDeletePending();
           await this.assetRepository.save(asset, { manager });
         }

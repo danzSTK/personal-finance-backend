@@ -24,6 +24,7 @@ import { TransactionAttachmentJobQueueProducer } from '@/modules/transactions/in
 import { TRANSACTION_ATTACHMENTS_OPTIMIZATION_QUEUE } from '@/modules/transactions/infrastructure/queues/transaction-attachment-queue.constants';
 import { TransactionAttachmentsController } from '@/modules/transactions/presentation/http/transaction-attachments.controller';
 import { TransactionsController } from '@/modules/transactions/presentation/http/transactions.controller';
+import { FileDetectionModule } from '@/shared/file-detection';
 import { ObjectStorageModule } from '@/shared/object-storage/object-storage.module';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
@@ -36,6 +37,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     AccountsModule,
     CategoriesModule,
     AssetsCoreModule,
+    FileDetectionModule,
     ObjectStorageModule,
   ],
   controllers: [TransactionsController, TransactionAttachmentsController],

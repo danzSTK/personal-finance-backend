@@ -40,13 +40,15 @@ describe('DeleteTransactionAttachmentUseCase', () => {
       countActiveByTransactionIds: jest.fn(),
       save: jest.fn(),
       saveAll: jest.fn(),
-      delete: jest.fn(),
-      reorderPositions: jest.fn(),
+      delete: jest.fn().mockResolvedValue(undefined),
+      deleteByIds: jest.fn().mockResolvedValue(undefined),
+      deleteInactiveByTransactionId: jest.fn().mockResolvedValue(undefined),
+      reorderPositions: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<ITransactionAttachmentRepository>;
 
     assetRepository = {
       findByIdAndUserId: jest.fn(),
-      save: jest.fn(),
+      save: jest.fn().mockImplementation(asset => Promise.resolve(asset)),
       findPendingDeletionBefore: jest.fn(),
       findStalePendingUploadsBefore: jest.fn(),
     } as unknown as jest.Mocked<IAssetRepository>;
@@ -54,7 +56,7 @@ describe('DeleteTransactionAttachmentUseCase', () => {
     useCase = new DeleteTransactionAttachmentUseCase(dataSource, attachmentRepository, assetRepository);
   });
 
-  it('rejects when transaction does not exist or is deleted', async () => {
+  it('rejects when transaction does not exist', async () => {
     manager.findOne.mockResolvedValue(null);
 
     await expect(
@@ -79,7 +81,7 @@ describe('DeleteTransactionAttachmentUseCase', () => {
     ).rejects.toThrow(TransactionAttachmentNotFoundError);
   });
 
-  it('deletes attachment, reorders remaining, and marks asset as DELETE_PENDING', async () => {
+  it('deletes attachment, purges stale links, reorders remaining, and marks asset as DELETE_PENDING', async () => {
     manager.findOne.mockResolvedValue({ id: transactionId, user_id: userId, deleted_at: null });
 
     const targetAttachment = TransactionAttachment.create({
@@ -102,6 +104,7 @@ describe('DeleteTransactionAttachmentUseCase', () => {
     const mockAsset = {
       id: assetId,
       status: AssetStatus.READY,
+      canMarkDeletePending: jest.fn().mockReturnValue(true),
       markDeletePending: jest.fn(),
     };
     assetRepository.findByIdAndUserId.mockResolvedValue(mockAsset as unknown as Asset);
@@ -112,13 +115,46 @@ describe('DeleteTransactionAttachmentUseCase', () => {
       attachmentId,
     });
 
+    expect(attachmentRepository.deleteInactiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
     expect(attachmentRepository.delete).toHaveBeenCalledWith(attachmentId, { manager });
     expect(attachmentRepository.reorderPositions).toHaveBeenCalledWith(
       transactionId,
       [{ id: secondAttachment.id, position: 0 }],
       { manager },
     );
+    expect(mockAsset.canMarkDeletePending).toHaveBeenCalled();
     expect(mockAsset.markDeletePending).toHaveBeenCalled();
     expect(assetRepository.save).toHaveBeenCalledWith(mockAsset, { manager });
+  });
+
+  it('skips marking asset as DELETE_PENDING when asset is not eligible for deletion', async () => {
+    manager.findOne.mockResolvedValue({ id: transactionId, user_id: userId, deleted_at: null });
+
+    const targetAttachment = TransactionAttachment.create({
+      id: attachmentId,
+      transactionId,
+      assetId,
+      position: 0,
+    });
+
+    attachmentRepository.findByIdAndTransactionId.mockResolvedValue(targetAttachment);
+    attachmentRepository.findByTransactionId.mockResolvedValue([]);
+
+    const mockAsset = {
+      id: assetId,
+      status: AssetStatus.DELETE_PENDING,
+      canMarkDeletePending: jest.fn().mockReturnValue(false),
+      markDeletePending: jest.fn(),
+    };
+    assetRepository.findByIdAndUserId.mockResolvedValue(mockAsset as unknown as Asset);
+
+    await useCase.execute({
+      userId,
+      transactionId,
+      attachmentId,
+    });
+
+    expect(mockAsset.markDeletePending).not.toHaveBeenCalled();
+    expect(assetRepository.save).not.toHaveBeenCalled();
   });
 });

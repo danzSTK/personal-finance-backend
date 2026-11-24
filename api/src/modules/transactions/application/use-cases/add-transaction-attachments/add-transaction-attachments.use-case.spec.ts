@@ -1,18 +1,20 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { IAssetRepository } from '@/modules/assets/domain/repositories';
-import objectStorageConfig from '@/config/object-storage.config';
 import { TransactionType } from '@/common/models/enums';
-import type { ConfigType } from '@nestjs/config';
+import objectStorageConfig from '@/config/object-storage.config';
+import { Asset } from '@/modules/assets/domain/entities/asset.entity';
+import { AssetStatus } from '@/modules/assets/domain/enums';
+import { IAssetRepository } from '@/modules/assets/domain/repositories';
+import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
+import { AddTransactionAttachmentsUseCase } from '@/modules/transactions/application/use-cases/add-transaction-attachments/add-transaction-attachments.use-case';
 import {
   TransactionAttachmentLimitExceededError,
   TransactionTypeDoesNotSupportAttachmentsError,
 } from '@/modules/transactions/domain/errors';
-import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
-import { AddTransactionAttachmentsUseCase } from '@/modules/transactions/application/use-cases/add-transaction-attachments/add-transaction-attachments.use-case';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
 import { TransactionAttachmentImageValidator } from '@/modules/transactions/infrastructure/image-processing/transaction-attachment-image.validator';
 import { TransactionAttachmentJobQueueProducer } from '@/modules/transactions/infrastructure/queues/transaction-attachment-job-queue-producer.port';
 import { IObjectStorage } from '@/shared/object-storage';
+import type { ConfigType } from '@nestjs/config';
 import { DataSource, EntityManager } from 'typeorm';
 
 describe('AddTransactionAttachmentsUseCase', () => {
@@ -51,6 +53,8 @@ describe('AddTransactionAttachmentsUseCase', () => {
       save: jest.fn(),
       saveAll: jest.fn().mockImplementation(items => Promise.resolve(items)),
       delete: jest.fn(),
+      deleteByIds: jest.fn().mockResolvedValue(undefined),
+      deleteInactiveByTransactionId: jest.fn().mockResolvedValue(undefined),
       reorderPositions: jest.fn(),
     } as unknown as jest.Mocked<ITransactionAttachmentRepository>;
 
@@ -176,7 +180,7 @@ describe('AddTransactionAttachmentsUseCase', () => {
     ).rejects.toThrow(TransactionAttachmentLimitExceededError);
   });
 
-  it('successfully uploads attachments and returns signed urls', async () => {
+  it('purges stale inactive links before checking active count and returns signed urls on success', async () => {
     manager.findOne.mockResolvedValue({
       id: transactionId,
       user_id: userId,
@@ -191,11 +195,88 @@ describe('AddTransactionAttachmentsUseCase', () => {
       files: [{ buffer: Buffer.from('image bytes'), originalname: 'receipt.png' }],
     });
 
+    expect(attachmentRepository.deleteInactiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
     expect(result).toHaveLength(1);
     expect(result[0].position).toBe(0);
     expect(result[0].url).toBe('https://signed.r2.cloudflarestorage.com/file');
     expect(result[0].cacheMaxAgeSeconds).toBe(240);
     expect(objectStorage.putObject).toHaveBeenCalledTimes(1);
     expect(jobQueueProducer.enqueueOptimizationJob).toHaveBeenCalledTimes(1);
+  });
+
+  it('compensates reserved attachments and schedules storage cleanup when a batch upload fails mid-way', async () => {
+    manager.findOne.mockResolvedValue({
+      id: transactionId,
+      user_id: userId,
+      type: TransactionType.EXPENSE,
+      deleted_at: null,
+    });
+
+    objectStorage.putObject
+      .mockResolvedValueOnce({ etag: 'etag-1', versionId: null })
+      .mockRejectedValueOnce(new Error('R2 timeout'));
+
+    const savedAssets: Asset[] = [];
+    assetRepository.save.mockImplementation(asset => {
+      savedAssets.push(asset);
+      return Promise.resolve(asset);
+    });
+
+    await expect(
+      useCase.execute({
+        userId,
+        transactionId,
+        files: [
+          { buffer: Buffer.from('file-1'), originalname: '1.png' },
+          { buffer: Buffer.from('file-2'), originalname: '2.png' },
+          { buffer: Buffer.from('file-3'), originalname: '3.png' },
+        ],
+      }),
+    ).rejects.toThrow('R2 timeout');
+
+    expect(attachmentRepository.deleteByIds).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.any(String), expect.any(String), expect.any(String)]),
+      { manager },
+    );
+
+    // Last 3 saves are the compensation saves for file-1, file-2, file-3
+    const compensatedAssets = savedAssets.slice(-3);
+    expect(compensatedAssets[0].status).toBe(AssetStatus.DELETE_PENDING);
+    expect(compensatedAssets[1].status).toBe(AssetStatus.DELETE_PENDING);
+    expect(compensatedAssets[2].status).toBe(AssetStatus.FAILED);
+    expect(jobQueueProducer.enqueueOptimizationJob).not.toHaveBeenCalled();
+  });
+
+  it('deletes attachment links and marks uploaded assets DELETE_PENDING if transaction is deleted concurrently', async () => {
+    manager.findOne
+      .mockResolvedValueOnce({
+        id: transactionId,
+        user_id: userId,
+        type: TransactionType.EXPENSE,
+        deleted_at: null,
+      })
+      .mockResolvedValueOnce({
+        id: transactionId,
+        user_id: userId,
+        type: TransactionType.EXPENSE,
+        deleted_at: new Date(),
+      });
+
+    const savedAssets: Asset[] = [];
+    assetRepository.save.mockImplementation(asset => {
+      savedAssets.push(asset);
+      return Promise.resolve(asset);
+    });
+
+    await expect(
+      useCase.execute({
+        userId,
+        transactionId,
+        files: [{ buffer: Buffer.from('file-1'), originalname: '1.png' }],
+      }),
+    ).rejects.toThrow(TransactionNotFoundError);
+
+    expect(attachmentRepository.deleteByIds).toHaveBeenCalledWith([expect.any(String)], { manager });
+    expect(savedAssets[savedAssets.length - 1].status).toBe(AssetStatus.DELETE_PENDING);
   });
 });

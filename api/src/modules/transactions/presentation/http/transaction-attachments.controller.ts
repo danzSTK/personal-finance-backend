@@ -1,4 +1,5 @@
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { TRANSACTION_ATTACHMENT_MAX_COUNT, TRANSACTION_ATTACHMENT_MAX_INPUT_BYTES } from '@/common/models/constants';
 import { PlatformErrorResponseDto } from '@/common/dto/platform-error.response.dto';
 import { AddTransactionAttachmentsUseCase } from '@/modules/transactions/application/use-cases/add-transaction-attachments/add-transaction-attachments.use-case';
 import { DeleteTransactionAttachmentUseCase } from '@/modules/transactions/application/use-cases/delete-transaction-attachment/delete-transaction-attachment.use-case';
@@ -93,10 +94,10 @@ export class TransactionAttachmentsController {
   @ApiResponse({ status: 415, type: PlatformErrorResponseDto })
   @ApiResponse({ status: 422, type: PlatformErrorResponseDto })
   @UseInterceptors(
-    FilesInterceptor('files', 3, {
+    FilesInterceptor('files', TRANSACTION_ATTACHMENT_MAX_COUNT, {
       limits: {
-        files: 3,
-        fileSize: 5 * 1024 * 1024,
+        files: TRANSACTION_ATTACHMENT_MAX_COUNT,
+        fileSize: TRANSACTION_ATTACHMENT_MAX_INPUT_BYTES,
       },
     }),
   )

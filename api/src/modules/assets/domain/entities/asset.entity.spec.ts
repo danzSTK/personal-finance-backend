@@ -58,6 +58,50 @@ describe('Asset', () => {
       expect(asset.metadata).toEqual({ width: 1024, height: 1024, format: 'webp' });
     });
 
+    it('reports whether an asset can be marked for deletion based on its status', () => {
+      const pending = createPendingAsset();
+      expect(pending.canMarkDeletePending()).toBe(false);
+
+      pending.markReady({
+        contentType: 'image/webp',
+        sizeBytes: 1024,
+        checksum: 'a'.repeat(64),
+      });
+      expect(pending.canMarkDeletePending()).toBe(true);
+
+      pending.markDeletePending();
+      expect(pending.canMarkDeletePending()).toBe(false);
+
+      pending.markDeleted();
+      expect(pending.canMarkDeletePending()).toBe(false);
+
+      const failed = createPendingAsset();
+      failed.markFailed(AssetFailureCode.STORAGE_UPLOAD_FAILED);
+      expect(failed.canMarkDeletePending()).toBe(true);
+    });
+
+    it('discards an uploaded pending asset directly into DELETE_PENDING through FAILED', () => {
+      const asset = createPendingAsset();
+
+      asset.discardUploadedPendingAsset(AssetFailureCode.TRANSACTION_DELETED);
+
+      expect(asset.status).toBe(AssetStatus.DELETE_PENDING);
+      expect(asset.failureCode).toBeNull();
+    });
+
+    it('rejects discarding a non-pending asset', () => {
+      const asset = createPendingAsset();
+      asset.markReady({
+        contentType: 'image/webp',
+        sizeBytes: 1024,
+        checksum: 'a'.repeat(64),
+      });
+
+      expect(() => asset.discardUploadedPendingAsset(AssetFailureCode.TRANSACTION_DELETED)).toThrow(
+        InvalidAssetStateTransitionError,
+      );
+    });
+
     it('rejects deleting an asset before it is ready or failed', () => {
       const asset = createPendingAsset();
 

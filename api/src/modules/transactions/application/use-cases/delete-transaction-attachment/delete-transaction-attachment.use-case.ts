@@ -1,4 +1,3 @@
-import { AssetStatus } from '@/modules/assets/domain/enums';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
 import {
   TransactionAttachmentNotFoundError,
@@ -31,6 +30,8 @@ export class DeleteTransactionAttachmentUseCase {
         throw new TransactionNotFoundError();
       }
 
+      await this.attachmentRepository.deleteInactiveByTransactionId(input.transactionId, { manager });
+
       const attachment = await this.attachmentRepository.findByIdAndTransactionId(
         input.attachmentId,
         input.transactionId,
@@ -56,7 +57,7 @@ export class DeleteTransactionAttachmentUseCase {
       // Mark linked asset for deletion
       const asset = await this.assetRepository.findByIdAndUserId(attachment.assetId, input.userId, { manager });
 
-      if (asset && (asset.status === AssetStatus.READY || asset.status === AssetStatus.FAILED)) {
+      if (asset?.canMarkDeletePending()) {
         asset.markDeletePending();
         await this.assetRepository.save(asset, { manager });
       }

@@ -164,14 +164,23 @@ export class Asset {
     this.props.updatedAt = new Date();
   }
 
+  canMarkDeletePending(): boolean {
+    return this.props.status === AssetStatus.READY || this.props.status === AssetStatus.FAILED;
+  }
+
   markDeletePending(): void {
-    if (this.props.status !== AssetStatus.READY && this.props.status !== AssetStatus.FAILED) {
+    if (!this.canMarkDeletePending()) {
       throw new InvalidAssetStateTransitionError(`Cannot mark an asset with status ${this.props.status} for deletion.`);
     }
 
     this.props.status = AssetStatus.DELETE_PENDING;
     this.props.failureCode = null;
     this.props.updatedAt = new Date();
+  }
+
+  discardUploadedPendingAsset(failureCode: string): void {
+    this.markFailed(failureCode);
+    this.markDeletePending();
   }
 
   markDeleted(): void {

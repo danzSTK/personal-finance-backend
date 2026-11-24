@@ -33,6 +33,8 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
       save: jest.fn(),
       saveAll: jest.fn(),
       delete: jest.fn(),
+      deleteByIds: jest.fn(),
+      deleteInactiveByTransactionId: jest.fn().mockResolvedValue(undefined),
       reorderPositions: jest.fn(),
     } as unknown as jest.Mocked<ITransactionAttachmentRepository>;
 
@@ -129,6 +131,7 @@ describe('ReorderTransactionAttachmentsUseCase', () => {
       positions: targetPositions,
     });
 
+    expect(attachmentRepository.deleteInactiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
     expect(attachmentRepository.reorderPositions).toHaveBeenCalledWith(transactionId, targetPositions, { manager });
   });
 });
