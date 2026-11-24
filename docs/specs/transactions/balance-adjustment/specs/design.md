@@ -25,16 +25,20 @@ A feature pertence ao módulo `transactions`, mantendo a direção unidirecional
 - [`api/src/common/filters/app-exception.filter.ts`](../../../../../api/src/common/filters/app-exception.filter.ts):
   - Mapear `BALANCE_ADJUSTMENT_NO_DIFFERENCE` para `HttpStatus.CONFLICT` (`409`).
 
-### 2. Módulo `accounts` (suporte a lock e leitura transacional)
-- [`IAccountRepository`](../../../../../api/src/modules/accounts/domain/repositories/account.repository.interface.ts):
-  - Adicionar `findByIdAndUserIdForUpdate(accountId: string, userId: string, options: Required<IRepositoryOptions>): Promise<Account | null>`.
-  - Implementação em [`AccountRepository`](../../../../../api/src/modules/accounts/infrastructure/persistence/account.repository.ts) usando `lock: { mode: 'pessimistic_write' }` no `options.manager`.
+### 2. Módulo `accounts` (portas públicas de aplicação e suporte transacional)
+- Portas públicas de aplicação (`api/src/modules/accounts/application/ports/`):
+  - [`AccountBalanceQueryPort`](../../../../../api/src/modules/accounts/application/ports/account-balance-query.port.ts): expõe `getCurrentBalanceCents(input, options?)` para leitura de saldo atual por módulos externos sem expor `IAccountBalanceRepository` diretamente.
+  - [`AccountBalanceLockPort`](../../../../../api/src/modules/accounts/application/ports/account-balance-lock.port.ts): expõe `lockAccountsForBalanceMutation(input, options)` para serializar mutações que afetam saldo de contas.
+- Adaptadores em `api/src/modules/accounts/infrastructure/adapters/`:
+  - [`AccountBalanceQueryAdapter`](../../../../../api/src/modules/accounts/infrastructure/adapters/account-balance-query.adapter.ts): delega para `IAccountBalanceRepository.getSummaries` propagando `options`.
+  - [`AccountBalanceLockAdapter`](../../../../../api/src/modules/accounts/infrastructure/adapters/account-balance-lock.adapter.ts): delega para `IAccountRepository.findByIdsAndUserIdForUpdate`.
+- Repositórios internos em `accounts`:
+  - [`IAccountRepository`](../../../../../api/src/modules/accounts/domain/repositories/account.repository.interface.ts): `findByIdsAndUserIdForUpdate(accountIds: readonly string[], userId: string, options: Required<IRepositoryOptions>): Promise<Account[]>`.
+  - Implementação em [`AccountRepository`](../../../../../api/src/modules/accounts/infrastructure/persistence/account.repository.ts) deduplicando e ordenando `accountIds` em ordem ascendente (`ORDER BY account.id ASC`) com `setLock('pessimistic_write')` no `options.manager` (evitando deadlocks em operações multi-conta como `TRANSFER` ou troca de conta).
   - Delegação direta em [`CachedAccountRepository`](../../../../../api/src/modules/accounts/infrastructure/persistence/cached-account.repository.ts) sem usar cache.
-- [`IAccountBalanceRepository`](../../../../../api/src/modules/accounts/domain/repositories/account-balance.repository.interface.ts):
-  - Adicionar parâmetro opcional `options?: IRepositoryOptions` em `getSummaries(input, options?)`.
-  - Em [`AccountBalanceRepository`](../../../../../api/src/modules/accounts/infrastructure/persistence/account-balance.repository.ts), executar a query SQL usando `options?.manager ?? this.dataSource` para que o cálculo enxergue a mesma transação do lock pessimista.
+  - [`IAccountBalanceRepository`](../../../../../api/src/modules/accounts/domain/repositories/account-balance.repository.interface.ts): parâmetro opcional `options?: IRepositoryOptions` em `getSummaries(input, options?)`, executando via `options?.manager ?? this.dataSource` em [`AccountBalanceRepository`](../../../../../api/src/modules/accounts/infrastructure/persistence/account-balance.repository.ts).
 - [`AccountsCoreModule`](../../../../../api/src/modules/accounts/accounts-core.module.ts):
-  - Exportar `IAccountBalanceRepository` (porta de leitura analítica sem mutação).
+  - Provê e exporta `AccountBalanceQueryPort` e `AccountBalanceLockPort`; mantém `IAccountBalanceRepository` privado ao módulo `accounts`.
 
 ### 3. Módulo `transactions`
 
@@ -45,11 +49,16 @@ A feature pertence ao módulo `transactions`, mantendo a direção unidirecional
   - Mensagem padrão: `'Account balance already matches the target balance.'`.
 
 #### Reference Validation (`TransactionReferenceValidator`)
-- Estender [`TransactionReferenceValidator`](../../../../../api/src/modules/transactions/application/services/transaction-reference-validator.service.ts) com `validateForBalanceAdjustment(input: { userId: string; accountId: string }, options: Required<IRepositoryOptions>)`:
-  - Chama `accountRepository.findByIdAndUserIdForUpdate(input.accountId, input.userId, options)`.
-  - Valida existência e `!account.isArchived`; caso contrário lança `TransactionAccountUnavailableError`.
-  - Resolve a categoria técnica ativa `CategoryType.ADJUSTMENT` com `options` (`categoryRepository.findActiveSystemByType(input.userId, CategoryType.ADJUSTMENT, options)`); se ausente ou arquivada, lança `TransactionCategoryUnavailableError`.
-  - Mantém o acoplamento de repositórios externos confinado ao `TransactionReferenceValidator` (evitando espalhar `IAccountRepository`/`ICategoryRepository` em novos use cases, alinhado à `DT-01`).
+- [`TransactionReferenceValidator`](../../../../../api/src/modules/transactions/application/services/transaction-reference-validator.service.ts):
+  - `validate(input, options?)` propaga `options` (`{ manager }`) para `accountRepository.findByIdAndUserId` (origem e destino) e `categoryRepository` (`findActiveSystemByType` / `findByIdAndUserId`), garantindo leituras transacionais consistentes (e bypass de cache em `CachedAccountRepository`).
+
+#### Serialização de Concorrência em Mutações de Saldo
+Para impedir que reajustes automáticos leiam saldo obsoleto diante de mutações concorrentes, todas as mutações de `transactions` que alteram saldo serializam nas linhas das contas envolvidas via `AccountBalanceLockPort.lockAccountsForBalanceMutation` dentro da mesma transação SQL, obedecendo à hierarquia acíclica livre de deadlocks (`transactions` 1 linha → `accounts` ordenadas por `id ASC`):
+- [`CreateBalanceAdjustmentUseCase`](../../../../../api/src/modules/transactions/application/use-cases/create-balance-adjustment/create-balance-adjustment.use-case.ts): trava `[accountId]`, valida referências, lê saldo via `AccountBalanceQueryPort`, calcula delta e salva.
+- [`CreateTransactionUseCase`](../../../../../api/src/modules/transactions/application/use-cases/create-transaction/create-transaction.use-case.ts): executa em transação, trava `[accountId, destinationAccountId?]` (para `TRANSFER`), valida referências e salva com `{ manager }`.
+- [`UpdateTransactionUseCase`](../../../../../api/src/modules/transactions/application/use-cases/update-transaction/update-transaction.use-case.ts): executa em transação, trava a transaction (`findByIdAndUserIdForUpdate`), valida restrição de anexos quando aplicável, trava todas as contas antigas e novas envolvidas (`[oldAccountId, oldDestId, nextAccountId, nextDestId]`), valida referências e salva com `{ manager }`.
+- [`ConfirmTransactionUseCase`](../../../../../api/src/modules/transactions/application/use-cases/confirm-transaction/confirm-transaction.use-case.ts): executa em transação, trava a transaction, valida status/anexos, trava todas as contas antigas e novas envolvidas, valida referências e salva com `{ manager }`.
+- [`DeleteTransactionUseCase`](../../../../../api/src/modules/transactions/application/use-cases/delete-transaction/delete-transaction.use-case.ts): dentro da transação existente, após `transaction.delete()`, trava `[accountId, destinationAccountId?]` antes de salvar a exclusão lógica.
 
 #### Use Case (`CreateBalanceAdjustmentUseCase`)
 Localização: `api/src/modules/transactions/application/use-cases/create-balance-adjustment/`
@@ -59,10 +68,11 @@ Localização: `api/src/modules/transactions/application/use-cases/create-balanc
 - `create-balance-adjustment.use-case.ts`:
   1. Validar `Number.isSafeInteger(data.targetBalanceCents)` (caso contrário lançar `InvalidTransactionError`).
   2. Abrir `this.dataSource.transaction(async manager => ...)`:
-     - `const references = await this.transactionReferenceValidator.validateForBalanceAdjustment({ userId: data.userId, accountId: data.accountId }, { manager });`
-     - `const [balanceSummary] = await this.accountBalanceRepository.getSummaries({ userId: data.userId, accountIds: [data.accountId] }, { manager });`
-     - Se `!balanceSummary`, lançar `TransactionAccountUnavailableError`.
-     - Calcular `delta = BigInt(data.targetBalanceCents) - BigInt(balanceSummary.currentCents)`.
+     - `await this.accountBalanceLockPort.lockAccountsForBalanceMutation({ userId: data.userId, accountIds: [data.accountId] }, { manager });`
+     - `const references = await this.transactionReferenceValidator.validate({ userId: data.userId, accountId: data.accountId, destinationAccountId: null, type: TransactionType.ADJUSTMENT }, { manager });`
+     - `const currentBalanceCents = await this.accountBalanceQueryPort.getCurrentBalanceCents({ userId: data.userId, accountId: data.accountId }, { manager });`
+     - Se `currentBalanceCents === null`, lançar `TransactionAccountUnavailableError`.
+     - Calcular `delta = BigInt(data.targetBalanceCents) - BigInt(currentBalanceCents)`.
      - Se `delta === 0n`, lançar `new BalanceAdjustmentNoDifferenceError()`.
      - Definir `direction = delta > 0n ? TransactionDirection.INCREASE : TransactionDirection.DECREASE`.
      - Definir `absoluteDelta = delta > 0n ? delta : -delta`.

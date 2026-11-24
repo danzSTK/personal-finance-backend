@@ -19,19 +19,9 @@ interface ValidateTransactionReferencesInput {
   type: TransactionType;
 }
 
-interface ValidateBalanceAdjustmentReferencesInput {
-  userId: string;
-  accountId: string;
-}
-
 export interface ValidatedTransactionReferences {
   account: Account;
   destinationAccount: Account | null;
-  category: Category;
-}
-
-export interface ValidatedBalanceAdjustmentReferences {
-  account: Account;
   category: Category;
 }
 
@@ -49,15 +39,18 @@ export class TransactionReferenceValidator {
     private readonly categoryRepository: ICategoryRepository,
   ) {}
 
-  async validate(input: ValidateTransactionReferencesInput): Promise<ValidatedTransactionReferences> {
-    const account = await this.accountRepository.findByIdAndUserId(input.accountId, input.userId);
+  async validate(
+    input: ValidateTransactionReferencesInput,
+    options?: IRepositoryOptions,
+  ): Promise<ValidatedTransactionReferences> {
+    const account = await this.accountRepository.findByIdAndUserId(input.accountId, input.userId, options);
 
     if (!account || account.isArchived) {
       throw new TransactionAccountUnavailableError('Transaction account does not exist or is archived.');
     }
 
-    const destinationAccount = await this.resolveDestinationAccount(input);
-    const category = await this.resolveCategory(input);
+    const destinationAccount = await this.resolveDestinationAccount(input, options);
+    const category = await this.resolveCategory(input, options);
 
     return {
       account,
@@ -66,33 +59,10 @@ export class TransactionReferenceValidator {
     };
   }
 
-  async validateForBalanceAdjustment(
-    input: ValidateBalanceAdjustmentReferencesInput,
-    options: Required<IRepositoryOptions>,
-  ): Promise<ValidatedBalanceAdjustmentReferences> {
-    const account = await this.accountRepository.findByIdAndUserIdForUpdate(input.accountId, input.userId, options);
-
-    if (!account || account.isArchived) {
-      throw new TransactionAccountUnavailableError('Transaction account does not exist or is archived.');
-    }
-
-    const category = await this.resolveCategory(
-      {
-        userId: input.userId,
-        accountId: input.accountId,
-        destinationAccountId: null,
-        type: TransactionType.ADJUSTMENT,
-      },
-      options,
-    );
-
-    return {
-      account,
-      category,
-    };
-  }
-
-  private async resolveDestinationAccount(input: ValidateTransactionReferencesInput): Promise<Account | null> {
+  private async resolveDestinationAccount(
+    input: ValidateTransactionReferencesInput,
+    options?: IRepositoryOptions,
+  ): Promise<Account | null> {
     if (input.type !== TransactionType.TRANSFER) {
       return null;
     }
@@ -101,7 +71,11 @@ export class TransactionReferenceValidator {
       throw new TransactionAccountUnavailableError('Transfer transaction must have destination account.');
     }
 
-    const destinationAccount = await this.accountRepository.findByIdAndUserId(input.destinationAccountId, input.userId);
+    const destinationAccount = await this.accountRepository.findByIdAndUserId(
+      input.destinationAccountId,
+      input.userId,
+      options,
+    );
 
     if (!destinationAccount || destinationAccount.isArchived) {
       throw new TransactionAccountUnavailableError('Transfer destination account does not exist or is archived.');

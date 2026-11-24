@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { TransactionType } from '@/common/models/enums';
+import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
 import { TransactionNotFoundError, TransactionUpdateEmptyError } from '@/modules/transactions/application/errors';
 import { TransactionReferenceValidator } from '@/modules/transactions/application/services/transaction-reference-validator.service';
 import { UpdateTransactionUseCase } from '@/modules/transactions/application/use-cases/update-transaction/update-transaction.use-case';
@@ -13,6 +14,7 @@ describe('UpdateTransactionUseCase', () => {
   const userId = '11111111-1111-4111-a111-111111111111';
   const transactionId = '22222222-2222-4222-a222-222222222222';
   const accountId = '33333333-3333-4333-a333-333333333333';
+  const nextAccountId = '77777777-7777-4777-a777-777777777777';
   const destinationAccountId = '44444444-4444-4444-a444-444444444444';
   const categoryId = '55555555-5555-4555-a555-555555555555';
   const technicalCategoryId = '66666666-6666-4666-a666-666666666666';
@@ -22,6 +24,7 @@ describe('UpdateTransactionUseCase', () => {
   let manager: jest.Mocked<EntityManager>;
   let transactionRepository: jest.Mocked<ITransactionRepository>;
   let attachmentRepository: jest.Mocked<ITransactionAttachmentRepository>;
+  let accountBalanceLockPort: jest.Mocked<AccountBalanceLockPort>;
   let referenceValidator: jest.Mocked<TransactionReferenceValidator>;
 
   const createMockTransaction = (type = TransactionType.EXPENSE) =>
@@ -63,6 +66,10 @@ describe('UpdateTransactionUseCase', () => {
       reorderPositions: jest.fn(),
     } as unknown as jest.Mocked<ITransactionAttachmentRepository>;
 
+    accountBalanceLockPort = {
+      lockAccountsForBalanceMutation: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AccountBalanceLockPort>;
+
     referenceValidator = {
       validate: jest.fn().mockResolvedValue({
         account: { id: accountId },
@@ -71,7 +78,13 @@ describe('UpdateTransactionUseCase', () => {
       }),
     } as unknown as jest.Mocked<TransactionReferenceValidator>;
 
-    useCase = new UpdateTransactionUseCase(dataSource, transactionRepository, attachmentRepository, referenceValidator);
+    useCase = new UpdateTransactionUseCase(
+      dataSource,
+      transactionRepository,
+      attachmentRepository,
+      accountBalanceLockPort,
+      referenceValidator,
+    );
   });
 
   it('rejects empty patch', async () => {
@@ -84,25 +97,41 @@ describe('UpdateTransactionUseCase', () => {
     ).rejects.toThrow(TransactionUpdateEmptyError);
   });
 
-  it('updates non-type fields without opening a lock transaction or querying attachments', async () => {
+  it('locks transaction and involved accounts when updating non-type fields without querying attachments', async () => {
     const tx = createMockTransaction(TransactionType.EXPENSE);
-    transactionRepository.findByIdAndUserId.mockResolvedValue(tx);
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(tx);
 
     const result = await useCase.execute({
       userId,
       transactionId,
-      patch: { description: 'Updated note' },
+      patch: { description: 'Updated note', accountId: nextAccountId },
     });
 
     expect(result).toBe(tx);
-    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(transactionRepository.findByIdAndUserIdForUpdate).toHaveBeenCalledWith(transactionId, userId, { manager });
+    expect(accountBalanceLockPort.lockAccountsForBalanceMutation).toHaveBeenCalledWith(
+      { userId, accountIds: [accountId, nextAccountId] },
+      { manager },
+    );
     expect(attachmentRepository.deleteInactiveByTransactionId).not.toHaveBeenCalled();
     expect(attachmentRepository.countActiveByTransactionId).not.toHaveBeenCalled();
+    expect(referenceValidator.validate).toHaveBeenCalledWith(
+      {
+        userId,
+        accountId: nextAccountId,
+        destinationAccountId: null,
+        categoryId,
+        type: TransactionType.EXPENSE,
+      },
+      { manager },
+    );
     expect(tx.applyPatch).toHaveBeenCalledWith({
       description: 'Updated note',
+      accountId: nextAccountId,
       categoryId: technicalCategoryId,
     });
-    expect(transactionRepository.save).toHaveBeenCalledWith(tx, undefined);
+    expect(transactionRepository.save).toHaveBeenCalledWith(tx, { manager });
   });
 
   it('blocks converting transaction with active attachments to TRANSFER', async () => {
@@ -121,6 +150,7 @@ describe('UpdateTransactionUseCase', () => {
     expect(transactionRepository.findByIdAndUserIdForUpdate).toHaveBeenCalledWith(transactionId, userId, { manager });
     expect(attachmentRepository.deleteInactiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
     expect(attachmentRepository.countActiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
+    expect(accountBalanceLockPort.lockAccountsForBalanceMutation).not.toHaveBeenCalled();
     expect(referenceValidator.validate).not.toHaveBeenCalled();
     expect(transactionRepository.save).not.toHaveBeenCalled();
   });
@@ -141,7 +171,7 @@ describe('UpdateTransactionUseCase', () => {
     expect(transactionRepository.save).not.toHaveBeenCalled();
   });
 
-  it('allows converting transaction to TRANSFER when no active attachments remain', async () => {
+  it('locks origin and destination accounts when converting transaction to TRANSFER', async () => {
     const tx = createMockTransaction(TransactionType.EXPENSE);
     transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(tx);
     attachmentRepository.countActiveByTransactionId.mockResolvedValue(0);
@@ -155,6 +185,10 @@ describe('UpdateTransactionUseCase', () => {
     expect(result).toBe(tx);
     expect(attachmentRepository.deleteInactiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
     expect(attachmentRepository.countActiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
+    expect(accountBalanceLockPort.lockAccountsForBalanceMutation).toHaveBeenCalledWith(
+      { userId, accountIds: [accountId, accountId, destinationAccountId] },
+      { manager },
+    );
     expect(tx.applyPatch).toHaveBeenCalledWith({
       type: TransactionType.TRANSFER,
       destinationAccountId,
@@ -163,7 +197,7 @@ describe('UpdateTransactionUseCase', () => {
     expect(transactionRepository.save).toHaveBeenCalledWith(tx, { manager });
   });
 
-  it('throws TransactionNotFoundError when converting a non-existent transaction', async () => {
+  it('throws TransactionNotFoundError when transaction does not exist', async () => {
     transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(null);
 
     await expect(

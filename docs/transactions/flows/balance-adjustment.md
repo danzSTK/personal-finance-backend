@@ -59,7 +59,9 @@ O domínio suporta dois modos de entrada, ambos produzindo uma transaction `ADJU
 
 ### Concorrência e Falhas
 
-- O lock `FOR UPDATE` na account serializa reajustes concorrentes sobre a mesma conta (ex.: duplo clique). Se a primeira requisição levar o saldo ao valor alvo, a segunda enxergará `delta === 0` e responderá `409 Conflict` (`BALANCE_ADJUSTMENT_NO_DIFFERENCE`), evitando ajustes duplicados.
+- O lock pessimista `FOR UPDATE` nas linhas das accounts envolvidas (adquirido em ordem determinística de `id` via `AccountBalanceLockPort`) serializa o reajuste automático não apenas contra outros reajustes simultâneos (ex.: duplo clique), mas também contra todas as mutações concorrentes de `transactions` que alteram saldo (`POST /transactions`, `PATCH /transactions/:id`, `POST /transactions/:id/confirm` e `DELETE /transactions/:id`).
+- Quando duas requisições de reajuste concorrem para o mesmo saldo alvo, a segunda enxergará `delta === 0` após o commit da primeira e responderá `409 Conflict` (`BALANCE_ADJUSTMENT_NO_DIFFERENCE`), evitando ajustes duplicados.
+- Quando uma mutação de transação concorre com um reajuste na mesma conta, as operações executam em ordem serializada, impedindo que o reajuste calcule o delta sobre um saldo obsoleto.
 - Se qualquer validação falhar dentro da transação SQL, ocorre rollback integral sem efeito colateral.
 
 ### Erros Possíveis

@@ -88,15 +88,28 @@ Simplicidade de contrato e reuso direto do modelo de transação já consumido p
 Impact:
 O frontend recebe a transaction `ADJUSTMENT` criada (com `amountCents`, `direction`, `description`, `effectiveAt`, etc.) e pode invalidar/atualizar saldos e listagens pelo mesmo fluxo já existente.
 
-## DEC-007 - Lock pessimista na account durante leitura do saldo e criação do ajuste
+## DEC-007 - Serialização de todas as mutações de saldo via lock pessimista nas contas envolvidas
 
 Status: accepted
 
 Decision:
-Executar validação/lock da account (`SELECT ... FOR UPDATE`), cálculo do saldo atual (`getSummaries` com o mesmo `EntityManager`) e inserção da transaction na mesma transação SQL.
+Serializar `CreateBalanceAdjustmentUseCase`, `CreateTransactionUseCase`, `UpdateTransactionUseCase`, `ConfirmTransactionUseCase` e `DeleteTransactionUseCase` sobre as linhas das accounts afetadas usando `SELECT ... FOR UPDATE ORDER BY id ASC` dentro da mesma transação SQL, respeitando a hierarquia livre de deadlocks (`transactions` 1 linha → `accounts` ordenadas por `id ASC`).
 
 Reason:
-Evita que duas chamadas simultâneas de reajuste para a mesma conta leiam o mesmo saldo anterior e gravem ajustes duplicados, deixando o saldo final incorreto.
+Travar a linha da account apenas em `CreateBalanceAdjustmentUseCase` serializaria apenas reajustes simultâneos entre si, mas não impediria que `CreateTransaction`, `UpdateTransaction`, `ConfirmTransaction` ou `DeleteTransaction` modificassem `transactions` concorrentemente enquanto o reajuste lê `currentCents`, gravando um delta incorreto. Travar todas as contas envolvidas (origem, destino, antiga e nova) em ordem determinística de `id` garante consistência forte sem deadlocks.
 
 Impact:
-`IAccountRepository` ganha `findByIdAndUserIdForUpdate` e `IAccountBalanceRepository.getSummaries` aceita `options?: IRepositoryOptions`.
+`IAccountRepository` expõe `findByIdsAndUserIdForUpdate` (com deduplicação e `ORDER BY account.id ASC`), consumido pelos cinco casos de uso de mutação de `transactions` por meio da porta pública `AccountBalanceLockPort`.
+
+## DEC-008 - Integração cross-module via portas públicas de aplicação (`AccountBalanceQueryPort` e `AccountBalanceLockPort`)
+
+Status: accepted
+
+Decision:
+Expor a consulta de saldo atual e o lock de contas para mutação de saldo por meio de portas públicas em `accounts/application/ports/` (`AccountBalanceQueryPort` e `AccountBalanceLockPort`), mantendo `IAccountBalanceRepository` privado ao módulo `accounts`.
+
+Reason:
+A fronteira modular definida em `docs/architecture/module-boundaries.md` proíbe que novos casos de uso de outros módulos injetem repositórios internos de domínio/persistência de `accounts`, exigindo contratos públicos de aplicação ou serviços/portas dedicadas.
+
+Impact:
+`AccountsCoreModule` exporta `AccountBalanceQueryPort` e `AccountBalanceLockPort` (implementados por `AccountBalanceQueryAdapter` e `AccountBalanceLockAdapter`) e não exporta `IAccountBalanceRepository`.

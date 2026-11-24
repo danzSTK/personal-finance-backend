@@ -5,11 +5,11 @@ import { Account } from '../entities/account.entity';
 
 export abstract class IAccountRepository {
   abstract findByIdAndUserId(accountId: string, userId: string, options?: IRepositoryOptions): Promise<Account | null>;
-  abstract findByIdAndUserIdForUpdate(
-    accountId: string,
+  abstract findByIdsAndUserIdForUpdate(
+    accountIds: readonly string[],
     userId: string,
     options: Required<IRepositoryOptions>,
-  ): Promise<Account | null>;
+  ): Promise<Account[]>;
   abstract listByUserId(userId: string, includeArchived: boolean, options?: IRepositoryOptions): Promise<Account[]>;
   abstract save(account: Account, options?: IRepositoryOptions): Promise<Account>;
   abstract findWithoutTemplateForUpdate(limit: number, options: IRepositoryOptions): Promise<Account[]>;

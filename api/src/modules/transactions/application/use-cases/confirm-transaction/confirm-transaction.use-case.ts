@@ -1,4 +1,5 @@
 import { TransactionType } from '@/common/models/enums';
+import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
 import { TransactionAlreadyEffectiveError, TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import { TransactionReferenceValidator } from '@/modules/transactions/application/services/transaction-reference-validator.service';
 import {
@@ -11,7 +12,7 @@ import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/
 import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class ConfirmTransactionUseCase {
@@ -20,77 +21,78 @@ export class ConfirmTransactionUseCase {
     private readonly dataSource: DataSource,
     private readonly transactionRepository: ITransactionRepository,
     private readonly attachmentRepository: ITransactionAttachmentRepository,
+    private readonly accountBalanceLockPort: AccountBalanceLockPort,
     private readonly transactionReferenceValidator: TransactionReferenceValidator,
   ) {}
 
   async execute(input: ConfirmTransactionUseCaseInput): Promise<ConfirmTransactionUseCaseOutput> {
     const patch = input.patch ?? {};
 
-    if (patch.type !== undefined && !Transaction.supportsAttachmentsForType(patch.type)) {
-      return this.dataSource.transaction(async manager => {
-        const transaction = await this.transactionRepository.findByIdAndUserIdForUpdate(
+    return this.dataSource.transaction(async manager => {
+      const options = { manager };
+      const transaction = await this.transactionRepository.findByIdAndUserIdForUpdate(
+        input.transactionId,
+        input.userId,
+        options,
+      );
+
+      if (!transaction) {
+        throw new TransactionNotFoundError();
+      }
+
+      if (transaction.isEffective) {
+        throw new TransactionAlreadyEffectiveError();
+      }
+
+      if (patch.type !== undefined && !Transaction.supportsAttachmentsForType(patch.type)) {
+        await this.attachmentRepository.deleteInactiveByTransactionId(input.transactionId, options);
+        const activeAttachmentsCount = await this.attachmentRepository.countActiveByTransactionId(
           input.transactionId,
-          input.userId,
-          { manager },
+          options,
         );
-
-        if (!transaction) {
-          throw new TransactionNotFoundError();
-        }
-
-        if (transaction.isEffective) {
-          throw new TransactionAlreadyEffectiveError();
-        }
-
-        await this.attachmentRepository.deleteInactiveByTransactionId(input.transactionId, { manager });
-        const activeAttachmentsCount = await this.attachmentRepository.countActiveByTransactionId(input.transactionId, {
-          manager,
-        });
 
         if (activeAttachmentsCount > 0) {
           throw new TransactionTypeDoesNotSupportAttachmentsError();
         }
+      }
 
-        return this.confirmAndSave(transaction, input, manager);
+      const nextType = patch.type ?? transaction.type;
+      const nextAccountId = patch.accountId ?? transaction.accountId;
+      const nextDestinationAccountId =
+        nextType === TransactionType.TRANSFER ? (patch.destinationAccountId ?? transaction.destinationAccountId) : null;
+
+      const accountIdsToLock = [
+        transaction.accountId,
+        transaction.destinationAccountId,
+        nextAccountId,
+        nextDestinationAccountId,
+      ].filter((id): id is string => id !== null);
+
+      await this.accountBalanceLockPort.lockAccountsForBalanceMutation(
+        {
+          userId: input.userId,
+          accountIds: accountIdsToLock,
+        },
+        options,
+      );
+
+      const references = await this.transactionReferenceValidator.validate(
+        {
+          userId: input.userId,
+          accountId: nextAccountId,
+          destinationAccountId: nextDestinationAccountId,
+          categoryId: patch.categoryId ?? transaction.categoryId,
+          type: nextType,
+        },
+        options,
+      );
+
+      transaction.confirm({
+        ...patch,
+        categoryId: references.category.id,
       });
-    }
 
-    const transaction = await this.transactionRepository.findByIdAndUserId(input.transactionId, input.userId);
-
-    if (!transaction) {
-      throw new TransactionNotFoundError();
-    }
-
-    if (transaction.isEffective) {
-      throw new TransactionAlreadyEffectiveError();
-    }
-
-    return this.confirmAndSave(transaction, input);
-  }
-
-  private async confirmAndSave(
-    transaction: Transaction,
-    input: ConfirmTransactionUseCaseInput,
-    manager?: EntityManager,
-  ): Promise<ConfirmTransactionUseCaseOutput> {
-    const patch = input.patch ?? {};
-    const nextType = patch.type ?? transaction.type;
-    const nextDestinationAccountId =
-      nextType === TransactionType.TRANSFER ? (patch.destinationAccountId ?? transaction.destinationAccountId) : null;
-
-    const references = await this.transactionReferenceValidator.validate({
-      userId: input.userId,
-      accountId: patch.accountId ?? transaction.accountId,
-      destinationAccountId: nextDestinationAccountId,
-      categoryId: patch.categoryId ?? transaction.categoryId,
-      type: nextType,
+      return this.transactionRepository.save(transaction, options);
     });
-
-    transaction.confirm({
-      ...patch,
-      categoryId: references.category.id,
-    });
-
-    return this.transactionRepository.save(transaction, manager ? { manager } : undefined);
   }
 }

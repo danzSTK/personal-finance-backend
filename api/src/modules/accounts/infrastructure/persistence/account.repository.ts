@@ -55,26 +55,27 @@ export class AccountRepository implements IAccountRepository {
     return AccountMapper.toDomain(account);
   }
 
-  async findByIdAndUserIdForUpdate(
-    accountId: string,
+  async findByIdsAndUserIdForUpdate(
+    accountIds: readonly string[],
     userId: string,
     options: Required<IRepositoryOptions>,
-  ): Promise<Account | null> {
-    const repository = options.manager.getRepository(AccountOrmEntity);
+  ): Promise<Account[]> {
+    const uniqueSortedIds = Array.from(new Set(accountIds)).sort();
 
-    const account = await repository.findOne({
-      where: {
-        id: accountId,
-        user_id: userId,
-      },
-      lock: { mode: 'pessimistic_write' },
-    });
-
-    if (!account) {
-      return null;
+    if (uniqueSortedIds.length === 0) {
+      return [];
     }
 
-    return AccountMapper.toDomain(account);
+    const entities = await options.manager
+      .getRepository(AccountOrmEntity)
+      .createQueryBuilder('account')
+      .where('account.user_id = :userId', { userId })
+      .andWhere('account.id IN (:...accountIds)', { accountIds: uniqueSortedIds })
+      .orderBy('account.id', 'ASC')
+      .setLock('pessimistic_write')
+      .getMany();
+
+    return entities.map(entity => AccountMapper.toDomain(entity));
   }
 
   async listByUserId(userId: string, includeArchived: boolean, options?: IRepositoryOptions): Promise<Account[]> {

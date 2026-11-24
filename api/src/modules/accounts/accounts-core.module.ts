@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AccountBalanceLockPort } from './application/ports/account-balance-lock.port';
+import { AccountBalanceQueryPort } from './application/ports/account-balance-query.port';
 import { IAccountCacheInvalidator } from './application/ports/account-cache-invalidator.interface';
 import { ListAccountTemplatesUseCase } from './application/use-cases/list-account-templates/list-account-templates.use-case';
 import { ArchiveAccountUseCase } from './application/use-cases/archive-account/archive-account.use-case';
@@ -13,6 +15,8 @@ import { UpdateAccountUseCase } from './application/use-cases/update-account/upd
 import { IAccountBalanceRepository } from './domain/repositories/account-balance.repository.interface';
 import { IAccountRepository } from './domain/repositories/account.repository.interface';
 import { IAccountTemplateRepository } from './domain/repositories/account-template.repository.interface';
+import { AccountBalanceLockAdapter } from './infrastructure/adapters/account-balance-lock.adapter';
+import { AccountBalanceQueryAdapter } from './infrastructure/adapters/account-balance-query.adapter';
 import { AccountBalanceRepository } from './infrastructure/persistence/account-balance.repository';
 import { AccountOrmEntity } from './infrastructure/persistence/account.entity';
 import { AccountTemplateOrmEntity } from './infrastructure/persistence/account-template-orm.entity';
@@ -27,6 +31,8 @@ import { CachedAccountRepository } from './infrastructure/persistence/cached-acc
     { provide: IAccountCacheInvalidator, useExisting: IAccountRepository },
     { provide: IAccountTemplateRepository, useClass: AccountTemplateRepository },
     { provide: IAccountBalanceRepository, useClass: AccountBalanceRepository },
+    { provide: AccountBalanceQueryPort, useClass: AccountBalanceQueryAdapter },
+    { provide: AccountBalanceLockPort, useClass: AccountBalanceLockAdapter },
     AccountRepository,
     CreateAccountUseCase,
     ListAccountsUseCase,
@@ -40,7 +46,8 @@ import { CachedAccountRepository } from './infrastructure/persistence/cached-acc
   ],
   exports: [
     IAccountRepository,
-    IAccountBalanceRepository,
+    AccountBalanceQueryPort,
+    AccountBalanceLockPort,
     CreateAccountUseCase,
     ListAccountsUseCase,
     GetAccountSummaryUseCase,

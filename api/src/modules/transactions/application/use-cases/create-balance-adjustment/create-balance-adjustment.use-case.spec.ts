@@ -5,7 +5,8 @@ import {
 } from '@/common/models/constants';
 import { TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
 import { toDateOnly } from '@/common/utils/date-only';
-import { IAccountBalanceRepository } from '@/modules/accounts/domain/repositories/account-balance.repository.interface';
+import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
+import { AccountBalanceQueryPort } from '@/modules/accounts/application/ports/account-balance-query.port';
 import {
   BalanceAdjustmentNoDifferenceError,
   TransactionAccountUnavailableError,
@@ -27,7 +28,8 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   let dataSource: jest.Mocked<DataSource>;
   let manager: jest.Mocked<EntityManager>;
   let transactionRepository: jest.Mocked<ITransactionRepository>;
-  let accountBalanceRepository: jest.Mocked<IAccountBalanceRepository>;
+  let accountBalanceQueryPort: jest.Mocked<AccountBalanceQueryPort>;
+  let accountBalanceLockPort: jest.Mocked<AccountBalanceLockPort>;
   let referenceValidator: jest.Mocked<TransactionReferenceValidator>;
 
   beforeEach(() => {
@@ -44,15 +46,18 @@ describe('CreateBalanceAdjustmentUseCase', () => {
       save: jest.fn().mockImplementation(tx => Promise.resolve(tx)),
     } as unknown as jest.Mocked<ITransactionRepository>;
 
-    accountBalanceRepository = {
-      getSummaries: jest.fn().mockResolvedValue([{ accountId, currentCents: 98000 }]),
-      getUserSummary: jest.fn(),
-    } as unknown as jest.Mocked<IAccountBalanceRepository>;
+    accountBalanceQueryPort = {
+      getCurrentBalanceCents: jest.fn().mockResolvedValue(98000),
+    } as unknown as jest.Mocked<AccountBalanceQueryPort>;
+
+    accountBalanceLockPort = {
+      lockAccountsForBalanceMutation: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AccountBalanceLockPort>;
 
     referenceValidator = {
-      validate: jest.fn(),
-      validateForBalanceAdjustment: jest.fn().mockResolvedValue({
+      validate: jest.fn().mockResolvedValue({
         account: { id: accountId },
+        destinationAccount: null,
         category: { id: adjustmentCategoryId },
       }),
     } as unknown as jest.Mocked<TransactionReferenceValidator>;
@@ -60,12 +65,35 @@ describe('CreateBalanceAdjustmentUseCase', () => {
     useCase = new CreateBalanceAdjustmentUseCase(
       dataSource,
       transactionRepository,
-      accountBalanceRepository,
+      accountBalanceQueryPort,
+      accountBalanceLockPort,
       referenceValidator,
     );
   });
 
-  it('creates an INCREASE adjustment when target balance is greater than current balance', async () => {
+  it('locks account, validates references, queries balance, and creates an INCREASE adjustment when target > current', async () => {
+    const callOrder: string[] = [];
+    accountBalanceLockPort.lockAccountsForBalanceMutation.mockImplementation(() => {
+      callOrder.push('lock');
+      return Promise.resolve();
+    });
+    referenceValidator.validate.mockImplementation(() => {
+      callOrder.push('validate');
+      return Promise.resolve({
+        account: { id: accountId },
+        destinationAccount: null,
+        category: { id: adjustmentCategoryId },
+      } as never);
+    });
+    accountBalanceQueryPort.getCurrentBalanceCents.mockImplementation(() => {
+      callOrder.push('queryBalance');
+      return Promise.resolve(98000);
+    });
+    transactionRepository.save.mockImplementation(tx => {
+      callOrder.push('save');
+      return Promise.resolve(tx);
+    });
+
     const result = await useCase.execute({
       userId,
       accountId,
@@ -75,11 +103,21 @@ describe('CreateBalanceAdjustmentUseCase', () => {
     });
 
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-    expect(referenceValidator.validateForBalanceAdjustment).toHaveBeenCalledWith({ userId, accountId }, { manager });
-    expect(accountBalanceRepository.getSummaries).toHaveBeenCalledWith(
+    expect(callOrder).toEqual(['lock', 'validate', 'queryBalance', 'save']);
+    expect(accountBalanceLockPort.lockAccountsForBalanceMutation).toHaveBeenCalledWith(
       { userId, accountIds: [accountId] },
       { manager },
     );
+    expect(referenceValidator.validate).toHaveBeenCalledWith(
+      {
+        userId,
+        accountId,
+        destinationAccountId: null,
+        type: TransactionType.ADJUSTMENT,
+      },
+      { manager },
+    );
+    expect(accountBalanceQueryPort.getCurrentBalanceCents).toHaveBeenCalledWith({ userId, accountId }, { manager });
     expect(transactionRepository.save).toHaveBeenCalledWith(result, { manager });
 
     expect(result.userId).toBe(userId);
@@ -96,7 +134,7 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   });
 
   it('creates a DECREASE adjustment when target balance is lower than current balance', async () => {
-    accountBalanceRepository.getSummaries.mockResolvedValue([{ accountId, currentCents: 100000 }]);
+    accountBalanceQueryPort.getCurrentBalanceCents.mockResolvedValue(100000);
 
     const result = await useCase.execute({
       userId,
@@ -113,7 +151,7 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   });
 
   it('supports negative target balance from positive current balance', async () => {
-    accountBalanceRepository.getSummaries.mockResolvedValue([{ accountId, currentCents: 5000 }]);
+    accountBalanceQueryPort.getCurrentBalanceCents.mockResolvedValue(5000);
 
     const result = await useCase.execute({
       userId,
@@ -128,7 +166,7 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   });
 
   it('supports zero target balance from negative current balance', async () => {
-    accountBalanceRepository.getSummaries.mockResolvedValue([{ accountId, currentCents: -10000 }]);
+    accountBalanceQueryPort.getCurrentBalanceCents.mockResolvedValue(-10000);
 
     const result = await useCase.execute({
       userId,
@@ -144,7 +182,7 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   });
 
   it('falls back to default description when description is blank whitespace', async () => {
-    accountBalanceRepository.getSummaries.mockResolvedValue([{ accountId, currentCents: 1000 }]);
+    accountBalanceQueryPort.getCurrentBalanceCents.mockResolvedValue(1000);
 
     const result = await useCase.execute({
       userId,
@@ -158,7 +196,7 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   });
 
   it('throws BalanceAdjustmentNoDifferenceError when target balance equals current balance', async () => {
-    accountBalanceRepository.getSummaries.mockResolvedValue([{ accountId, currentCents: 98000 }]);
+    accountBalanceQueryPort.getCurrentBalanceCents.mockResolvedValue(98000);
 
     await expect(
       useCase.execute({
@@ -173,7 +211,7 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   });
 
   it('throws InvalidTransactionError when delta exceeds TRANSACTION_AMOUNT_CENTS_MAX', async () => {
-    accountBalanceRepository.getSummaries.mockResolvedValue([{ accountId, currentCents: -100 }]);
+    accountBalanceQueryPort.getCurrentBalanceCents.mockResolvedValue(-100);
 
     await expect(
       useCase.execute({
@@ -201,7 +239,7 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   });
 
   it('propagates TransactionAccountUnavailableError when account is unavailable', async () => {
-    referenceValidator.validateForBalanceAdjustment.mockRejectedValue(new TransactionAccountUnavailableError());
+    referenceValidator.validate.mockRejectedValue(new TransactionAccountUnavailableError());
 
     await expect(
       useCase.execute({
@@ -212,12 +250,12 @@ describe('CreateBalanceAdjustmentUseCase', () => {
       }),
     ).rejects.toThrow(TransactionAccountUnavailableError);
 
-    expect(accountBalanceRepository.getSummaries).not.toHaveBeenCalled();
+    expect(accountBalanceQueryPort.getCurrentBalanceCents).not.toHaveBeenCalled();
     expect(transactionRepository.save).not.toHaveBeenCalled();
   });
 
-  it('throws TransactionAccountUnavailableError when balance summary is missing', async () => {
-    accountBalanceRepository.getSummaries.mockResolvedValue([]);
+  it('throws TransactionAccountUnavailableError when balance query returns null', async () => {
+    accountBalanceQueryPort.getCurrentBalanceCents.mockResolvedValue(null);
 
     await expect(
       useCase.execute({
@@ -232,7 +270,7 @@ describe('CreateBalanceAdjustmentUseCase', () => {
   });
 
   it('propagates TransactionCategoryUnavailableError when technical category is unavailable', async () => {
-    referenceValidator.validateForBalanceAdjustment.mockRejectedValue(new TransactionCategoryUnavailableError());
+    referenceValidator.validate.mockRejectedValue(new TransactionCategoryUnavailableError());
 
     await expect(
       useCase.execute({

@@ -3,7 +3,8 @@ import {
   TRANSACTION_BALANCE_ADJUSTMENT_DEFAULT_DESCRIPTION,
 } from '@/common/models/constants';
 import { TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
-import { IAccountBalanceRepository } from '@/modules/accounts/domain/repositories/account-balance.repository.interface';
+import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
+import { AccountBalanceQueryPort } from '@/modules/accounts/application/ports/account-balance-query.port';
 import {
   BalanceAdjustmentNoDifferenceError,
   TransactionAccountUnavailableError,
@@ -26,7 +27,8 @@ export class CreateBalanceAdjustmentUseCase {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly transactionRepository: ITransactionRepository,
-    private readonly accountBalanceRepository: IAccountBalanceRepository,
+    private readonly accountBalanceQueryPort: AccountBalanceQueryPort,
+    private readonly accountBalanceLockPort: AccountBalanceLockPort,
     private readonly transactionReferenceValidator: TransactionReferenceValidator,
   ) {}
 
@@ -37,15 +39,8 @@ export class CreateBalanceAdjustmentUseCase {
 
     return this.dataSource.transaction(async manager => {
       const options = { manager };
-      const references = await this.transactionReferenceValidator.validateForBalanceAdjustment(
-        {
-          userId: data.userId,
-          accountId: data.accountId,
-        },
-        options,
-      );
 
-      const [balanceSummary] = await this.accountBalanceRepository.getSummaries(
+      await this.accountBalanceLockPort.lockAccountsForBalanceMutation(
         {
           userId: data.userId,
           accountIds: [data.accountId],
@@ -53,11 +48,29 @@ export class CreateBalanceAdjustmentUseCase {
         options,
       );
 
-      if (!balanceSummary) {
+      const references = await this.transactionReferenceValidator.validate(
+        {
+          userId: data.userId,
+          accountId: data.accountId,
+          destinationAccountId: null,
+          type: TransactionType.ADJUSTMENT,
+        },
+        options,
+      );
+
+      const currentBalanceCents = await this.accountBalanceQueryPort.getCurrentBalanceCents(
+        {
+          userId: data.userId,
+          accountId: data.accountId,
+        },
+        options,
+      );
+
+      if (currentBalanceCents === null) {
         throw new TransactionAccountUnavailableError('Transaction account does not exist or is archived.');
       }
 
-      const deltaCents = BigInt(data.targetBalanceCents) - BigInt(balanceSummary.currentCents);
+      const deltaCents = BigInt(data.targetBalanceCents) - BigInt(currentBalanceCents);
 
       if (deltaCents === 0n) {
         throw new BalanceAdjustmentNoDifferenceError();
