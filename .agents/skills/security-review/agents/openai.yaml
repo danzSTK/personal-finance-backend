@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Review"
+  short_description: "Auditoria de seguranca em features, endpoints, auth, multi-tenancy, uploads e config."
+  default_prompt: "Use $security-review para auditar a seguranca das mudancas atuais contra docs/security/README.md (guards, IDOR/BOLA, BOPLA, CSRF, uploads/R2, injection, segredos e supply chain)."
