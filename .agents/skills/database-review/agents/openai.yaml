@@ -1,0 +1,4 @@
+interface:
+  display_name: "Database Review"
+  short_description: "Revisa SQL, migrations, modelagem logica PostgreSQL e alinhamento com o schema."
+  default_prompt: "Use $database-review para revisar o SQL, as migrations e a modelagem logica das mudancas atuais comparando com docs/database/schema.md e migrations historicas."

@@ -7,9 +7,10 @@
 gitleaks-report.*
 
 
-# Claude
-CLAUDE.md
-.claude/
+# Claude (somente estado local)
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/*.local.*
 
 # Estado local e plugins do Obsidian
 docs/.obsidian/

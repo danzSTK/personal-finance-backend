@@ -2,7 +2,7 @@
 area: documentation
 type: index
 status: current
-last_reviewed: 2026-07-23
+last_reviewed: 2026-11-24
 ---
 
 # Documentação técnica
@@ -15,6 +15,7 @@ Esta é a entrada principal para a documentação do Danfy Backend. O índice se
 | --- | --- |
 | Preparar o ambiente local | [Desenvolvimento local](./getting-started.md) |
 | Entender componentes e dependências | [Arquitetura e organização do código](./architecture.md) |
+| Consultar baseline técnico de segurança | [Segurança e modelo de ameaças](./security/README.md) |
 | Consultar regras de negócio | [Documentação por domínio](#domínios) |
 | Integrar um cliente HTTP | [Guia de integrações](./integrations/README.md) |
 | Operar API, worker, filas ou deploy | [Operação](#operação) |
@@ -33,7 +34,12 @@ Esta é a entrada principal para a documentação do Danfy Backend. O índice se
 ## Arquitetura
 
 - [Arquitetura e organização do código](./architecture.md)
+- [Limites entre módulos](./architecture/module-boundaries.md)
+- [Compatibilidade de rollout e contratos ativos](./architecture/compatibility.md)
+- [Baseline técnico de segurança](./security/README.md)
 - [Schema atual do PostgreSQL](./database/schema.md)
+- [Rollout de migrations](./database/migration-rollout.md)
+- [Revisão de SQL e modelagem lógica](./database/review-guidelines.md)
 - [Arquitetura de eventos e outbox](./events/README.md)
 - [Infraestrutura de filas e workers](./platform/workers/README.md)
 - [Datas civis e instantes](./platform/dates-and-times/README.md)
