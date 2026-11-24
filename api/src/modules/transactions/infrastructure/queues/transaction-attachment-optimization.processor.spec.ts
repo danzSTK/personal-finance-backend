@@ -187,19 +187,19 @@ describe('TransactionAttachmentOptimizationProcessor', () => {
       checksumSha256Hex: expect.any(String) as string,
     });
     expect(objectStorage.deleteObject).not.toHaveBeenCalled();
-    expect(assetRepository.save).toHaveBeenCalledWith(
+    expect(assetRepository.save).toHaveBeenCalledTimes(1);
+    const [savedAsset, saveOptions] = assetRepository.save.mock.calls[0];
+    expect(saveOptions).toEqual({ manager });
+    expect(savedAsset.id).toBe(assetId);
+    expect(savedAsset.status).toBe(AssetStatus.READY);
+    expect(savedAsset.contentType).toBe('image/webp');
+    expect(savedAsset.sizeBytes).toBe(optimizedBuffer.length);
+    expect(savedAsset.metadata).toEqual(
       expect.objectContaining({
-        id: assetId,
-        status: AssetStatus.READY,
-        contentType: 'image/webp',
-        sizeBytes: optimizedBuffer.length,
-        metadata: expect.objectContaining({
-          width: 2560,
-          height: 1440,
-          format: 'webp',
-        }),
+        width: 2560,
+        height: 1440,
+        format: 'webp',
       }),
-      { manager },
     );
   });
 
