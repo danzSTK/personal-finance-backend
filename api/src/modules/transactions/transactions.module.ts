@@ -4,6 +4,7 @@ import { CategoriesModule } from '@/modules/categories/categories.module';
 import { TransactionReferenceValidator } from '@/modules/transactions/application/services/transaction-reference-validator.service';
 import { AddTransactionAttachmentsUseCase } from '@/modules/transactions/application/use-cases/add-transaction-attachments/add-transaction-attachments.use-case';
 import { ConfirmTransactionUseCase } from '@/modules/transactions/application/use-cases/confirm-transaction/confirm-transaction.use-case';
+import { CreateBalanceAdjustmentUseCase } from '@/modules/transactions/application/use-cases/create-balance-adjustment/create-balance-adjustment.use-case';
 import { CreateTransactionUseCase } from '@/modules/transactions/application/use-cases/create-transaction/create-transaction.use-case';
 import { DeleteTransactionAttachmentUseCase } from '@/modules/transactions/application/use-cases/delete-transaction-attachment/delete-transaction-attachment.use-case';
 import { DeleteTransactionUseCase } from '@/modules/transactions/application/use-cases/delete-transaction/delete-transaction.use-case';
@@ -57,6 +58,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     TransactionReferenceValidator,
     TransactionAttachmentImageValidator,
     CreateTransactionUseCase,
+    CreateBalanceAdjustmentUseCase,
     ListTransactionsUseCase,
     GetTransactionUseCase,
     UpdateTransactionUseCase,
@@ -72,6 +74,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     ITransactionAttachmentRepository,
     TransactionAttachmentJobQueueProducer,
     CreateTransactionUseCase,
+    CreateBalanceAdjustmentUseCase,
     ListTransactionsUseCase,
     GetTransactionUseCase,
     UpdateTransactionUseCase,

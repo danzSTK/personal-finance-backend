@@ -1,3 +1,4 @@
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { DateOnlyString } from '@/common/utils/date-only';
 
 export interface AccountBalanceSummary {
@@ -27,6 +28,9 @@ export interface GetAccountSummaryInput {
 }
 
 export abstract class IAccountBalanceRepository {
-  abstract getSummaries(input: GetAccountBalanceSummariesInput): Promise<AccountBalanceSummary[]>;
+  abstract getSummaries(
+    input: GetAccountBalanceSummariesInput,
+    options?: IRepositoryOptions,
+  ): Promise<AccountBalanceSummary[]>;
   abstract getUserSummary(input: GetAccountSummaryInput): Promise<AccountSummary>;
 }

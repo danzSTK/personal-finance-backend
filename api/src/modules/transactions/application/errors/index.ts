@@ -1,3 +1,4 @@
+export * from './balance-adjustment-no-difference.error';
 export * from './transaction-account-unavailable.error';
 export * from './transaction-already-effective.error';
 export * from './transaction-category-incompatible.error';

@@ -21,6 +21,7 @@ describe('ListAccountsUseCase', () => {
     jest.clearAllMocks();
     accountRepository = {
       findByIdAndUserId: jest.fn(),
+      findByIdsAndUserIdForUpdate: jest.fn(),
       listByUserId: jest.fn(),
       findWithoutTemplateForUpdate: jest.fn(),
       save: jest.fn(),

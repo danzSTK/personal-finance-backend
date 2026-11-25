@@ -24,6 +24,7 @@ describe('UpdateAccountUseCase', () => {
     jest.clearAllMocks();
     accountRepository = {
       findByIdAndUserId: jest.fn(),
+      findByIdsAndUserIdForUpdate: jest.fn(),
       listByUserId: jest.fn(),
       findWithoutTemplateForUpdate: jest.fn(),
       save: jest.fn((account: Account): Promise<Account> => Promise.resolve(account)),

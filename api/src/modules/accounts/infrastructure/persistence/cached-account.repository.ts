@@ -93,6 +93,14 @@ export class CachedAccountRepository implements IAccountRepository, IAccountCach
     return account;
   }
 
+  async findByIdsAndUserIdForUpdate(
+    accountIds: readonly string[],
+    userId: string,
+    options: Required<IRepositoryOptions>,
+  ): Promise<Account[]> {
+    return this.accountRepository.findByIdsAndUserIdForUpdate(accountIds, userId, options);
+  }
+
   async listByUserId(userId: string, includeArchived: boolean, options?: IRepositoryOptions): Promise<Account[]> {
     if (options?.manager) {
       return this.accountRepository.listByUserId(userId, includeArchived, { manager: options.manager });

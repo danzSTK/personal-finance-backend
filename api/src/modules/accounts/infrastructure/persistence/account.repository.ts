@@ -55,6 +55,29 @@ export class AccountRepository implements IAccountRepository {
     return AccountMapper.toDomain(account);
   }
 
+  async findByIdsAndUserIdForUpdate(
+    accountIds: readonly string[],
+    userId: string,
+    options: Required<IRepositoryOptions>,
+  ): Promise<Account[]> {
+    const uniqueSortedIds = Array.from(new Set(accountIds)).sort();
+
+    if (uniqueSortedIds.length === 0) {
+      return [];
+    }
+
+    const entities = await options.manager
+      .getRepository(AccountOrmEntity)
+      .createQueryBuilder('account')
+      .where('account.user_id = :userId', { userId })
+      .andWhere('account.id IN (:...accountIds)', { accountIds: uniqueSortedIds })
+      .orderBy('account.id', 'ASC')
+      .setLock('pessimistic_write')
+      .getMany();
+
+    return entities.map(entity => AccountMapper.toDomain(entity));
+  }
+
   async listByUserId(userId: string, includeArchived: boolean, options?: IRepositoryOptions): Promise<Account[]> {
     const repository = options?.manager ? options.manager.getRepository(AccountOrmEntity) : this.accountRepository;
 

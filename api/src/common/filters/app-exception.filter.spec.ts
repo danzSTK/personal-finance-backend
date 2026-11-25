@@ -4,6 +4,7 @@ import {
   InvalidAttachmentPositionError,
 } from '@/modules/transactions/domain/errors';
 import {
+  BalanceAdjustmentNoDifferenceError,
   TransactionAttachmentNotFoundError,
   UnsupportedAttachmentFileError,
   AttachmentFileTooLargeError,
@@ -133,6 +134,21 @@ describe('AppExceptionFilter', () => {
 
       filter.catch(new AttachmentDimensionsExceededError(), host);
       expect(response.status).toHaveBeenCalledWith(422);
+    });
+
+    it('maps balance adjustment no difference error to conflict', () => {
+      const filter = new AppExceptionFilter();
+
+      filter.catch(new BalanceAdjustmentNoDifferenceError(), host);
+
+      expect(response.status).toHaveBeenCalledWith(409);
+      expect(response.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 409,
+          code: 'BALANCE_ADJUSTMENT_NO_DIFFERENCE',
+          details: null,
+        }),
+      );
     });
   });
 });

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
 import { Asset } from '@/modules/assets/domain/entities/asset.entity';
 import { AssetStatus } from '@/modules/assets/domain/enums';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
@@ -13,6 +14,8 @@ import { DataSource, EntityManager } from 'typeorm';
 describe('DeleteTransactionUseCase', () => {
   const userId = '11111111-1111-4111-a111-111111111111';
   const transactionId = '22222222-2222-4222-a222-222222222222';
+  const accountId = '33333333-3333-4333-a333-333333333333';
+  const destinationAccountId = '44444444-4444-4444-a444-444444444444';
 
   let useCase: DeleteTransactionUseCase;
   let dataSource: jest.Mocked<DataSource>;
@@ -20,6 +23,7 @@ describe('DeleteTransactionUseCase', () => {
   let transactionRepository: jest.Mocked<ITransactionRepository>;
   let attachmentRepository: jest.Mocked<ITransactionAttachmentRepository>;
   let assetRepository: jest.Mocked<IAssetRepository>;
+  let accountBalanceLockPort: jest.Mocked<AccountBalanceLockPort>;
 
   beforeEach(() => {
     manager = {} as unknown as jest.Mocked<EntityManager>;
@@ -56,7 +60,17 @@ describe('DeleteTransactionUseCase', () => {
       findStalePendingUploadsBefore: jest.fn(),
     } as unknown as jest.Mocked<IAssetRepository>;
 
-    useCase = new DeleteTransactionUseCase(dataSource, transactionRepository, attachmentRepository, assetRepository);
+    accountBalanceLockPort = {
+      lockAccountsForBalanceMutation: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AccountBalanceLockPort>;
+
+    useCase = new DeleteTransactionUseCase(
+      dataSource,
+      transactionRepository,
+      attachmentRepository,
+      assetRepository,
+      accountBalanceLockPort,
+    );
   });
 
   it('rejects when transaction does not exist or is already deleted', async () => {
@@ -68,11 +82,15 @@ describe('DeleteTransactionUseCase', () => {
         transactionId,
       }),
     ).rejects.toThrow(TransactionNotFoundError);
+
+    expect(accountBalanceLockPort.lockAccountsForBalanceMutation).not.toHaveBeenCalled();
   });
 
-  it('marks transaction as deleted and transitions active attachments to DELETE_PENDING', async () => {
+  it('locks involved accounts, marks transaction as deleted, and transitions active attachments to DELETE_PENDING', async () => {
     const mockTx = {
       id: transactionId,
+      accountId,
+      destinationAccountId: null,
       delete: jest.fn(),
     } as unknown as Transaction;
     transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTx);
@@ -100,8 +118,34 @@ describe('DeleteTransactionUseCase', () => {
 
     expect(transactionRepository.findByIdAndUserIdForUpdate).toHaveBeenCalledWith(transactionId, userId, { manager });
     expect(mockTx.delete).toHaveBeenCalled();
+    expect(accountBalanceLockPort.lockAccountsForBalanceMutation).toHaveBeenCalledWith(
+      { userId, accountIds: [accountId] },
+      { manager },
+    );
     expect(transactionRepository.save).toHaveBeenCalledWith(mockTx, { manager });
     expect(mockAsset.markDeletePending).toHaveBeenCalled();
     expect(assetRepository.save).toHaveBeenCalledWith(mockAsset, { manager });
+  });
+
+  it('locks both origin and destination accounts when deleting a TRANSFER transaction', async () => {
+    const mockTx = {
+      id: transactionId,
+      accountId,
+      destinationAccountId,
+      delete: jest.fn(),
+    } as unknown as Transaction;
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(mockTx);
+    attachmentRepository.findByTransactionId.mockResolvedValue([]);
+
+    await useCase.execute({
+      userId,
+      transactionId,
+    });
+
+    expect(accountBalanceLockPort.lockAccountsForBalanceMutation).toHaveBeenCalledWith(
+      { userId, accountIds: [accountId, destinationAccountId] },
+      { manager },
+    );
+    expect(transactionRepository.save).toHaveBeenCalledWith(mockTx, { manager });
   });
 });
