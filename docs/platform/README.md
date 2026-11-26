@@ -2,7 +2,7 @@
 area: platform
 type: index
 status: current
-last_reviewed: 2026-10-30
+last_reviewed: 2026-11-26
 ---
 
 # Plataforma Danfy
@@ -13,6 +13,7 @@ Este diretório organiza as regras técnicas e convenções operacionais transve
 
 Para evitar sobrecarga de contexto, consulte diretamente a pasta correspondente ao escopo da tarefa:
 
+- [Observabilidade (`observability/`)](./observability/README.md) — Logging estruturado (Pino), correlação API/Worker, política Zero-PII, métricas leves e alertas operacionais no Telegram.
 - [Workers e Filas (`workers/`)](./workers/README.md) — Infraestrutura BullMQ, concorrência, processadores em background e operações do Worker.
 - [E-mail Transacional (`email/`)](./email/README.md) — Provedor Brevo, contratos de envio e adapters.
 - [CI/CD e Entrega (`ci-cd/`)](./ci-cd/README.md) — Workflows do GitHub Actions, esteiras de testes e automação de releases.

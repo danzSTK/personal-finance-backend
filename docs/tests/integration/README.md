@@ -12,6 +12,7 @@ Todas as suítes `api/test/*.integration-spec.ts` executam pelo comando agregado
 | [email-verification-redis](./email-verification-redis.md)                     |    não     |      1      |     não      |    não    |      não       |
 | [email-verification-resend-postgres](./email-verification-resend-postgres.md) |     1      |     não     |     não      |    não    |      não       |
 | [link-email-provider-flow](./link-email-provider-flow.md)                     |     1      |     não     |     não      |    não    |      não       |
+| [observability-alerts](./observability-alerts.md)                             |    não     |      1      |     não      |    não    |      não       |
 | [outbox-postgres](./outbox-postgres.md)                                       |     1      |     não     |     não      |    não    |      não       |
 | [password-change-flow](./password-change-flow.md)                             |     1      |      1      |     não      |    não    |      não       |
 | [password-change-postgres](./password-change-postgres.md)                     |     1      |     não     |     não      |    não    |      não       |

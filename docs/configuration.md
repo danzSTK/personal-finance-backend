@@ -2,11 +2,12 @@
 area: platform
 type: reference
 status: current
-last_reviewed: 2026-07-23
+last_reviewed: 2026-11-26
 related:
   - ./getting-started.md
   - ./deploy.md
   - ./platform/workers/README.md
+  - ./platform/observability/README.md
 ---
 
 # Configuração por variáveis de ambiente
@@ -116,6 +117,28 @@ Use credenciais com privilégio mínimo e acesso somente aos buckets necessário
 ¹ `SUPPORT_URL` é obrigatória quando `MAIL_ENABLED=true`. O default só é aplicado quando o envio está desabilitado.
 
 Essas variáveis são compartilhadas porque o fluxo de verificação pode ser iniciado pela API, em reenvios, ou pelo worker, ao consumir eventos persistidos na outbox.
+
+### Observabilidade (logging e alertas operacionais)
+
+API e worker compartilham a configuração de `api/src/config/observability.config.ts` para logging estruturado (Pino), cooldown no Redis e alertas operacionais no Telegram. Consulte [`docs/platform/observability/README.md`](./platform/observability/README.md).
+
+| Variável                           | Regra    | Default                                       | Validação / Tipo                                               | Uso                                                                      |
+| ---------------------------------- | -------- | --------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `LOG_LEVEL`                        | Default  | `info` (`silent` em `NODE_ENV=test`)          | `fatal`, `error`, `warn`, `info`, `debug`, `trace` ou `silent` | nível mínimo de log estruturado emitido pelo Pino                        |
+| `TELEGRAM_ALERTS_ENABLED`          | Default  | `false`                                       | boolean (`true`/`false`)                                       | habilita explicitamente envio de alertas operacionais ao Telegram        |
+| `TELEGRAM_BOT_TOKEN`               | Opcional | `undefined`                                   | string não vazia quando definida                               | token do bot criado no BotFather (segredo restrito; nunca logar)         |
+| `TELEGRAM_ALERT_CHAT_ID`           | Opcional | `undefined`                                   | string não vazia quando definida                               | identificador do chat/grupo privado destinatário dos alertas             |
+| `TELEGRAM_API_BASE_URL`            | Default  | `https://api.telegram.org`                    | URI válida                                                     | URL base da Telegram Bot API (útil para mocks/testes isolados)           |
+| `TELEGRAM_ALERT_TIMEOUT_MS`        | Default  | `4000`                                        | número (`1000` a `10000`)                                      | timeout rígido em ms por chamada HTTP ao Telegram                        |
+| `ALERT_COOLDOWN_CRITICAL_SECONDS`  | Default  | `900`                                         | número (`60` a `86400`)                                        | janela padrão de deduplicação no Redis (15 min) para alertas `CRITICAL`  |
+| `ALERT_COOLDOWN_WARN_SECONDS`      | Default  | `1800`                                        | número (`60` a `86400`)                                        | janela padrão de deduplicação no Redis (30 min) para alertas `WARN`      |
+
+Regras de ativação e recomendações de produção/segurança:
+
+- **Testes automatizados (`NODE_ENV=test`):** resolvem sempre para `NoopOperationalAlertNotifier`, independentemente das demais variáveis, garantindo que nenhuma chamada HTTP real seja disparada ao Telegram durante suítes automatizadas.
+- **Ativação fora de `test`:** o `TelegramOperationalAlertNotifier` só é ativado quando `TELEGRAM_ALERTS_ENABLED=true` **e** `TELEGRAM_BOT_TOKEN` e `TELEGRAM_ALERT_CHAT_ID` estão preenchidos. Se `TELEGRAM_ALERTS_ENABLED=true` sem credenciais completas, o sistema emite um log `warn` no boot e faz fallback seguro para `NoopOperationalAlertNotifier` sem impedir a inicialização.
+- **Segurança e operação:** mantenha `TELEGRAM_ALERTS_ENABLED=false` em desenvolvimento local/CI; em produção, armazene `TELEGRAM_BOT_TOKEN` apenas como secret de ambiente (nunca em logs, erros ou repositório), envie alertas somente para um grupo/chat privado dedicado e mantenha `TELEGRAM_ALERT_TIMEOUT_MS` limitado (`4000` ms) para preservar o isolamento não-bloqueante.
+- **Nível de log:** use `LOG_LEVEL=info` em produção (JSON no `stdout`) e ajuste temporariamente para `debug` apenas durante investigações controladas, respeitando sempre a política Zero-PII.
 
 ## Somente API
 
