@@ -5,11 +5,15 @@ import { WorkerModule } from '@/app/worker/worker.module';
 import { OutboxProcessorService } from '@/shared/outbox/services/outbox-processor.service';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { Logger as PinoNestLogger } from 'nestjs-pino';
 
 async function bootstrap(): Promise<void> {
   assertProcessRole(ProcessRoles.WORKER);
 
-  const app = await NestFactory.createApplicationContext(WorkerModule);
+  const app = await NestFactory.createApplicationContext(WorkerModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(PinoNestLogger));
   app.enableShutdownHooks();
   await app.get(OutboxProcessorService).start();
 

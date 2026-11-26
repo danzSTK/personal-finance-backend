@@ -6,6 +6,12 @@ import { AssetStorageKeyFactory } from '@/modules/assets/domain/factories';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
 import { AssetReconcilerService } from '@/modules/assets/application/services/asset-reconciler.service';
 import { IObjectStorage } from '@/shared/object-storage/contracts/object-storage.interface';
+import { OperationalAlertService } from '@/shared/observability/alerts/operational-alert.service';
+import {
+  ObservabilityLogEvents,
+  OperationalAlertKeys,
+  OperationalAlertSeverities,
+} from '@/shared/observability/constants/observability.constants';
 import { Logger } from '@nestjs/common';
 
 describe('AssetReconcilerService', () => {
@@ -174,6 +180,46 @@ describe('AssetReconcilerService', () => {
         expect.stringContaining('[ASSET_DELETE_QUARANTINED] Asset reached max delete retries and was quarantined'),
         expect.any(String),
       );
+    });
+
+    it('dispatches CRITICAL operational alert when asset enters quarantine', async () => {
+      const notify = jest.fn();
+      const serviceWithAlerts = new AssetReconcilerService(mockAssetRepository, mockObjectStorage, mockConfig, {
+        notify,
+      } as unknown as OperationalAlertService);
+
+      const asset = createTestAsset(
+        {
+          status: AssetStatus.DELETE_PENDING,
+          metadata: {
+            delete_attempts: 4,
+            last_delete_error: 'Previous error',
+          },
+        },
+        'quarantine-alert-asset',
+      );
+      mockAssetRepository.findPendingDeletionBefore.mockResolvedValueOnce([asset]);
+      mockObjectStorage.deleteObject.mockRejectedValueOnce(new Error('S3 403 Forbidden'));
+
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+      await serviceWithAlerts.reconcile();
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`[${ObservabilityLogEvents.ASSET_DELETE_QUARANTINED}]`),
+        expect.any(String),
+      );
+      expect(notify).toHaveBeenCalledWith({
+        alertKey: OperationalAlertKeys.assetQuarantine('quarantine-alert-asset'),
+        event: ObservabilityLogEvents.ASSET_DELETE_QUARANTINED,
+        severity: OperationalAlertSeverities.CRITICAL,
+        title: 'Asset enviado para quarentena no reconciliador',
+        summary: 'Asset quarantine-alert-asset atingiu 5 falhas consecutivas de exclusão física no storage.',
+        metadata: {
+          assetId: 'quarantine-alert-asset',
+          attempts: 5,
+        },
+      });
     });
 
     it('catches and logs save failure when persisting retry state without crashing batch', async () => {

@@ -86,6 +86,7 @@ Para evitar leitura desnecessária e sobrecarga de contexto, **nunca leia todas 
 | **Pipelines de CI/CD, deploy ou GitHub Actions** | `docs/platform/ci-cd/` | Workflows de integração, entrega contínua e dependências |
 | **Tratamento de datas, fusos ou instantes** | `docs/platform/dates-and-times/` | Regras para `DateOnly` vs `Instant` |
 | **Contratos de resposta da API (`object`)** | `docs/platform/response-objects/` | Padrão discriminador e serialização de DTOs |
+| **Logs, correlação, métricas ou alertas operacionais** | `docs/platform/observability/` | Logs estruturados Pino, correlação API/Worker, Zero-PII, métricas leves e alertas Telegram |
 | **Classificação ou abertura de issues** | `docs/platform/standards/` | Padrões de issues e taxonomia da plataforma |
 | **Ciclo de vida de arquivos ou storage** | `docs/assets/` e `docs/storage/` | Gerenciamento de assets, R2 público e R2 privado |
 ### Escopo das instruções
@@ -102,6 +103,7 @@ As skills canônicas ficam em `.agents/skills/` (espelhadas em `.claude/skills/`
 - `database-review`: revisão dedicada de SQL, migrations, modelagem lógica PostgreSQL (3NF, FKs, índices, `CHECK`s, tipos) e comparação com o schema/migrations históricas.
 - `migration-rollout`: planejamento, criação, revisão e execução de migrations compatíveis com deploy/rollback (`expand -> migrate -> contract`).
 - `platform-errors`: criação, refatoração e revisão de `DomainError`, `ApplicationError` e mapeamento no `AppExceptionFilter`.
+- `platform-observability`: logging estruturado, correlação, Zero-PII, `IMetricsRecorder`, alertas operacionais (`OperationalAlertService` / Telegram) e limites do `/health`.
 - `spec-driven-development`: criação e manutenção de specs vivas em `docs/specs/<module>/<feature>/specs/`.
 - `modular-documentation`: criação e manutenção de documentação viva em `docs/<module>/`.
 - `test-suite-governance`: governança de suítes E2E e de integração (Testcontainers, CI e `docs/tests/`).
@@ -342,6 +344,14 @@ If code contradicts an applicable documented decision in a way that can affect c
 - **Consequence:** Frontends, workers, integrations, or rolling deployments can fail even when the changed service compiles and its local tests pass.
 - **Safe path:** Prefer additive changes, preserve existing identifiers and semantics, centralize discriminators and error codes instead of adding magic strings, and version contracts when compatibility cannot be preserved.
 
+### Avoidable magic strings
+
+- **Context:** Changes that introduce or modify string literals across domain, application, infrastructure, presentation, queues, observability, configuration, or tests.
+- **Invariant:** The project requires as few magic strings as possible. Any string literal that is reused or has clear potential for reuse across layers, modules, services, filters, queues, contracts, or tests — such as log/domain event names, error codes, severities, statuses, types/categories, header names, Redis key prefixes, queue/job names, `object` discriminators, alert keys, or sentinel values like `[REDACTED]` — MUST be centralized in typed constants (`as const`) or dedicated enums (`constants/` or `enums/`), never duplicated inline.
+- **Violation:** Report avoidable magic strings as **P1** when they involve a contract, event, error code, header, Redis key, or value repeated across multiple files with risk of silent drift, or **P2** when easily reusable/centralizable to preserve consistency and safe refactoring. Do not generate noise over reasonable exceptions: single-use descriptive human messages or test-only text with no shared contract.
+- **Consequence:** Silent contract or key drift across API, Worker, and tests, missed TypeScript type checking, and fragile refactors.
+- **Safe path:** Extract shared literals into typed constants (`as const`) or dedicated enums (`constants/` or `enums/`, `@/common/models/constants`, or `CacheKeys`), and import those symbols everywhere they are used or asserted.
+
 ### Migration rollout compatibility
 
 - **Context:** A pull request adds or changes a migration that drops or renames an object, adds `NOT NULL`, changes an enum or check constraint, changes a persisted format, introduces a new required value, or removes a compatibility shim.
@@ -376,3 +386,4 @@ If code contradicts an applicable documented decision in a way that can affect c
 - Handle promises deliberately; do not leave floating promises.
 - Use Prettier and the repo ESLint config.
 - Prefer existing project patterns and helpers over new abstractions.
+- Avoid reusable or potentially reusable magic strings; centralize shared literals in typed constants (`as const`) or enums.

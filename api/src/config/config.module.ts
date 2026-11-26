@@ -2,8 +2,10 @@ import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import mailConfig from '@/config/mail.config';
 import notificationsConfig from '@/config/notifications.config';
 import objectStorageConfig from '@/config/object-storage.config';
+import observabilityConfig from '@/config/observability.config';
 import queueConfig from '@/config/queue.config';
 import workerConfig from '@/config/worker.config';
+import { PinoLogLevels, VALID_LOG_LEVELS } from '@/shared/observability/constants/observability.constants';
 import {
   EMAIL_VERIFICATION_MAX_COOLDOWN_SECONDS,
   EMAIL_VERIFICATION_MINIMUM_USABLE_TOKEN_SECONDS,
@@ -64,6 +66,7 @@ export const getEmailVerificationConfigInvariantError = (value: Record<string, u
         notificationsConfig,
         queueConfig,
         workerConfig,
+        observabilityConfig,
       ],
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
@@ -311,6 +314,22 @@ export const getEmailVerificationConfigInvariantError = (value: Record<string, u
         }),
         FRONTEND_URL: Joi.string().uri().required(),
         NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        LOG_LEVEL: Joi.when('NODE_ENV', {
+          is: 'test',
+          then: Joi.string()
+            .valid(...VALID_LOG_LEVELS)
+            .default(PinoLogLevels.SILENT),
+          otherwise: Joi.string()
+            .valid(...VALID_LOG_LEVELS)
+            .default(PinoLogLevels.INFO),
+        }),
+        TELEGRAM_ALERTS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+        TELEGRAM_BOT_TOKEN: Joi.string().trim().allow('').optional(),
+        TELEGRAM_ALERT_CHAT_ID: Joi.string().trim().allow('').optional(),
+        TELEGRAM_API_BASE_URL: Joi.string().uri().default('https://api.telegram.org'),
+        TELEGRAM_ALERT_TIMEOUT_MS: Joi.number().integer().min(1000).max(10000).default(4000),
+        ALERT_COOLDOWN_CRITICAL_SECONDS: Joi.number().integer().min(60).max(86400).default(900),
+        ALERT_COOLDOWN_WARN_SECONDS: Joi.number().integer().min(60).max(86400).default(1800),
         PORT: Joi.number().default(3000),
         APP_URL: Joi.when('PROCESS_ROLE', {
           is: ProcessRoles.API,

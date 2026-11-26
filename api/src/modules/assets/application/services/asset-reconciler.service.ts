@@ -2,7 +2,13 @@ import workerConfig from '@/config/worker.config';
 import { AssetFailureCode } from '@/modules/assets/domain/enums';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
 import { IObjectStorage } from '@/shared/object-storage/contracts/object-storage.interface';
-import { BeforeApplicationShutdown, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { OperationalAlertService } from '@/shared/observability/alerts/operational-alert.service';
+import {
+  ObservabilityLogEvents,
+  OperationalAlertKeys,
+  OperationalAlertSeverities,
+} from '@/shared/observability/constants/observability.constants';
+import { BeforeApplicationShutdown, Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 
 @Injectable()
@@ -17,6 +23,8 @@ export class AssetReconcilerService implements OnModuleInit, BeforeApplicationSh
     private readonly objectStorage: IObjectStorage,
     @Inject(workerConfig.KEY)
     private readonly config: ConfigType<typeof workerConfig>,
+    @Optional()
+    private readonly operationalAlertService?: OperationalAlertService,
   ) {}
 
   onModuleInit(): void {
@@ -87,9 +95,20 @@ export class AssetReconcilerService implements OnModuleInit, BeforeApplicationSh
 
         if (quarantined) {
           this.logger.error(
-            `[ASSET_DELETE_QUARANTINED] Asset reached max delete retries and was quarantined. assetId=${asset.id} attempts=${attempts} error=${errorMessage}`,
+            `[${ObservabilityLogEvents.ASSET_DELETE_QUARANTINED}] Asset reached max delete retries and was quarantined. assetId=${asset.id} attempts=${attempts} error=${errorMessage}`,
             error instanceof Error ? error.stack : undefined,
           );
+          this.operationalAlertService?.notify({
+            alertKey: OperationalAlertKeys.assetQuarantine(asset.id),
+            event: ObservabilityLogEvents.ASSET_DELETE_QUARANTINED,
+            severity: OperationalAlertSeverities.CRITICAL,
+            title: 'Asset enviado para quarentena no reconciliador',
+            summary: `Asset ${asset.id} atingiu ${attempts} falhas consecutivas de exclusão física no storage.`,
+            metadata: {
+              assetId: asset.id,
+              attempts,
+            },
+          });
         } else {
           this.logger.warn(
             `Failed to delete asset from object storage; scheduled for retry. assetId=${asset.id} attempts=${attempts} error=${errorMessage}`,

@@ -1,7 +1,17 @@
 import { ApplicationError, RetryAfterApplicationError } from '@/shared/application';
 import { DomainError } from '@/shared/domain';
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { OperationalAlertService } from '@/shared/observability/alerts/operational-alert.service';
+import {
+  ObservabilityLogEvents,
+  OperationalAlertKeys,
+  OperationalAlertSeverities,
+} from '@/shared/observability/constants/observability.constants';
+import { getObservabilityContext } from '@/shared/observability/context/observability-context';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger, Optional } from '@nestjs/common';
 import { Request, Response } from 'express';
+
+const INTERNAL_SERVER_ERROR_CODE = 'INTERNAL_SERVER_ERROR';
+const RETRY_AFTER_HEADER = 'Retry-After';
 
 type ErrorDetails = Record<string, unknown> | null;
 
@@ -20,6 +30,13 @@ interface HttpExceptionResponseBody {
   message?: string | string[];
   error?: string;
   details?: ErrorDetails;
+}
+
+interface SafeSerializedError {
+  type: string;
+  code?: string | number;
+  constraint?: string;
+  message: string;
 }
 
 const ERROR_STATUS_BY_CODE: Record<string, HttpStatus> = {
@@ -119,6 +136,11 @@ const ERROR_STATUS_BY_CODE: Record<string, HttpStatus> = {
 export class AppExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(AppExceptionFilter.name);
 
+  constructor(
+    @Optional()
+    private readonly operationalAlertService?: OperationalAlertService,
+  ) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const request = context.getRequest<Request>();
@@ -126,12 +148,40 @@ export class AppExceptionFilter implements ExceptionFilter {
 
     const errorResponse = this.toErrorResponse(exception, request);
 
-    if (errorResponse.code === 'INTERNAL_SERVER_ERROR') {
-      this.logger.error(this.toLogMessage(exception, request));
+    if (
+      errorResponse.statusCode === Number(HttpStatus.INTERNAL_SERVER_ERROR) &&
+      errorResponse.code === INTERNAL_SERVER_ERROR_CODE
+    ) {
+      const normalizedRoute = this.normalizeRoute(request);
+      const requestId = this.resolveRequestId(request);
+
+      this.logger.error({
+        event: ObservabilityLogEvents.UNHANDLED_HTTP_EXCEPTION,
+        method: request.method,
+        route: normalizedRoute,
+        statusCode: errorResponse.statusCode,
+        errorCode: errorResponse.code,
+        ...(requestId ? { requestId } : {}),
+        error: this.serializeSafeError(exception),
+      });
+
+      this.operationalAlertService?.notify({
+        alertKey: OperationalAlertKeys.http500(request.method, normalizedRoute),
+        event: ObservabilityLogEvents.UNHANDLED_HTTP_EXCEPTION,
+        severity: OperationalAlertSeverities.CRITICAL,
+        title: 'Erro interno inesperado na API (500)',
+        summary: `${request.method} ${normalizedRoute} falhou com erro inesperado.`,
+        requestId,
+        metadata: {
+          method: request.method,
+          route: normalizedRoute,
+          statusCode: errorResponse.statusCode,
+        },
+      });
     }
 
     if (exception instanceof RetryAfterApplicationError) {
-      response.setHeader('Retry-After', String(exception.retryAfterSeconds));
+      response.setHeader(RETRY_AFTER_HEADER, String(exception.retryAfterSeconds));
     }
 
     response.status(errorResponse.statusCode).json(errorResponse);
@@ -154,7 +204,7 @@ export class AppExceptionFilter implements ExceptionFilter {
 
     return this.createResponse({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      code: 'INTERNAL_SERVER_ERROR',
+      code: INTERNAL_SERVER_ERROR_CODE,
       message: 'Internal server error.',
       request,
     });
@@ -223,9 +273,87 @@ export class AppExceptionFilter implements ExceptionFilter {
       .toUpperCase();
   }
 
-  private toLogMessage(exception: unknown, request: Request): string {
-    const error = exception instanceof Error ? exception.stack : String(exception);
+  private normalizeRoute(request: Request): string {
+    const routeRequest = request as unknown as { route?: { path?: unknown }; baseUrl?: string };
+    const routePath = routeRequest.route?.path;
 
-    return `${request.method} ${request.originalUrl ?? request.url} failed: ${error}`;
+    if (typeof routePath === 'string' && routePath.length > 0) {
+      return `${routeRequest.baseUrl ?? ''}${routePath}`.slice(0, 120);
+    }
+
+    const rawUrl = request.originalUrl ?? request.url ?? '/';
+    const pathname = rawUrl.split('?', 1)[0] || '/';
+
+    return pathname
+      .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/gi, '/:uuid')
+      .replace(/\/\d+(?=\/|$)/g, '/:id')
+      .slice(0, 120);
+  }
+
+  private resolveRequestId(request: Request): string | undefined {
+    const requestId = (request as Request & { id?: unknown }).id;
+    if (typeof requestId === 'string' && requestId.length > 0) {
+      return requestId;
+    }
+
+    return getObservabilityContext()?.requestId;
+  }
+
+  private serializeSafeError(exception: unknown): SafeSerializedError {
+    if (typeof exception === 'object' && exception !== null) {
+      const record = exception as {
+        query?: unknown;
+        parameters?: unknown;
+        driverError?: unknown;
+        code?: unknown;
+      };
+
+      if ('query' in record || 'parameters' in record || 'driverError' in record) {
+        const driverError =
+          typeof record.driverError === 'object' && record.driverError !== null
+            ? (record.driverError as { code?: unknown; constraint?: unknown })
+            : undefined;
+        const rawCode = driverError?.code ?? record.code;
+        const code = this.readShortErrorCode(rawCode);
+        const constraint =
+          typeof driverError?.constraint === 'string' && driverError.constraint.length > 0
+            ? driverError.constraint
+            : undefined;
+
+        return {
+          type: exception instanceof Error && exception.name ? exception.name : 'DatabaseError',
+          ...(code !== undefined ? { code } : {}),
+          ...(constraint !== undefined ? { constraint } : {}),
+          message: 'Database query failed',
+        };
+      }
+
+      if (exception instanceof Error) {
+        const code = this.readShortErrorCode(record.code);
+
+        return {
+          type: exception.name || 'Error',
+          ...(code !== undefined ? { code } : {}),
+          message: exception.message,
+        };
+      }
+    }
+
+    return {
+      type: 'UnknownError',
+      message: 'Non-Error exception thrown',
+    };
+  }
+
+  private readShortErrorCode(rawCode: unknown): string | number | undefined {
+    if (typeof rawCode === 'string' && rawCode.length > 0 && rawCode.length <= 64) {
+      return rawCode;
+    }
+
+    if (typeof rawCode === 'number' && Number.isFinite(rawCode)) {
+      return rawCode;
+    }
+
+    return undefined;
   }
 }

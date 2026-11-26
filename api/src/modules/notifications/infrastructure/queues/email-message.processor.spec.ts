@@ -8,6 +8,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Job, UnrecoverableError } from 'bullmq';
 import { QueueConfig } from '@/config/queue.config';
+import { getObservabilityContext } from '@/shared/observability/context/observability-context';
 
 describe('EmailMessageProcessor', () => {
   let sendEmailMessageUseCase: jest.Mocked<SendEmailMessageUseCase>;
@@ -45,6 +46,27 @@ describe('EmailMessageProcessor', () => {
 
       expect(execute).toHaveBeenCalledWith({ emailMessageId: 'email-message-1' });
       expect(warnLogger).not.toHaveBeenCalled();
+    });
+
+    it('propagates jobId, queueName and jobName in ObservabilityContext during execution', async () => {
+      let capturedContext: ReturnType<typeof getObservabilityContext>;
+      execute.mockImplementation(() => {
+        capturedContext = getObservabilityContext();
+        return Promise.resolve({ status: EmailMessageStatus.SENT, sent: true, unrecoverable: false });
+      });
+
+      await processor.process({
+        id: 'job-obs-1',
+        queueName: 'notifications-email',
+        name: EmailJobNames.SEND_EMAIL_MESSAGE,
+        data: { emailMessageId: 'email-message-1' },
+      } as Job<SendEmailMessageJobPayload>);
+
+      expect(capturedContext).toEqual({
+        jobId: 'job-obs-1',
+        queueName: 'notifications-email',
+        jobName: EmailJobNames.SEND_EMAIL_MESSAGE,
+      });
     });
 
     it('logs when the job completes without sending the email', async () => {

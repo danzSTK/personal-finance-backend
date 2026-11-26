@@ -14,6 +14,7 @@ import {
   TransactionAttachmentOptimizeJobPayload,
 } from '@/modules/transactions/infrastructure/queues/transaction-attachment-queue.constants';
 import { IObjectStorage } from '@/shared/object-storage';
+import { runWithJobLogContext } from '@/shared/observability/context/observability-context';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -37,100 +38,109 @@ export class TransactionAttachmentOptimizationProcessor extends WorkerHost {
   }
 
   async process(job: Job<TransactionAttachmentOptimizeJobPayload>): Promise<void> {
-    if (job.name !== TRANSACTION_ATTACHMENT_OPTIMIZE_JOB) {
-      return;
-    }
+    return runWithJobLogContext(
+      {
+        jobId: job.id,
+        queueName: job.queueName ?? TRANSACTION_ATTACHMENTS_OPTIMIZATION_QUEUE,
+        jobName: job.name,
+      },
+      async () => {
+        if (job.name !== TRANSACTION_ATTACHMENT_OPTIMIZE_JOB) {
+          return;
+        }
 
-    const { assetId, userId } = job.data;
+        const { assetId, userId } = job.data;
 
-    // 1. Check current asset status in repository
-    const asset = await this.assetRepository.findByIdAndUserId(assetId, userId);
+        // 1. Check current asset status in repository
+        const asset = await this.assetRepository.findByIdAndUserId(assetId, userId);
 
-    if (!asset || asset.status !== AssetStatus.READY) {
-      this.logger.log(`Skipping optimization for asset ${assetId}: status is ${asset?.status ?? 'not found'}`);
-      return;
-    }
+        if (!asset || asset.status !== AssetStatus.READY) {
+          this.logger.log(`Skipping optimization for asset ${assetId}: status is ${asset?.status ?? 'not found'}`);
+          return;
+        }
 
-    // 2. Download original file from private bucket
-    const { body } = await this.objectStorage.getObject({
-      bucket: asset.bucket,
-      key: asset.storageKey,
-    });
+        // 2. Download original file from private bucket
+        const { body } = await this.objectStorage.getObject({
+          bucket: asset.bucket,
+          key: asset.storageKey,
+        });
 
-    // 3. Sharp optimization: rotate by EXIF, fit inside max dimensions, encode as WebP
-    const { data: optimizedBuffer, info } = await sharp(body)
-      .rotate()
-      .resize({
-        width: TRANSACTION_ATTACHMENT_OPTIMIZED_MAX_DIMENSION,
-        height: TRANSACTION_ATTACHMENT_OPTIMIZED_MAX_DIMENSION,
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-      .webp({ quality: TRANSACTION_ATTACHMENT_OPTIMIZED_WEBP_QUALITY })
-      .toBuffer({ resolveWithObject: true });
+        // 3. Sharp optimization: rotate by EXIF, fit inside max dimensions, encode as WebP
+        const { data: optimizedBuffer, info } = await sharp(body)
+          .rotate()
+          .resize({
+            width: TRANSACTION_ATTACHMENT_OPTIMIZED_MAX_DIMENSION,
+            height: TRANSACTION_ATTACHMENT_OPTIMIZED_MAX_DIMENSION,
+            fit: 'inside',
+            withoutEnlargement: true,
+          })
+          .webp({ quality: TRANSACTION_ATTACHMENT_OPTIMIZED_WEBP_QUALITY })
+          .toBuffer({ resolveWithObject: true });
 
-    // 4. Calculate new SHA-256 checksum
-    const checksum = createHash('sha256').update(optimizedBuffer).digest('hex');
-    const sizeBytes = optimizedBuffer.length;
+        // 4. Calculate new SHA-256 checksum
+        const checksum = createHash('sha256').update(optimizedBuffer).digest('hex');
+        const sizeBytes = optimizedBuffer.length;
 
-    // 5. Fast-exit check before writing to storage in case asset was deleted during Sharp processing
-    const currentAsset = await this.assetRepository.findByIdAndUserId(assetId, userId);
-    if (!currentAsset || currentAsset.status !== AssetStatus.READY) {
-      this.logger.warn(
-        `Asset ${assetId} changed status to ${currentAsset?.status ?? 'not found'} before storage overwrite. Skipping upload.`,
-      );
-      return;
-    }
+        // 5. Fast-exit check before writing to storage in case asset was deleted during Sharp processing
+        const currentAsset = await this.assetRepository.findByIdAndUserId(assetId, userId);
+        if (!currentAsset || currentAsset.status !== AssetStatus.READY) {
+          this.logger.warn(
+            `Asset ${assetId} changed status to ${currentAsset?.status ?? 'not found'} before storage overwrite. Skipping upload.`,
+          );
+          return;
+        }
 
-    // 6. Overwrite in private bucket on same key
-    await this.objectStorage.putObject({
-      bucket: asset.bucket,
-      key: asset.storageKey,
-      body: optimizedBuffer,
-      contentType: TRANSACTION_ATTACHMENT_OPTIMIZED_MEDIA_TYPE,
-      checksumSha256Hex: checksum,
-    });
+        // 6. Overwrite in private bucket on same key
+        await this.objectStorage.putObject({
+          bucket: asset.bucket,
+          key: asset.storageKey,
+          body: optimizedBuffer,
+          contentType: TRANSACTION_ATTACHMENT_OPTIMIZED_MEDIA_TYPE,
+          checksumSha256Hex: checksum,
+        });
 
-    // 7. Pessimistic lock check on asset before persisting updated metadata
-    let shouldCompensateStorage = false;
+        // 7. Pessimistic lock check on asset before persisting updated metadata
+        let shouldCompensateStorage = false;
 
-    await this.dataSource.transaction(async manager => {
-      const assetOrm = await manager.findOne(AssetOrmEntity, {
-        where: { id: assetId, userId },
-        lock: { mode: 'pessimistic_write' },
-      });
+        await this.dataSource.transaction(async manager => {
+          const assetOrm = await manager.findOne(AssetOrmEntity, {
+            where: { id: assetId, userId },
+            lock: { mode: 'pessimistic_write' },
+          });
 
-      if (!assetOrm || assetOrm.status !== AssetStatus.READY) {
-        this.logger.warn(
-          `Asset ${assetId} changed status to ${assetOrm?.status ?? 'deleted'} while optimizing. Aborting metadata update and compensating storage object.`,
+          if (!assetOrm || assetOrm.status !== AssetStatus.READY) {
+            this.logger.warn(
+              `Asset ${assetId} changed status to ${assetOrm?.status ?? 'deleted'} while optimizing. Aborting metadata update and compensating storage object.`,
+            );
+            shouldCompensateStorage = true;
+            return;
+          }
+
+          const domainAsset = AssetMapper.toDomain(assetOrm);
+          domainAsset.applyOptimization({
+            contentType: TRANSACTION_ATTACHMENT_OPTIMIZED_MEDIA_TYPE,
+            sizeBytes,
+            checksum,
+            metadata: {
+              width: info.width,
+              height: info.height,
+              format: TRANSACTION_ATTACHMENT_OPTIMIZED_FORMAT,
+            },
+          });
+
+          await this.assetRepository.save(domainAsset, { manager });
+        });
+
+        // 8. Compensate storage overwrite if asset left READY concurrently (prevents resurrecting deleted objects)
+        if (shouldCompensateStorage) {
+          await this.compensateStaleStorageOverwrite(assetId, userId, asset.bucket, asset.storageKey);
+          return;
+        }
+
+        this.logger.log(
+          `Asset ${assetId} successfully optimized to ${TRANSACTION_ATTACHMENT_OPTIMIZED_FORMAT} (${sizeBytes} bytes).`,
         );
-        shouldCompensateStorage = true;
-        return;
-      }
-
-      const domainAsset = AssetMapper.toDomain(assetOrm);
-      domainAsset.applyOptimization({
-        contentType: TRANSACTION_ATTACHMENT_OPTIMIZED_MEDIA_TYPE,
-        sizeBytes,
-        checksum,
-        metadata: {
-          width: info.width,
-          height: info.height,
-          format: TRANSACTION_ATTACHMENT_OPTIMIZED_FORMAT,
-        },
-      });
-
-      await this.assetRepository.save(domainAsset, { manager });
-    });
-
-    // 8. Compensate storage overwrite if asset left READY concurrently (prevents resurrecting deleted objects)
-    if (shouldCompensateStorage) {
-      await this.compensateStaleStorageOverwrite(assetId, userId, asset.bucket, asset.storageKey);
-      return;
-    }
-
-    this.logger.log(
-      `Asset ${assetId} successfully optimized to ${TRANSACTION_ATTACHMENT_OPTIMIZED_FORMAT} (${sizeBytes} bytes).`,
+      },
     );
   }
 

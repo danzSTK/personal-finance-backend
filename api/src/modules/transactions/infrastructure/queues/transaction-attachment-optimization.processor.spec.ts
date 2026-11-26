@@ -9,6 +9,7 @@ import {
   TransactionAttachmentOptimizeJobPayload,
 } from '@/modules/transactions/infrastructure/queues/transaction-attachment-queue.constants';
 import { IObjectStorage } from '@/shared/object-storage';
+import { getObservabilityContext } from '@/shared/observability/context/observability-context';
 import { Job } from 'bullmq';
 import { DataSource, EntityManager } from 'typeorm';
 
@@ -269,5 +270,28 @@ describe('TransactionAttachmentOptimizationProcessor', () => {
       }),
       { manager },
     );
+  });
+
+  it('propagates jobId, queueName and jobName in ObservabilityContext during execution', async () => {
+    let capturedContext: ReturnType<typeof getObservabilityContext>;
+    assetRepository.findByIdAndUserId.mockImplementation(() => {
+      capturedContext = getObservabilityContext();
+      return Promise.resolve(null);
+    });
+
+    const job = {
+      id: 'job-opt-1',
+      queueName: 'transaction-attachments-optimization',
+      name: TRANSACTION_ATTACHMENT_OPTIMIZE_JOB,
+      data: { assetId, userId },
+    } as Job<TransactionAttachmentOptimizeJobPayload>;
+
+    await processor.process(job);
+
+    expect(capturedContext).toEqual({
+      jobId: 'job-opt-1',
+      queueName: 'transaction-attachments-optimization',
+      jobName: TRANSACTION_ATTACHMENT_OPTIMIZE_JOB,
+    });
   });
 });

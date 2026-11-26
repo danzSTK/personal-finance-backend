@@ -53,4 +53,9 @@ export const CacheKeys = {
     listByUserIdAndType: (userId: string, type: CategoryType, includeArchived: boolean = false) =>
       `categories:list:user:${userId}:type:${type}:archived:${includeArchived ? '1' : '0'}`,
   },
+
+  observability: {
+    alertCooldown: (alertKey: string): string => `obs:alert:cooldown:${alertKey}`,
+    metricCounter: (metricName: string, bucket: string): string => `obs:metric:${metricName}:${bucket}`,
+  },
 };

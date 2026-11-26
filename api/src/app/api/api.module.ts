@@ -14,6 +14,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
 import { TransactionsModule } from '@/modules/transactions/transactions.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { JobsModule } from '@/shared/jobs/jobs.module';
+import { ObservabilityModule } from '@/shared/observability';
 import { OutboxModule } from '@/shared/outbox';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { Module } from '@nestjs/common';
@@ -29,6 +30,7 @@ import { SessionModule } from '@/shared/session-tracking/session-metadata.module
 @Module({
   imports: [
     ConfigModule,
+    ObservabilityModule.forApi(),
     PostgresModule,
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
