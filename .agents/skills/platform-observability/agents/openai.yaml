@@ -1,0 +1,4 @@
+interface:
+  display_name: "Platform Observability"
+  short_description: "Governança de logs, correlação, Zero-PII, métricas e alertas"
+  default_prompt: "Use $platform-observability para implementar ou revisar logging estruturado, correlação, Zero-PII, métricas e alertas operacionais seguindo o padrão da plataforma."

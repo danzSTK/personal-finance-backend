@@ -89,3 +89,14 @@ Consulte `docs/architecture/module-boundaries.md` antes de sinalizar acoplamento
 - **Erros:** novos erros seguem `platform-errors`, com `code` estavel mapeado em `AppExceptionFilter` e sem vazar stack trace ou erro cru do Postgres.
 - **Contratos HTTP/Eventos/Filas:** mudancas devem ser aditivas ou explicitamente versionadas/migradas; campos renomeados ou removidos sem migracao sao `P0`/`P1`.
 - **Testes:** verificar se o PR testa o caminho de sucesso **e** as falhas/bordas introduzidas na camada correta (unit puro no dominio, portas mockadas em use cases, Testcontainers para Postgres/Redis/BullMQ, E2E para HTTP/guards/filtros), sem `setTimeout` nem mocks que escondam a logica alterada.
+
+---
+
+## 7. Magic Strings Evitaveis
+
+- **O que bloquear (`P1` quando envolver contrato/chave/evento repetido com risco de drift; `P2` quando facilmente centralizavel):**
+  - nomes de eventos de log ou de dominio (`UNHANDLED_HTTP_EXCEPTION`, `METRIC_RECORDED`, etc.) espalhados inline;
+  - codigos de erro, severidades (`CRITICAL`, `WARN`, `RESOLVED`), status ou tipos/categorias fora de enums/`as const`;
+  - nomes de headers HTTP (ex.: `X-Request-Id`), chaves ou prefixos Redis fora de `CacheKeys` e constantes dedicadas;
+  - nomes de filas/jobs BullMQ, discriminadores `object`, chaves de alerta e valores sentinela (ex.: `'[REDACTED]'`).
+- **O que NAO gera ruido:** frases humanas descritivas de uso unico (mensagens de erro amigaveis ou logs informativos unicos) e textos exclusivamente locais de teste sem contrato compartilhado.

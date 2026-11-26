@@ -35,10 +35,11 @@ Ative e aplique integralmente as skills especializadas conforme o conteudo do di
   - aplique `migration-rollout` para compatibilidade N/N+1 (`expand -> migrate -> contract`) e `docs/architecture/compatibility.md`.
 - **Seguranca** (nova feature, novos endpoints, alteracoes em guards/decorators de bypass, auth/sessoes/OAuth, leituras/mutacoes multi-tenant, DTOs, uploads/assets/R2, filas/outbox, `api/src/config/`, `.env.exemple`, `package.json`, Dockerfiles, workflows ou `.trivyignore`):
   - aplique `security-review` e valide contra `docs/security/README.md`.
-- **Erros, Testes e E-mails**:
+- **Erros, Testes, E-mails e Observabilidade**:
   - alteracoes em erros lancados ou filtro global -> valide contra `platform-errors` e `docs/errors/README.md`;
   - criacao/alteracao de testes E2E ou de integracao -> valide contra `test-suite-governance` e `docs/tests/README.md`;
-  - alteracoes em templates HTML de e-mail -> valide contra `email-template-constructor`.
+  - alteracoes em templates HTML de e-mail -> valide contra `email-template-constructor`;
+  - alteracoes em logging, correlacao, Zero-PII, `IMetricsRecorder`, alertas operacionais/Telegram ou `/health` -> aplique `platform-observability` e valide contra `docs/platform/observability/README.md`.
 
 ### 3. Revisao Arquitetural, Confiabilidade e Invariantes
 Leia `references/architecture-review.md` e verifique:
@@ -46,7 +47,8 @@ Leia `references/architecture-review.md` e verifique:
 - limites entre modulos e separacao de processos (`PROCESS_ROLE=api` vs `PROCESS_ROLE=worker`), respeitando excecoes/dividas registradas (`DT-01`, `DT-02`, `DT-03`) em codigo intocado, mas bloqueando **novas** violacoes;
 - invariantes financeiras (centavos inteiros seguros `bigint`/`Number.isSafeInteger()`, `amountCents > 0`, saldo derivado, `TRANSFER` nao deletavel) e temporais (`DateOnly` vs `Instant`);
 - atomicidade transacional (`options.manager` propagado, bypass de cache em transacoes, locks) e efeitos externos duraveis (Transactional Outbox, `DELETE_PENDING` + reconciler);
-- compatibilidade de contratos HTTP (`object` discriminator, mudancas aditivas, codigos de erro estaveis) e testes proporcionais ao risco.
+- compatibilidade de contratos HTTP (`object` discriminator, mudancas aditivas, codigos de erro estaveis) e testes proporcionais ao risco;
+- deteccao de **magic strings evitaveis**: qualquer string literal reutilizada ou potencialmente reutilizavel (eventos, codigos de erro, severidades, status, tipos, headers, chaves/prefixos Redis, filas/jobs, discriminadores `object`, chaves de alerta, sentinelas como `'[REDACTED]'`) deve estar centralizada em constantes tipadas (`as const`) ou enums, nunca duplicada inline.
 
 ### 4. Auditoria de Alinhamento e Lag de Documentacao (Obrigatorio)
 Leia `references/documentation-alignment.md` e compare **as mudancas feitas no codigo** contra a documentacao existente no repositorio:
