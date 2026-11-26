@@ -1,5 +1,6 @@
 import { TransactionType } from '@/common/models/enums';
 import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
+import { FiscalNoteTransactionLifecyclePort } from '@/modules/fiscal-notes/application/ports';
 import { TransactionNotFoundError, TransactionUpdateEmptyError } from '@/modules/transactions/application/errors';
 import { TransactionReferenceValidator } from '@/modules/transactions/application/services/transaction-reference-validator.service';
 import {
@@ -7,7 +8,10 @@ import {
   UpdateTransactionUseCaseOutput,
 } from '@/modules/transactions/application/use-cases/update-transaction/update-transaction.dto';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
-import { TransactionTypeDoesNotSupportAttachmentsError } from '@/modules/transactions/domain/errors';
+import {
+  TransactionTypeDoesNotSupportAttachmentsError,
+  TransactionTypeDoesNotSupportFiscalNoteError,
+} from '@/modules/transactions/domain/errors';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
 import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { Injectable } from '@nestjs/common';
@@ -23,6 +27,7 @@ export class UpdateTransactionUseCase {
     private readonly attachmentRepository: ITransactionAttachmentRepository,
     private readonly accountBalanceLockPort: AccountBalanceLockPort,
     private readonly transactionReferenceValidator: TransactionReferenceValidator,
+    private readonly fiscalNoteLifecyclePort: FiscalNoteTransactionLifecyclePort,
   ) {}
 
   async execute(input: UpdateTransactionUseCaseInput): Promise<UpdateTransactionUseCaseOutput> {
@@ -40,6 +45,19 @@ export class UpdateTransactionUseCase {
 
       if (!transaction) {
         throw new TransactionNotFoundError();
+      }
+
+      const hasActiveFiscalNote = await this.fiscalNoteLifecyclePort.hasActiveByTransactionId(
+        input.transactionId,
+        options,
+      );
+
+      if (
+        input.patch.type !== undefined &&
+        !Transaction.supportsFiscalNoteForType(input.patch.type) &&
+        hasActiveFiscalNote
+      ) {
+        throw new TransactionTypeDoesNotSupportFiscalNoteError();
       }
 
       if (input.patch.type !== undefined && !Transaction.supportsAttachmentsForType(input.patch.type)) {
@@ -92,7 +110,10 @@ export class UpdateTransactionUseCase {
         categoryId: references.category.id,
       });
 
-      return this.transactionRepository.save(transaction, options);
+      const saved = await this.transactionRepository.save(transaction, options);
+      saved.setHasFiscalNote(hasActiveFiscalNote);
+
+      return saved;
     });
   }
 }

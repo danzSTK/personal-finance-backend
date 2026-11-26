@@ -159,6 +159,41 @@ export const SEFAZ_CE_PATHS = {
 } as const;
 
 export const SEFAZ_CE_TIMEZONE_OFFSET = '-03:00';
+export const SEFAZ_CE_USER_AGENT = 'Danfy-FiscalNotes/1.0';
+export const SEFAZ_CE_RETRYABLE_STATUS_CODES: readonly number[] = [502, 503, 504];
+export const SEFAZ_CE_DEFAULT_UNIT = 'UN';
+export const SEFAZ_CE_CONSUMER_SECTION_KEYWORD = 'consumidor';
+export const SEFAZ_CE_GENERAL_INFO_SECTION_KEYWORD = 'informacoes gerais';
+export const SEFAZ_CE_NAN_TEXT = 'nan';
+
+export const SefazCeTotalLabels = {
+  VALOR_TOTAL: 'valor total',
+  DESCONTO: 'desconto',
+  VALOR_A_PAGAR: 'valor a pagar',
+  TROCO: 'troco',
+  TRIBUTO: 'tributo',
+} as const;
+
+export const SefazCeStatusKeywords = {
+  CANCELLED: 'cancelad',
+  DENIED: 'denegad',
+  HOMOLOGATION: 'homologac',
+  NO_FISCAL_VALUE: 'sem valor fiscal',
+} as const;
+
+export const FISCAL_NOTE_PROVIDERS_TOKEN = Symbol('FISCAL_NOTE_PROVIDERS_TOKEN');
+
+export const FiscalNoteMetricLabelKeys = {
+  UF: 'uf',
+  CHANNEL: 'channel',
+  OUTCOME: 'outcome',
+  RESULT: 'result',
+  OPERATION: 'operation',
+} as const;
+
+export const FISCAL_NOTE_RATE_LIMIT_WINDOW_1M_SECONDS = 60;
+export const FISCAL_NOTE_RATE_LIMIT_WINDOW_1H_SECONDS = 3600;
+export const FISCAL_NOTE_RATE_LIMIT_MIN_RETRY_SECONDS = 1;
 
 export const FISCAL_NOTES_HTTP_THROTTLE_LIMIT = 10;
 export const FISCAL_NOTES_HTTP_THROTTLE_TTL_MS = 60_000;

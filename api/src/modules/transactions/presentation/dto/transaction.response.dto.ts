@@ -24,6 +24,9 @@ export class TransactionResponseDto {
   @ApiProperty({ example: 0, description: 'Quantidade de anexos ativos associados à transação' })
   readonly attachmentsCount: number;
 
+  @ApiProperty({ example: false, description: 'Indica se a transação possui uma nota fiscal ativa vinculada' })
+  readonly hasFiscalNote: boolean;
+
   @ApiProperty({ example: 1920, description: 'Valor absoluto em centavos' })
   amountCents: number;
 
@@ -59,6 +62,7 @@ export class TransactionResponseDto {
       description: transaction.description,
       direction: transaction.direction,
       attachmentsCount: transaction.attachmentsCount,
+      hasFiscalNote: transaction.hasFiscalNote,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
     };

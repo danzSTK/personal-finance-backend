@@ -24,6 +24,7 @@ export interface TransactionProps {
   createdAt: Date;
   updatedAt: Date;
   attachmentsCount?: number;
+  hasFiscalNote?: boolean;
 }
 
 export interface UpdateTransactionProps {
@@ -107,6 +108,14 @@ export class Transaction {
     this.props.attachmentsCount = count;
   }
 
+  get hasFiscalNote(): boolean {
+    return this.props.hasFiscalNote ?? false;
+  }
+
+  setHasFiscalNote(hasFiscalNote: boolean): void {
+    this.props.hasFiscalNote = hasFiscalNote;
+  }
+
   get isDeleted(): boolean {
     return this.props.deletedAt !== null;
   }
@@ -125,6 +134,14 @@ export class Transaction {
 
   supportsAttachments(): boolean {
     return Transaction.supportsAttachmentsForType(this.props.type);
+  }
+
+  static supportsFiscalNoteForType(type: TransactionType): boolean {
+    return type === TransactionType.EXPENSE;
+  }
+
+  supportsFiscalNote(): boolean {
+    return Transaction.supportsFiscalNoteForType(this.props.type);
   }
 
   applyPatch(patch: UpdateTransactionProps): void {
@@ -189,6 +206,7 @@ export class Transaction {
     const normalizedProps = {
       ...props,
       attachmentsCount: props.attachmentsCount ?? 0,
+      hasFiscalNote: props.hasFiscalNote ?? false,
       description: Transaction.normalizeDescription(props.description),
     };
 
@@ -198,7 +216,14 @@ export class Transaction {
   }
 
   static reconstitute(props: TransactionProps, id: string): Transaction {
-    return new Transaction({ ...props, attachmentsCount: props.attachmentsCount ?? 0 }, id);
+    return new Transaction(
+      {
+        ...props,
+        attachmentsCount: props.attachmentsCount ?? 0,
+        hasFiscalNote: props.hasFiscalNote ?? false,
+      },
+      id,
+    );
   }
 
   private static validate(props: TransactionProps): void {

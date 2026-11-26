@@ -39,6 +39,7 @@ describe('ListTransactionsResponseDto', () => {
 
     expect(response.object).toBe(RESPONSE_OBJECT_TYPES.TRANSACTION_LIST);
     expect(response.summary.object).toBe(RESPONSE_OBJECT_TYPES.TRANSACTION_SUMMARY_OVERVIEW);
+    expect(response.data[0].hasFiscalNote).toBe(false);
   });
 
   it('adds response object identifiers for type summary', () => {

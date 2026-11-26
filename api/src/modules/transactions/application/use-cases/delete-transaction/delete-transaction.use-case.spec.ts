@@ -3,6 +3,7 @@ import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/acc
 import { Asset } from '@/modules/assets/domain/entities/asset.entity';
 import { AssetStatus } from '@/modules/assets/domain/enums';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
+import { FiscalNoteTransactionLifecyclePort } from '@/modules/fiscal-notes/application/ports';
 import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import { DeleteTransactionUseCase } from '@/modules/transactions/application/use-cases/delete-transaction/delete-transaction.use-case';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
@@ -24,8 +25,10 @@ describe('DeleteTransactionUseCase', () => {
   let attachmentRepository: jest.Mocked<ITransactionAttachmentRepository>;
   let assetRepository: jest.Mocked<IAssetRepository>;
   let accountBalanceLockPort: jest.Mocked<AccountBalanceLockPort>;
+  let fiscalNoteLifecyclePort: jest.Mocked<FiscalNoteTransactionLifecyclePort>;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     manager = {} as unknown as jest.Mocked<EntityManager>;
 
     dataSource = {
@@ -64,12 +67,19 @@ describe('DeleteTransactionUseCase', () => {
       lockAccountsForBalanceMutation: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<AccountBalanceLockPort>;
 
+    fiscalNoteLifecyclePort = {
+      hasActiveByTransactionId: jest.fn(),
+      findActiveTransactionIds: jest.fn(),
+      softDeleteByTransactionId: jest.fn().mockResolvedValue(false),
+    } as unknown as jest.Mocked<FiscalNoteTransactionLifecyclePort>;
+
     useCase = new DeleteTransactionUseCase(
       dataSource,
       transactionRepository,
       attachmentRepository,
       assetRepository,
       accountBalanceLockPort,
+      fiscalNoteLifecyclePort,
     );
   });
 
@@ -84,6 +94,7 @@ describe('DeleteTransactionUseCase', () => {
     ).rejects.toThrow(TransactionNotFoundError);
 
     expect(accountBalanceLockPort.lockAccountsForBalanceMutation).not.toHaveBeenCalled();
+    expect(fiscalNoteLifecyclePort.softDeleteByTransactionId).not.toHaveBeenCalled();
   });
 
   it('locks involved accounts, marks transaction as deleted, and transitions active attachments to DELETE_PENDING', async () => {
@@ -123,6 +134,7 @@ describe('DeleteTransactionUseCase', () => {
       { manager },
     );
     expect(transactionRepository.save).toHaveBeenCalledWith(mockTx, { manager });
+    expect(fiscalNoteLifecyclePort.softDeleteByTransactionId).toHaveBeenCalledWith(transactionId, userId, { manager });
     expect(mockAsset.markDeletePending).toHaveBeenCalled();
     expect(assetRepository.save).toHaveBeenCalledWith(mockAsset, { manager });
   });
