@@ -9,6 +9,7 @@ import {
   PinoLogLevels,
   REDACTED_VALUE,
   REQUEST_ID_HEADER,
+  REQUEST_ID_HEADER_LOWER,
   REQUEST_ID_PATTERN,
   SENSITIVE_QUERY_PARAMS,
 } from '@/shared/observability/constants/observability.constants';
@@ -50,7 +51,7 @@ export const resolveRequestId = (req: RequestLike, res?: Partial<ResponseLike>):
   if (isValidRequestId(req.id)) {
     requestId = req.id;
   } else {
-    const headerValue = req.headers?.['x-request-id'];
+    const headerValue = req.headers?.[REQUEST_ID_HEADER_LOWER];
     const candidate = Array.isArray(headerValue) ? headerValue[0] : headerValue;
     requestId = isValidRequestId(candidate) ? candidate : randomUUID();
     req.id = requestId;

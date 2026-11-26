@@ -32,6 +32,13 @@ interface HttpExceptionResponseBody {
   details?: ErrorDetails;
 }
 
+interface SafeSerializedError {
+  type: string;
+  code?: string | number;
+  constraint?: string;
+  message: string;
+}
+
 const ERROR_STATUS_BY_CODE: Record<string, HttpStatus> = {
   AVATAR_FILE_TOO_LARGE: HttpStatus.PAYLOAD_TOO_LARGE,
   AVATAR_UPLOAD_FAILED: HttpStatus.SERVICE_UNAVAILABLE,
@@ -155,7 +162,7 @@ export class AppExceptionFilter implements ExceptionFilter {
         statusCode: errorResponse.statusCode,
         errorCode: errorResponse.code,
         ...(requestId ? { requestId } : {}),
-        err: exception instanceof Error ? exception : { message: String(exception) },
+        error: this.serializeSafeError(exception),
       });
 
       this.operationalAlertService?.notify({
@@ -290,5 +297,63 @@ export class AppExceptionFilter implements ExceptionFilter {
     }
 
     return getObservabilityContext()?.requestId;
+  }
+
+  private serializeSafeError(exception: unknown): SafeSerializedError {
+    if (typeof exception === 'object' && exception !== null) {
+      const record = exception as {
+        query?: unknown;
+        parameters?: unknown;
+        driverError?: unknown;
+        code?: unknown;
+      };
+
+      if ('query' in record || 'parameters' in record || 'driverError' in record) {
+        const driverError =
+          typeof record.driverError === 'object' && record.driverError !== null
+            ? (record.driverError as { code?: unknown; constraint?: unknown })
+            : undefined;
+        const rawCode = driverError?.code ?? record.code;
+        const code = this.readShortErrorCode(rawCode);
+        const constraint =
+          typeof driverError?.constraint === 'string' && driverError.constraint.length > 0
+            ? driverError.constraint
+            : undefined;
+
+        return {
+          type: exception instanceof Error && exception.name ? exception.name : 'DatabaseError',
+          ...(code !== undefined ? { code } : {}),
+          ...(constraint !== undefined ? { constraint } : {}),
+          message: 'Database query failed',
+        };
+      }
+
+      if (exception instanceof Error) {
+        const code = this.readShortErrorCode(record.code);
+
+        return {
+          type: exception.name || 'Error',
+          ...(code !== undefined ? { code } : {}),
+          message: exception.message,
+        };
+      }
+    }
+
+    return {
+      type: 'UnknownError',
+      message: 'Non-Error exception thrown',
+    };
+  }
+
+  private readShortErrorCode(rawCode: unknown): string | number | undefined {
+    if (typeof rawCode === 'string' && rawCode.length > 0 && rawCode.length <= 64) {
+      return rawCode;
+    }
+
+    if (typeof rawCode === 'number' && Number.isFinite(rawCode)) {
+      return rawCode;
+    }
+
+    return undefined;
   }
 }

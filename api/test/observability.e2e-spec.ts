@@ -10,6 +10,7 @@ import {
   OperationalAlertSeverities,
   PinoLogLevels,
   REQUEST_ID_HEADER,
+  REQUEST_ID_HEADER_LOWER,
   getObservabilityContext,
 } from '@/shared/observability';
 import { Controller, Get, INestApplication, BadRequestException } from '@nestjs/common';
@@ -104,7 +105,7 @@ describe('Observability HTTP contract (e2e)', () => {
       error: {},
       details: {},
     });
-    expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(res.headers[REQUEST_ID_HEADER_LOWER]).toMatch(/^[0-9a-f-]{36}$/i);
     expect(app.get(OPERATIONAL_ALERT_NOTIFIER)).toBeDefined();
     expect(notifySpy).not.toHaveBeenCalled();
   });
@@ -118,7 +119,7 @@ describe('Observability HTTP contract (e2e)', () => {
       .set(REQUEST_ID_HEADER, clientRequestId)
       .expect(200);
 
-    expect(res.headers['x-request-id']).toBe(clientRequestId);
+    expect(res.headers[REQUEST_ID_HEADER_LOWER]).toBe(clientRequestId);
     expect(res.body).toEqual({
       ok: true,
       requestId: clientRequestId,
@@ -133,7 +134,7 @@ describe('Observability HTTP contract (e2e)', () => {
       .set(REQUEST_ID_HEADER, 'invalid space value!')
       .expect(200);
 
-    const responseId = res.headers['x-request-id'];
+    const responseId = res.headers[REQUEST_ID_HEADER_LOWER];
     expect(responseId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(responseId).not.toBe('invalid space value!');
     expect((res.body as { requestId: string }).requestId).toBe(responseId);
@@ -150,7 +151,7 @@ describe('Observability HTTP contract (e2e)', () => {
       .set(REQUEST_ID_HEADER, 'trace-500-e2e')
       .expect(500);
 
-    expect(errorRes.headers['x-request-id']).toBe('trace-500-e2e');
+    expect(errorRes.headers[REQUEST_ID_HEADER_LOWER]).toBe('trace-500-e2e');
     expect(notifySpy).toHaveBeenCalledWith(
       expect.objectContaining({
         alertKey: OperationalAlertKeys.http500('GET', '/observability-test/items/:id/boom'),

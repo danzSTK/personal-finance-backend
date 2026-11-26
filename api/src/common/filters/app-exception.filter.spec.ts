@@ -237,9 +237,76 @@ describe('AppExceptionFilter', () => {
       );
       expect(errorSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          err: { message: 'unexpected string error' },
+          error: {
+            type: 'UnknownError',
+            message: 'Non-Error exception thrown',
+          },
         }),
       );
+      expect(errorSpy.mock.calls[0][0]).not.toHaveProperty('err');
+
+      errorSpy.mockRestore();
+    });
+
+    it('serializes QueryFailedError without leaking query, parameters, or driverError PII', () => {
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      const notify = jest.fn();
+      const filter = new AppExceptionFilter({ notify } as unknown as OperationalAlertService);
+
+      const queryError = Object.assign(new Error('duplicate key value violates unique constraint "UQ_users_email"'), {
+        name: 'QueryFailedError',
+        query: 'INSERT INTO "users" ("email", "cpf") VALUES ($1, $2)',
+        parameters: ['user@example.com', '12345678901'],
+        driverError: {
+          code: '23505',
+          constraint: 'UQ_users_email',
+          detail: 'Key (email)=(user@example.com) already exists.',
+        },
+      });
+
+      const routedRequest = {
+        method: 'POST',
+        id: 'req-db-500',
+        originalUrl: '/auth/signup',
+        url: '/auth/signup',
+      };
+      const localHost = {
+        switchToHttp: () => ({
+          getRequest: () => routedRequest,
+          getResponse: () => response,
+          getNext: jest.fn(),
+        }),
+      } as unknown as ArgumentsHost;
+
+      filter.catch(queryError, localHost);
+
+      expect(response.status).toHaveBeenCalledWith(500);
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+
+      const loggedPayload = errorSpy.mock.calls[0][0] as Record<string, unknown>;
+      expect(loggedPayload).toMatchObject({
+        event: ObservabilityLogEvents.UNHANDLED_HTTP_EXCEPTION,
+        method: 'POST',
+        route: '/auth/signup',
+        statusCode: 500,
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        requestId: 'req-db-500',
+        error: {
+          type: 'QueryFailedError',
+          code: '23505',
+          constraint: 'UQ_users_email',
+          message: 'Database query failed',
+        },
+      });
+      expect(loggedPayload).not.toHaveProperty('err');
+      expect(loggedPayload.error).not.toHaveProperty('query');
+      expect(loggedPayload.error).not.toHaveProperty('parameters');
+      expect(loggedPayload.error).not.toHaveProperty('driverError');
+
+      const serialized = JSON.stringify(loggedPayload);
+      expect(serialized).not.toContain('user@example.com');
+      expect(serialized).not.toContain('12345678901');
+      expect(serialized).not.toContain('INSERT INTO');
 
       errorSpy.mockRestore();
     });

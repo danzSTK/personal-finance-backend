@@ -1,6 +1,7 @@
 export const OBSERVABILITY_SERVICE_NAME = 'danfy-backend';
 
 export const REQUEST_ID_HEADER = 'X-Request-Id';
+export const REQUEST_ID_HEADER_LOWER = REQUEST_ID_HEADER.toLowerCase();
 export const MAX_REQUEST_ID_LENGTH = 128;
 export const REQUEST_ID_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
@@ -91,6 +92,10 @@ export const PINO_REDACT_PATHS: string[] = [
   'req.headers.authorization',
   'req.headers.cookie',
   'res.headers["set-cookie"]',
+  'err.parameters',
+  'err.query',
+  'err.driverError.parameters',
+  'err.driverError.detail',
   '*.password',
   '*.currentPassword',
   '*.newPassword',
@@ -106,6 +111,8 @@ export const PINO_REDACT_PATHS: string[] = [
   '*.consumerDocument',
   '*.consumerName',
   '*.rawHtml',
+  '*.parameters',
+  '*.driverError.detail',
   'password',
   'currentPassword',
   'newPassword',

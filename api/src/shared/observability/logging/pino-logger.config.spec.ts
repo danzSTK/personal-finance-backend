@@ -5,6 +5,7 @@ import {
   PinoLogLevels,
   REDACTED_VALUE,
   REQUEST_ID_HEADER,
+  REQUEST_ID_HEADER_LOWER,
 } from '@/shared/observability/constants/observability.constants';
 import { runWithJobLogContext, runWithRequestLogContext } from '@/shared/observability/context/observability-context';
 import {
@@ -40,7 +41,7 @@ describe('pino-logger.config', () => {
 
   describe('resolveRequestId', () => {
     it('reuses a valid X-Request-Id header and sets the response header', () => {
-      const req = { headers: { 'x-request-id': 'client-req_123.abc' } } as unknown as IncomingMessage;
+      const req = { headers: { [REQUEST_ID_HEADER_LOWER]: 'client-req_123.abc' } } as unknown as IncomingMessage;
       const setHeader = jest.fn();
       const res = { setHeader, headersSent: false } as unknown as ServerResponse;
 
@@ -54,11 +55,11 @@ describe('pino-logger.config', () => {
       const setHeader = jest.fn();
       const res = { setHeader, headersSent: false } as unknown as ServerResponse;
 
-      const injectedReq = { headers: { 'x-request-id': 'bad\nvalue' } } as unknown as IncomingMessage;
+      const injectedReq = { headers: { [REQUEST_ID_HEADER_LOWER]: 'bad\nvalue' } } as unknown as IncomingMessage;
       const idFromInjected = resolveRequestId(injectedReq, res);
       expect(idFromInjected).toMatch(/^[0-9a-f-]{36}$/i);
 
-      const longReq = { headers: { 'x-request-id': 'a'.repeat(129) } } as unknown as IncomingMessage;
+      const longReq = { headers: { [REQUEST_ID_HEADER_LOWER]: 'a'.repeat(129) } } as unknown as IncomingMessage;
       const idFromLong = resolveRequestId(longReq, res);
       expect(idFromLong).toMatch(/^[0-9a-f-]{36}$/i);
     });
