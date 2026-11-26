@@ -328,12 +328,26 @@ describe('API and worker flow integration', () => {
     const apiWatch = spawn('npm', ['run', 'start:dev'], {
       cwd: process.cwd(),
       detached: true,
-      env: { ...process.env, PROCESS_ROLE: 'api', PORT: '32189' },
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',
+        LOG_LEVEL: 'info',
+        TELEGRAM_ALERTS_ENABLED: 'false',
+        PROCESS_ROLE: 'api',
+        PORT: '32189',
+      },
     });
     const workerWatch = spawn('npm', ['run', 'start:worker:dev'], {
       cwd: process.cwd(),
       detached: true,
-      env: { ...process.env, PROCESS_ROLE: 'worker', WORKER_INSTANCE_ID: 'watch-worker-2' },
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',
+        LOG_LEVEL: 'info',
+        TELEGRAM_ALERTS_ENABLED: 'false',
+        PROCESS_ROLE: 'worker',
+        WORKER_INSTANCE_ID: 'watch-worker-2',
+      },
     });
 
     try {

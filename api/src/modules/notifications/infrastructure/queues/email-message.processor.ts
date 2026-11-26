@@ -8,6 +8,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Inject, OnApplicationBootstrap } from '@nestjs/common';
 import queueConfig from '@/config/queue.config';
+import { runWithJobLogContext } from '@/shared/observability/context/observability-context';
 import type { ConfigType } from '@nestjs/config';
 import { Job, UnrecoverableError } from 'bullmq';
 
@@ -29,19 +30,28 @@ export class EmailMessageProcessor extends WorkerHost implements OnApplicationBo
   }
 
   async process(job: Job<SendEmailMessageJobPayload>): Promise<void> {
-    if (job.name !== EmailJobNames.SEND_EMAIL_MESSAGE) {
-      throw new Error(`Unsupported notifications email job: ${job.name}`);
-    }
-    const result = await this.sendEmailMessageUseCase.execute({ emailMessageId: job.data.emailMessageId });
+    return runWithJobLogContext(
+      {
+        jobId: job.id,
+        queueName: job.queueName ?? NotificationsQueues.EMAIL,
+        jobName: job.name,
+      },
+      async () => {
+        if (job.name !== EmailJobNames.SEND_EMAIL_MESSAGE) {
+          throw new Error(`Unsupported notifications email job: ${job.name}`);
+        }
+        const result = await this.sendEmailMessageUseCase.execute({ emailMessageId: job.data.emailMessageId });
 
-    if (result.unrecoverable) {
-      throw new UnrecoverableError(`Email message ${job.data.emailMessageId} reached its delivery deadline.`);
-    }
+        if (result.unrecoverable) {
+          throw new UnrecoverableError(`Email message ${job.data.emailMessageId} reached its delivery deadline.`);
+        }
 
-    if (!result.sent) {
-      this.logger.warn(
-        `Email message job completed without sending. jobId=${job.id ?? 'unknown'} emailMessageId=${job.data.emailMessageId} status=${result.status}`,
-      );
-    }
+        if (!result.sent) {
+          this.logger.warn(
+            `Email message job completed without sending. jobId=${job.id ?? 'unknown'} emailMessageId=${job.data.emailMessageId} status=${result.status}`,
+          );
+        }
+      },
+    );
   }
 }

@@ -6,6 +6,7 @@ import { NotificationsWorkerModule } from '@/modules/notifications/notifications
 import { TransactionsWorkerModule } from '@/modules/transactions/transactions-worker.module';
 import { AppEventsModule } from '@/shared/events';
 import { JobsModule } from '@/shared/jobs/jobs.module';
+import { ObservabilityModule } from '@/shared/observability';
 import { OutboxDispatcherModule } from '@/shared/outbox';
 import { Module } from '@nestjs/common';
 import { OutboxRehydratorsModule } from './composition/outbox-rehydrators.module';
@@ -15,6 +16,7 @@ import { WorkerOperationsModule } from './operations/worker-operations.module';
 @Module({
   imports: [
     ConfigModule,
+    ObservabilityModule.forWorker(),
     PostgresModule,
     RedisModule,
     JobsModule,

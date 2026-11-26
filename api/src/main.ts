@@ -9,10 +9,15 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { createValidationException } from '@/common/validation';
 import { ProcessRoles } from '@/common/models/constants/process-role.constants';
 import { assertProcessRole } from '@/app/shared/assert-process-role';
+import { REQUEST_ID_HEADER } from '@/shared/observability/constants/observability.constants';
+import { Logger } from 'nestjs-pino';
 
 async function bootstrap() {
   assertProcessRole(ProcessRoles.API);
-  const app = await NestFactory.create<NestExpressApplication>(ApiModule);
+  const app = await NestFactory.create<NestExpressApplication>(ApiModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
   app.use(cookieParser());
   const isProduction = process.env.NODE_ENV === AppStatus.PRODUCTION;
@@ -23,7 +28,7 @@ async function bootstrap() {
     origin: isProduction ? process.env.FRONTEND_URL : true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
-    exposedHeaders: ['Retry-After'],
+    exposedHeaders: ['Retry-After', REQUEST_ID_HEADER],
   });
 
   app.use(
