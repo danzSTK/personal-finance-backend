@@ -6,4 +6,8 @@ export abstract class ApplicationError extends Error {
     this.name = new.target.name;
     Object.setPrototypeOf(this, new.target.prototype);
   }
+
+  get details(): Record<string, unknown> | null {
+    return null;
+  }
 }

@@ -1,0 +1,22 @@
+export const CircuitBreakerStates = {
+  CLOSED: 'CLOSED',
+  OPEN: 'OPEN',
+  HALF_OPEN: 'HALF_OPEN',
+} as const;
+
+export type CircuitBreakerState = (typeof CircuitBreakerStates)[keyof typeof CircuitBreakerStates];
+
+export const CircuitBreakerLogEvents = {
+  CIRCUIT_OPENED: 'CIRCUIT_BREAKER_OPENED',
+  CIRCUIT_HALF_OPEN: 'CIRCUIT_BREAKER_HALF_OPEN',
+  CIRCUIT_CLOSED: 'CIRCUIT_BREAKER_CLOSED',
+  REDIS_ERROR: 'CIRCUIT_BREAKER_REDIS_ERROR',
+} as const;
+
+export const DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5;
+export const DEFAULT_CIRCUIT_BREAKER_COOLDOWN_SECONDS = [60, 120, 300] as const;
+export const DEFAULT_CIRCUIT_BREAKER_STATE_TTL_SECONDS = 86_400;
+export const DEFAULT_CIRCUIT_BREAKER_PROBE_LOCK_TTL_SECONDS = 15;
+export const CIRCUIT_BREAKER_PROBE_KEY_SUFFIX = ':probe';
+export const CIRCUIT_BREAKER_PROBE_LOCK_VALUE = '1';
+export const CIRCUIT_BREAKER_REDIS_SET_OK = 'OK';

@@ -6,6 +6,9 @@ import { EmailVerificationChallengeOrmEntity } from '@/modules/auth/infrastructu
 import { PasswordChangeEventOrmEntity } from '@/modules/auth/infrastructure/persistence/password-change-event-orm.entity';
 import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { TransactionAttachmentOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-attachment-orm.entity';
+import { FiscalNoteOrmEntity } from '@/modules/fiscal-notes/infrastructure/persistence/fiscal-note-orm.entity';
+import { FiscalNoteItemOrmEntity } from '@/modules/fiscal-notes/infrastructure/persistence/fiscal-note-item-orm.entity';
+import { FiscalNotePaymentOrmEntity } from '@/modules/fiscal-notes/infrastructure/persistence/fiscal-note-payment-orm.entity';
 import { CategoryOrmEntity } from '../modules/categories/infrastructure/persistence/model/category.entity';
 import { AuthProviderOrmEntity } from '../modules/users/infrastructure/persistence/auth-provider-orm.entity';
 import { UserOrmEntity } from '../modules/users/infrastructure/persistence/user-orm-entity';
@@ -20,6 +23,9 @@ export const ENTITIES = [
   CategoryOrmEntity,
   TransactionOrmEntity,
   TransactionAttachmentOrmEntity,
+  FiscalNoteOrmEntity,
+  FiscalNoteItemOrmEntity,
+  FiscalNotePaymentOrmEntity,
   EmailMessageOrmEntity,
   EmailVerificationChallengeOrmEntity,
   PasswordChangeEventOrmEntity,
