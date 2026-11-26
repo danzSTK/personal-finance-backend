@@ -77,3 +77,21 @@ Esta seção registra explicitamente os acoplamentos existentes no código que d
 - **Onde ocorre:**
   - Controllers de `accounts`, `categories`, `transactions` e `auth` importam a entidade de domínio `User` apenas para ler `user.id`.
 - **Direção futura:** Criar em `@/common/interfaces/` uma interface leve `AuthenticatedUser { readonly id: string; readonly email: string; }`, desacoplando todos os controllers da entidade de domínio do módulo `users`.
+
+---
+
+## 5. Fronteira Acíclica entre `fiscal-notes`, `transactions` e `CircuitBreakerModule`
+
+A integração entre `fiscal-notes` e `transactions` segue o padrão de módulo core compartilhado (análogo a `AssetsCoreModule`) para preservar um grafo estritamente acíclico sem `forwardRef()`:
+
+1. **`FiscalNotesCoreModule` (`api/src/modules/fiscal-notes/fiscal-notes-core.module.ts`):**
+   - Não possui dependência de `TransactionsModule`.
+   - Encapsula `FiscalNoteOrmEntity`, `FiscalNoteItemOrmEntity`, `FiscalNotePaymentOrmEntity`, `IFiscalNoteRepository` e exporta `FiscalNoteTransactionLifecyclePort`.
+2. **`TransactionsModule`:**
+   - Importa `FiscalNotesCoreModule` e consome `FiscalNoteTransactionLifecyclePort` para preencher `hasFiscalNote` em lote (`findActiveTransactionIds`), bloquear troca de `type` quando há nota ativa (`hasActiveByTransactionId`) e realizar soft delete sincronizado na mesma transação PostgreSQL (`softDeleteByTransactionId`).
+   - Exporta `TransactionFiscalNotePort` (`createExpenseWithinTransaction`, `lockAndValidateExpenseForFiscalNoteLink`, `assertTransactionAccessible`), mantendo criação de `Transaction (EXPENSE)` e validação de conta/categoria sob responsabilidade exclusiva de `transactions`.
+3. **`FiscalNotesModule`:**
+   - Importa `FiscalNotesCoreModule`, `TransactionsModule` e `CircuitBreakerModule` (`api/src/shared/circuit-breaker/`).
+   - Executa toda resolução externa (cache Redis, `CircuitBreakerService`, rate limiter e provedor SEFAZ) **antes** de abrir transações PostgreSQL via `TransactionFiscalNotePort`.
+
+Para detalhes de decisão e alternativas descartadas, consulte [Fiscal Notes Core Module Boundary](../fiscal-notes/decisions/fiscal-notes-core-module-boundary.md).

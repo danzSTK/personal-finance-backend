@@ -66,6 +66,7 @@ Esta é a entrada principal para a documentação do Danfy Backend. O índice se
 - [Assets](./assets/README.md)
 - [Auth](./auth/README.md)
 - [Categories](./categories/README.md)
+- [Fiscal Notes](./fiscal-notes/README.md)
 - [Notifications](./notifications/README.md)
 - [Transactions](./transactions/README.md)
 - [Users](./users/README.md)

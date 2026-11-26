@@ -176,6 +176,25 @@ Use secrets JWT diferentes e aleatórios. Em produção, as callbacks precisam c
 | `THROTTLE_AUTH_SIGNUP_LIMIT`       | Opcional | —       | cadastros permitidos por janela  |
 | `THROTTLE_AUTH_SIGNUP_BLOCKED_TTL` | Opcional | —       | bloqueio após exceder o cadastro |
 
+### Fiscal Notes (NFC-e SEFAZ-CE)
+
+Configuração definida em `api/src/config/fiscal-notes.config.ts` para consulta à SEFAZ-CE, cache Redis de notas parseadas, rate limiting de cache miss e Circuit Breaker distribuído (todas opcionais com defaults seguros):
+
+| Variável                               | Regra   | Default                       | Validação Joi                      | Uso                                                             |
+| -------------------------------------- | ------- | ----------------------------- | ---------------------------------- | --------------------------------------------------------------- |
+| `FISCAL_NOTES_SEFAZ_CE_BASE_URL`       | Default | `http://nfce.sefaz.ce.gov.br` | URI com esquema `http` ou `https`  | URL base allowlisted dos endpoints de NFC-e da SEFAZ-CE         |
+| `FISCAL_NOTES_HTTP_TIMEOUT_MS`         | Default | `7000`                        | inteiro (`1000` a `15000`)         | timeout em ms por tentativa HTTP na SEFAZ-CE                    |
+| `FISCAL_NOTES_HTTP_RETRY_BACKOFF_MS`   | Default | `400`                         | inteiro (`50` a `3000`)            | intervalo de espera antes do único retry transitório            |
+| `FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES` | Default | `1048576`                     | inteiro (`65536` a `5242880`)      | limite máximo do corpo HTTP da SEFAZ (1 MB por padrão)          |
+| `FISCAL_NOTES_CACHE_TTL_SECONDS`       | Default | `1200`                        | inteiro (`60` a `3600`)            | TTL em segundos do cache Redis da nota parseada e sanitizada    |
+| `FISCAL_NOTES_RL_USER_PER_MINUTE`      | Default | `5`                           | inteiro (`1` a `100`)              | limite de consultas SEFAZ em cache miss por usuário em 1 min    |
+| `FISCAL_NOTES_RL_USER_PER_HOUR`        | Default | `30`                          | inteiro (`1` a `1000`)             | limite de consultas SEFAZ em cache miss por usuário em 1 hora   |
+| `FISCAL_NOTES_RL_GLOBAL_PER_MINUTE`    | Default | `40`                          | inteiro (`1` a `1000`)             | limite global da VPS em cache miss por UF em 1 min              |
+| `FISCAL_NOTES_CB_FAILURE_THRESHOLD`    | Default | `5`                           | inteiro (`1` a `50`)               | falhas consecutivas de infra/parser para abrir o Circuit Breaker |
+| `FISCAL_NOTES_CB_COOLDOWN_SECONDS`     | Default | `60,120,300`                  | CSV de inteiros positivos (`>= 5`) | degraus progressivos de cooldown do Circuit Breaker em segundos |
+
+Consulte [`docs/fiscal-notes/reference/redis-keys-and-limits.md`](./fiscal-notes/reference/redis-keys-and-limits.md) para detalhes operacionais de rate limit, cache e Circuit Breaker.
+
 ## Somente worker
 
 ### Filas, outbox e health

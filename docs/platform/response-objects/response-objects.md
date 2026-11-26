@@ -36,6 +36,9 @@ Use identifiers estáveis separados por módulo/shape:
 - `transaction_summary.type`
 - `transaction_summary.overview`
 - `account.list`
+- `fiscal_note.preview` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_PREVIEW`)
+- `fiscal_note.import` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_IMPORT`)
+- `fiscal_note.item` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_ITEM`)
 
 O identifier descreve o shape, não uma classe TypeScript interna.
 
