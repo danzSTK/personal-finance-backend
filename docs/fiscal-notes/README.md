@@ -46,7 +46,7 @@ Arquiteturalmente, o módulo preserva duas fronteiras estritas: (1) desacoplamen
 - [x] Domínio (`FiscalNote`, `FiscalNoteItem`, `FiscalNotePayment`, `FiscalNoteInput` com mod-11 e anti-SSRF).
 - [x] Provedor `SefazCeProvider` (`SefazCeHttpClient` + `SefazCeHtmlParser` com `cheerio/slim`) e `FiscalNoteProviderRegistry`.
 - [x] Cache Redis (`RedisFiscalNoteCache`), rate limiter Lua (`RedisFiscalNoteRateLimiter`) e `FiscalNoteQueryService` com métricas e alertas.
-- [x] Casos de uso (`Preview`, `Import`, `Link`, `Get`, `Unlink`) e controllers HTTP em `/api/v1/fiscal-notes/*` e `/api/v1/transactions/:id/fiscal-note`.
+- [x] Casos de uso (`Preview`, `Import`, `Link`, `Get`, `Unlink`) e controllers HTTP em `/fiscal-notes/*` e `/transactions/:id/fiscal-note`.
 - [x] Integração com `transactions` (`hasFiscalNote`, soft delete sincronizado na mesma transação e bloqueio de troca de `type`).
 - [x] Suítes automatizadas unitárias, E2E (`api/test/fiscal-notes.e2e-spec.ts`) e de integração (`api/test/fiscal-notes.integration-spec.ts`).
 

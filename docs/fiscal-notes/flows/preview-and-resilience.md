@@ -11,11 +11,11 @@ related:
 
 # Preview and Resilience
 
-O fluxo de pré-visualização (`POST /api/v1/fiscal-notes/preview`) resolve os dados estruturados da NFC-e a partir de cache ou consulta à SEFAZ, verifica se o usuário já importou a nota e retorna a sugestão de transação sem persistir nada no PostgreSQL. A mesma camada de resolução e resiliência (`FiscalNoteQueryService.resolve`) é reutilizada pelas etapas de `import` e `link`.
+O fluxo de pré-visualização (`POST /fiscal-notes/preview`) resolve os dados estruturados da NFC-e a partir de cache ou consulta à SEFAZ, verifica se o usuário já importou a nota e retorna a sugestão de transação sem persistir nada no PostgreSQL. A mesma camada de resolução e resiliência (`FiscalNoteQueryService.resolve`) é reutilizada pelas etapas de `import` e `link`.
 
 ## Gatilho e Pré-condições
 
-- **Gatilho:** Requisição HTTP autenticada em `POST /api/v1/fiscal-notes/preview` (ou `import` / `link` antes da abertura de transação no banco).
+- **Gatilho:** Requisição HTTP autenticada em `POST /fiscal-notes/preview` (ou `import` / `link` antes da abertura de transação no banco).
 - **Pré-condições:** Usuário autenticado com e-mail verificado (`OriginGuard` -> `JwtAuthGuard` -> `EmailVerificationStatusGuard`), dentro do limite HTTP de `10 req / 60s` (`ThrottlerGuard` por rota).
 
 ## Passo a Passo Observável

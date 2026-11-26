@@ -11,7 +11,7 @@ related:
 
 # HTTP and Error Contracts
 
-Todos os endpoints de `fiscal-notes` operam sob o prefixo global `/api/v1` e passam pela cadeia padrão de guards (`OriginGuard` -> `JwtAuthGuard` -> `EmailVerificationStatusGuard` -> `ThrottlerGuard`). Não há rotas `@Public()`.
+Todos os endpoints de `fiscal-notes` operam nas rotas raiz (`/fiscal-notes/*` e `/transactions/:id/fiscal-note`) e passam pela cadeia padrão de guards (`OriginGuard` -> `JwtAuthGuard` -> `EmailVerificationStatusGuard` -> `ThrottlerGuard`). Não há rotas `@Public()`.
 
 ## Endpoints HTTP
 
