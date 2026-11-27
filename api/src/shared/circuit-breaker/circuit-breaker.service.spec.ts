@@ -1,8 +1,9 @@
 import { RedisService } from '@/database/redis/redis.service';
-import { CircuitBreakerService } from '@/shared/circuit-breaker/circuit-breaker.service';
+import { CircuitBreakerService, RECORD_FAILURE_LUA_SCRIPT } from '@/shared/circuit-breaker/circuit-breaker.service';
 import {
   CIRCUIT_BREAKER_PROBE_KEY_SUFFIX,
   CIRCUIT_BREAKER_PROBE_LOCK_VALUE,
+  CIRCUIT_BREAKER_RECORD_FAILURE_NUM_KEYS,
   CIRCUIT_BREAKER_REDIS_SET_OK,
   CircuitBreakerLogEvents,
   CircuitBreakerStates,
@@ -30,6 +31,7 @@ describe('CircuitBreakerService', () => {
     get: jest.Mock<Promise<string | null>, [string]>;
     set: jest.Mock<Promise<string | null>, unknown[]>;
     del: jest.Mock<Promise<number>, [string]>;
+    eval: jest.Mock<Promise<unknown>, unknown[]>;
   };
   let redisService: jest.Mocked<Pick<RedisService, 'getClient'>>;
   let service: CircuitBreakerService;
@@ -62,6 +64,136 @@ describe('CircuitBreakerService', () => {
       del: jest.fn((key: string) => {
         const deleted = store.delete(key);
         return Promise.resolve(deleted ? 1 : 0);
+      }),
+      eval: jest.fn((...args: unknown[]) => {
+        const stateKey = String(args[2]);
+        const probeKey = String(args[3]);
+        const now = Number(args[4]);
+        const failureThreshold = Number(args[5]);
+        const cooldowns = JSON.parse(String(args[7])) as number[];
+
+        store.delete(probeKey);
+
+        let record: CircuitBreakerStateRecord = {
+          state: CircuitBreakerStates.CLOSED,
+          consecutiveFailures: 0,
+          cooldownStage: 0,
+          openedAtMs: null,
+          nextAttemptAtMs: null,
+        };
+
+        const raw = store.get(stateKey);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as Partial<CircuitBreakerStateRecord>;
+            if (
+              typeof parsed.state === 'string' &&
+              (Object.values(CircuitBreakerStates) as string[]).includes(parsed.state) &&
+              typeof parsed.consecutiveFailures === 'number' &&
+              parsed.consecutiveFailures >= 0 &&
+              typeof parsed.cooldownStage === 'number' &&
+              parsed.cooldownStage >= 0
+            ) {
+              record = {
+                state: parsed.state,
+                consecutiveFailures: parsed.consecutiveFailures,
+                cooldownStage: parsed.cooldownStage,
+                openedAtMs: typeof parsed.openedAtMs === 'number' ? parsed.openedAtMs : null,
+                nextAttemptAtMs: typeof parsed.nextAttemptAtMs === 'number' ? parsed.nextAttemptAtMs : null,
+              };
+            }
+          } catch {
+            // keep default CLOSED record
+          }
+        }
+
+        const previousState = record.state;
+
+        if (previousState === CircuitBreakerStates.HALF_OPEN) {
+          const nextStage = Math.min(record.cooldownStage + 1, cooldowns.length - 1);
+          const cooldown = cooldowns[nextStage];
+          const consecutiveFailures = record.consecutiveFailures + 1;
+
+          store.set(
+            stateKey,
+            JSON.stringify({
+              state: CircuitBreakerStates.OPEN,
+              consecutiveFailures,
+              cooldownStage: nextStage,
+              openedAtMs: now,
+              nextAttemptAtMs: now + cooldown * 1000,
+            }),
+          );
+
+          return Promise.resolve([
+            previousState,
+            CircuitBreakerStates.OPEN,
+            1,
+            cooldown,
+            consecutiveFailures,
+            nextStage,
+          ]);
+        }
+
+        if (previousState === CircuitBreakerStates.CLOSED) {
+          const consecutiveFailures = record.consecutiveFailures + 1;
+
+          if (consecutiveFailures >= failureThreshold) {
+            const nextStage = 0;
+            const cooldown = cooldowns[0];
+            store.set(
+              stateKey,
+              JSON.stringify({
+                state: CircuitBreakerStates.OPEN,
+                consecutiveFailures,
+                cooldownStage: nextStage,
+                openedAtMs: now,
+                nextAttemptAtMs: now + cooldown * 1000,
+              }),
+            );
+
+            return Promise.resolve([
+              previousState,
+              CircuitBreakerStates.OPEN,
+              1,
+              cooldown,
+              consecutiveFailures,
+              nextStage,
+            ]);
+          }
+
+          store.set(
+            stateKey,
+            JSON.stringify({
+              ...record,
+              state: CircuitBreakerStates.CLOSED,
+              consecutiveFailures,
+            }),
+          );
+
+          return Promise.resolve([
+            previousState,
+            CircuitBreakerStates.CLOSED,
+            0,
+            -1,
+            consecutiveFailures,
+            record.cooldownStage,
+          ]);
+        }
+
+        const retryAfter =
+          record.nextAttemptAtMs !== null && record.nextAttemptAtMs > now
+            ? Math.max(1, Math.ceil((record.nextAttemptAtMs - now) / 1000))
+            : -1;
+
+        return Promise.resolve([
+          previousState,
+          CircuitBreakerStates.OPEN,
+          0,
+          retryAfter,
+          record.consecutiveFailures,
+          record.cooldownStage,
+        ]);
       }),
     };
 
@@ -212,11 +344,15 @@ describe('CircuitBreakerService', () => {
         consecutiveFailures: 5,
         cooldownStage: 0,
       });
-      expect(redisClient.set).toHaveBeenCalledWith(
+      expect(redisClient.eval).toHaveBeenLastCalledWith(
+        RECORD_FAILURE_LUA_SCRIPT,
+        CIRCUIT_BREAKER_RECORD_FAILURE_NUM_KEYS,
         baseKey,
-        expect.any(String),
-        'EX',
-        DEFAULT_CIRCUIT_BREAKER_STATE_TTL_SECONDS,
+        `${baseKey}${CIRCUIT_BREAKER_PROBE_KEY_SUFFIX}`,
+        String(Date.now()),
+        String(baseOptions.failureThreshold),
+        String(DEFAULT_CIRCUIT_BREAKER_STATE_TTL_SECONDS),
+        JSON.stringify(DEFAULT_CIRCUIT_BREAKER_COOLDOWN_SECONDS),
       );
       expect(warnSpy).toHaveBeenCalledWith({
         event: CircuitBreakerLogEvents.CIRCUIT_OPENED,
@@ -226,6 +362,36 @@ describe('CircuitBreakerService', () => {
         cooldownStage: 0,
         retryAfterSeconds: 60,
       });
+    });
+
+    it('uses atomic Lua eval with KEYS[1] state key and KEYS[2] probe key without separate get/del/set roundtrips', async () => {
+      const probeKey = `${baseKey}${CIRCUIT_BREAKER_PROBE_KEY_SUFFIX}`;
+      store.set(probeKey, CIRCUIT_BREAKER_PROBE_LOCK_VALUE);
+
+      const result = await service.recordFailure(baseOptions);
+
+      expect(result).toEqual({
+        previousState: CircuitBreakerStates.CLOSED,
+        currentState: CircuitBreakerStates.CLOSED,
+        opened: false,
+        consecutiveFailures: 1,
+        cooldownStage: 0,
+      });
+      expect(redisClient.eval).toHaveBeenCalledTimes(1);
+      expect(redisClient.eval).toHaveBeenCalledWith(
+        RECORD_FAILURE_LUA_SCRIPT,
+        CIRCUIT_BREAKER_RECORD_FAILURE_NUM_KEYS,
+        baseKey,
+        probeKey,
+        String(Date.now()),
+        String(baseOptions.failureThreshold),
+        String(DEFAULT_CIRCUIT_BREAKER_STATE_TTL_SECONDS),
+        JSON.stringify(DEFAULT_CIRCUIT_BREAKER_COOLDOWN_SECONDS),
+      );
+      expect(redisClient.get).not.toHaveBeenCalled();
+      expect(redisClient.del).not.toHaveBeenCalled();
+      expect(redisClient.set).not.toHaveBeenCalled();
+      expect(store.has(probeKey)).toBe(false);
     });
 
     it('escalates cooldown progressively (60 -> 120 -> 300 -> 300) when HALF_OPEN probe fails', async () => {
@@ -394,6 +560,7 @@ describe('CircuitBreakerService', () => {
   describe('fail-open resilience', () => {
     it('fails open and logs warning when Redis throws during canExecute, recordSuccess, recordFailure, or releaseProbe', async () => {
       redisClient.get.mockRejectedValue(new Error('Redis connection lost'));
+      redisClient.eval.mockRejectedValue(new Error('Redis connection lost'));
 
       const decision = await service.canExecute(baseOptions);
       const success = await service.recordSuccess(baseOptions);

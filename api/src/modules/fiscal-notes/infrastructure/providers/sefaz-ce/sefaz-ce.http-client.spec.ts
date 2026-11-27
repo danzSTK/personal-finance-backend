@@ -195,14 +195,60 @@ describe('SefazCeHttpClient', () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    it('does not retry on HTTP 400 and throws SefazTemporarilyUnavailableError', async () => {
+    it('does not retry on HTTP 400 and throws SefazTemporarilyUnavailableError with httpStatus', async () => {
       const fetchMock = jest.fn().mockResolvedValue(createJsonResponse({}, 400));
       global.fetch = fetchMock as unknown as typeof fetch;
 
       const client = new SefazCeHttpClient(createConfig());
       const input = FiscalNoteInput.parse(VALID_CE_KEY);
 
-      await expect(client.queryFiscalNote(input)).rejects.toThrow(SefazTemporarilyUnavailableError);
+      let caughtError: unknown;
+      try {
+        await client.queryFiscalNote(input);
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(SefazTemporarilyUnavailableError);
+      expect((caughtError as SefazTemporarilyUnavailableError).httpStatus).toBe(400);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries once on HTTP 503 and throws SefazTemporarilyUnavailableError with httpStatus 503 when retries exhaust', async () => {
+      const fetchMock = jest.fn().mockResolvedValue(createJsonResponse({}, 503));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const client = new SefazCeHttpClient(createConfig());
+      const input = FiscalNoteInput.parse(VALID_CE_KEY);
+
+      let caughtError: unknown;
+      try {
+        await client.queryFiscalNote(input);
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(SefazTemporarilyUnavailableError);
+      expect((caughtError as SefazTemporarilyUnavailableError).httpStatus).toBe(503);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry on HTTP 500 and throws SefazTemporarilyUnavailableError with httpStatus 500', async () => {
+      const fetchMock = jest.fn().mockResolvedValue(createJsonResponse({}, 500));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const client = new SefazCeHttpClient(createConfig());
+      const input = FiscalNoteInput.parse(VALID_CE_KEY);
+
+      let caughtError: unknown;
+      try {
+        await client.queryFiscalNote(input);
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(SefazTemporarilyUnavailableError);
+      expect((caughtError as SefazTemporarilyUnavailableError).httpStatus).toBe(500);
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
@@ -265,14 +311,22 @@ describe('SefazCeHttpClient', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it('retries once on network TypeError and throws SefazTemporarilyUnavailableError', async () => {
+    it('retries once on network TypeError and throws SefazTemporarilyUnavailableError without httpStatus', async () => {
       const fetchMock = jest.fn().mockRejectedValue(new TypeError('fetch failed'));
       global.fetch = fetchMock as unknown as typeof fetch;
 
       const client = new SefazCeHttpClient(createConfig());
       const input = FiscalNoteInput.parse(VALID_CE_KEY);
 
-      await expect(client.queryFiscalNote(input)).rejects.toThrow(SefazTemporarilyUnavailableError);
+      let caughtError: unknown;
+      try {
+        await client.queryFiscalNote(input);
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(SefazTemporarilyUnavailableError);
+      expect((caughtError as SefazTemporarilyUnavailableError).httpStatus).toBeUndefined();
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   });

@@ -2,6 +2,7 @@ import { RedisService } from '@/database/redis/redis.service';
 import {
   CIRCUIT_BREAKER_PROBE_KEY_SUFFIX,
   CIRCUIT_BREAKER_PROBE_LOCK_VALUE,
+  CIRCUIT_BREAKER_RECORD_FAILURE_NUM_KEYS,
   CIRCUIT_BREAKER_REDIS_SET_OK,
   CircuitBreakerLogEvents,
   CircuitBreakerStates,
@@ -20,6 +21,104 @@ import type {
 import { Injectable, Logger, Optional } from '@nestjs/common';
 
 const VALID_CIRCUIT_BREAKER_STATES: readonly string[] = Object.values(CircuitBreakerStates);
+
+export const RECORD_FAILURE_LUA_SCRIPT = String.raw`
+redis.call('DEL', KEYS[2])
+
+local now = tonumber(ARGV[1])
+local failureThreshold = tonumber(ARGV[2])
+local stateTtlSeconds = tonumber(ARGV[3])
+local okCooldowns, cooldowns = pcall(cjson.decode, ARGV[4])
+if not okCooldowns or type(cooldowns) ~= 'table' or #cooldowns == 0 then
+  cooldowns = { 60, 120, 300 }
+end
+
+local previousState = 'CLOSED'
+local consecutiveFailures = 0
+local cooldownStage = 0
+local openedAtMs = cjson.null
+local nextAttemptAtMs = cjson.null
+
+local raw = redis.call('GET', KEYS[1])
+if raw then
+  local ok, decoded = pcall(cjson.decode, raw)
+  if ok and type(decoded) == 'table' then
+    local s = decoded['state']
+    local cf = decoded['consecutiveFailures']
+    local cs = decoded['cooldownStage']
+    local oam = decoded['openedAtMs']
+    local nam = decoded['nextAttemptAtMs']
+
+    local validState = (s == 'CLOSED' or s == 'OPEN' or s == 'HALF_OPEN')
+    local validCf = (type(cf) == 'number' and cf >= 0)
+    local validCs = (type(cs) == 'number' and cs >= 0)
+    local validOam = (oam == cjson.null or type(oam) == 'number')
+    local validNam = (nam == cjson.null or type(nam) == 'number')
+
+    if validState and validCf and validCs and validOam and validNam then
+      previousState = s
+      consecutiveFailures = cf
+      cooldownStage = cs
+      openedAtMs = oam
+      nextAttemptAtMs = nam
+    end
+  end
+end
+
+if previousState == 'HALF_OPEN' then
+  local nextStage = math.min(cooldownStage + 1, #cooldowns - 1)
+  local cooldown = cooldowns[nextStage + 1]
+  consecutiveFailures = consecutiveFailures + 1
+
+  local nextRecord = cjson.encode({
+    state = 'OPEN',
+    consecutiveFailures = consecutiveFailures,
+    cooldownStage = nextStage,
+    openedAtMs = now,
+    nextAttemptAtMs = now + cooldown * 1000,
+  })
+  redis.call('SET', KEYS[1], nextRecord, 'EX', stateTtlSeconds)
+
+  return { previousState, 'OPEN', 1, cooldown, consecutiveFailures, nextStage }
+end
+
+if previousState == 'CLOSED' then
+  consecutiveFailures = consecutiveFailures + 1
+
+  if consecutiveFailures >= failureThreshold then
+    local nextStage = 0
+    local cooldown = cooldowns[1]
+    local nextRecord = cjson.encode({
+      state = 'OPEN',
+      consecutiveFailures = consecutiveFailures,
+      cooldownStage = nextStage,
+      openedAtMs = now,
+      nextAttemptAtMs = now + cooldown * 1000,
+    })
+    redis.call('SET', KEYS[1], nextRecord, 'EX', stateTtlSeconds)
+
+    return { previousState, 'OPEN', 1, cooldown, consecutiveFailures, nextStage }
+  end
+
+  local nextRecord = cjson.encode({
+    state = 'CLOSED',
+    consecutiveFailures = consecutiveFailures,
+    cooldownStage = cooldownStage,
+    openedAtMs = openedAtMs,
+    nextAttemptAtMs = nextAttemptAtMs,
+  })
+  redis.call('SET', KEYS[1], nextRecord, 'EX', stateTtlSeconds)
+
+  return { previousState, 'CLOSED', 0, -1, consecutiveFailures, cooldownStage }
+end
+
+local retryAfter = -1
+if type(nextAttemptAtMs) == 'number' and nextAttemptAtMs > now then
+  retryAfter = math.max(1, math.ceil((nextAttemptAtMs - now) / 1000))
+end
+
+return { previousState, 'OPEN', 0, retryAfter, consecutiveFailures, cooldownStage }
+`;
 
 @Injectable()
 export class CircuitBreakerService {
@@ -176,113 +275,38 @@ export class CircuitBreakerService {
     }
 
     try {
-      const record = await this.readState(options.key);
-      await this.releaseProbeLock(options.key);
-
       const now = Date.now();
       const cooldowns = this.resolveCooldowns(options.cooldownSeconds);
       const stateTtlSeconds = this.resolveStateTtlSeconds(options.stateTtlSeconds);
       const failureThreshold = Math.max(1, options.failureThreshold);
-      const previousState = record.state;
 
-      if (previousState === CircuitBreakerStates.HALF_OPEN) {
-        const nextStage = Math.min(record.cooldownStage + 1, cooldowns.length - 1);
-        const cooldown = cooldowns[nextStage];
-        const consecutiveFailures = record.consecutiveFailures + 1;
+      const rawResult = await this.redisService
+        .getClient()
+        .eval(
+          RECORD_FAILURE_LUA_SCRIPT,
+          CIRCUIT_BREAKER_RECORD_FAILURE_NUM_KEYS,
+          options.key,
+          this.buildProbeKey(options.key),
+          String(now),
+          String(failureThreshold),
+          String(stateTtlSeconds),
+          JSON.stringify(cooldowns),
+        );
 
-        const nextRecord: CircuitBreakerStateRecord = {
-          state: CircuitBreakerStates.OPEN,
-          consecutiveFailures,
-          cooldownStage: nextStage,
-          openedAtMs: now,
-          nextAttemptAtMs: now + cooldown * 1000,
-        };
+      const result = this.parseRecordFailureLuaResult(rawResult);
 
-        await this.writeState(options.key, nextRecord, stateTtlSeconds);
+      if (result.opened) {
         this.logger.warn({
           event: CircuitBreakerLogEvents.CIRCUIT_OPENED,
           key: options.key,
-          previousState,
-          consecutiveFailures,
-          cooldownStage: nextStage,
-          retryAfterSeconds: cooldown,
+          previousState: result.previousState,
+          consecutiveFailures: result.consecutiveFailures,
+          cooldownStage: result.cooldownStage,
+          retryAfterSeconds: result.retryAfterSeconds,
         });
-
-        return {
-          previousState,
-          currentState: CircuitBreakerStates.OPEN,
-          opened: true,
-          retryAfterSeconds: cooldown,
-          consecutiveFailures,
-          cooldownStage: nextStage,
-        };
       }
 
-      if (previousState === CircuitBreakerStates.CLOSED) {
-        const consecutiveFailures = record.consecutiveFailures + 1;
-
-        if (consecutiveFailures >= failureThreshold) {
-          const cooldownStage = 0;
-          const cooldown = cooldowns[cooldownStage];
-
-          const nextRecord: CircuitBreakerStateRecord = {
-            state: CircuitBreakerStates.OPEN,
-            consecutiveFailures,
-            cooldownStage,
-            openedAtMs: now,
-            nextAttemptAtMs: now + cooldown * 1000,
-          };
-
-          await this.writeState(options.key, nextRecord, stateTtlSeconds);
-          this.logger.warn({
-            event: CircuitBreakerLogEvents.CIRCUIT_OPENED,
-            key: options.key,
-            previousState,
-            consecutiveFailures,
-            cooldownStage,
-            retryAfterSeconds: cooldown,
-          });
-
-          return {
-            previousState,
-            currentState: CircuitBreakerStates.OPEN,
-            opened: true,
-            retryAfterSeconds: cooldown,
-            consecutiveFailures,
-            cooldownStage,
-          };
-        }
-
-        const nextRecord: CircuitBreakerStateRecord = {
-          ...record,
-          state: CircuitBreakerStates.CLOSED,
-          consecutiveFailures,
-        };
-
-        await this.writeState(options.key, nextRecord, stateTtlSeconds);
-
-        return {
-          previousState,
-          currentState: CircuitBreakerStates.CLOSED,
-          opened: false,
-          consecutiveFailures,
-          cooldownStage: record.cooldownStage,
-        };
-      }
-
-      const retryAfterSeconds =
-        record.nextAttemptAtMs !== null && record.nextAttemptAtMs > now
-          ? Math.max(1, Math.ceil((record.nextAttemptAtMs - now) / 1000))
-          : undefined;
-
-      return {
-        previousState,
-        currentState: CircuitBreakerStates.OPEN,
-        opened: false,
-        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-        consecutiveFailures: record.consecutiveFailures,
-        cooldownStage: record.cooldownStage,
-      };
+      return result;
     } catch (error) {
       this.logRedisError(options.key, error);
       return {
@@ -359,7 +383,7 @@ export class CircuitBreakerService {
     const record = value as Record<string, unknown>;
     return (
       typeof record.state === 'string' &&
-      VALID_CIRCUIT_BREAKER_STATES.includes(record.state) &&
+      this.isValidState(record.state) &&
       typeof record.consecutiveFailures === 'number' &&
       Number.isFinite(record.consecutiveFailures) &&
       record.consecutiveFailures >= 0 &&
@@ -370,6 +394,44 @@ export class CircuitBreakerService {
       (record.nextAttemptAtMs === null ||
         (typeof record.nextAttemptAtMs === 'number' && Number.isFinite(record.nextAttemptAtMs)))
     );
+  }
+
+  private isValidState(value: string): value is CircuitBreakerState {
+    return VALID_CIRCUIT_BREAKER_STATES.includes(value);
+  }
+
+  private parseRecordFailureLuaResult(raw: unknown): CircuitBreakerFailureResult {
+    if (!Array.isArray(raw) || raw.length < 6) {
+      throw new Error('Invalid circuit breaker recordFailure Lua response.');
+    }
+
+    const previousStateRaw = String(raw[0]);
+    const currentStateRaw = String(raw[1]);
+
+    if (!this.isValidState(previousStateRaw) || !this.isValidState(currentStateRaw)) {
+      throw new Error('Invalid circuit breaker state returned by recordFailure Lua script.');
+    }
+
+    const opened = Number(raw[2]) === 1;
+    const retryAfterRaw = Number(raw[3]);
+    const consecutiveFailures = Number(raw[4]);
+    const cooldownStage = Number(raw[5]);
+
+    if (!Number.isFinite(consecutiveFailures) || !Number.isFinite(cooldownStage)) {
+      throw new Error('Invalid circuit breaker counters returned by recordFailure Lua script.');
+    }
+
+    const retryAfterSeconds =
+      Number.isFinite(retryAfterRaw) && retryAfterRaw > 0 ? Math.ceil(retryAfterRaw) : undefined;
+
+    return {
+      previousState: previousStateRaw,
+      currentState: currentStateRaw,
+      opened,
+      ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+      consecutiveFailures,
+      cooldownStage,
+    };
   }
 
   private async writeState(key: string, record: CircuitBreakerStateRecord, stateTtlSeconds: number): Promise<void> {

@@ -31,5 +31,5 @@ Implementar o Circuit Breaker como componente transversal reutilizável em `api/
 
 ## Trade-offs e Riscos Aceitos
 
-- **Operação Read-Modify-Write no Redis:** A atualização do JSON de estado não usa lock distribuído global nas transições `CLOSED -> OPEN`, aceitando eventual perda mínima de precisão na contagem exata sob altíssima concorrência em troca de simplicidade operacional; a transição `OPEN -> HALF_OPEN`, por outro lado, é protegida por lock atômico `SET NX EX` (`:probe`) para evitar tempestade de sondas simultâneas na recuperação.
+- **Atomicidade de `recordFailure` e `OPEN -> HALF_OPEN`:** `recordFailure` executa um script Lua atômico no Redis (`eval` sobre `KEYS[1]` de estado e `KEYS[2]` de lock `:probe`), garantindo que incrementos concorrentes de `consecutiveFailures`, abertura do circuito e remoção de `:probe` não sofram race conditions nem perda de contagem; a transição `OPEN -> HALF_OPEN` usa lock atômico `SET NX EX` (`:probe`) para evitar tempestade de sondas simultâneas na recuperação, enquanto `canExecute`, `recordSuccess` e `releaseProbe` operam sobre JSON simples.
 - **Dependência Suave do Redis:** Em falha do Redis, o componente assume `fail-open` (`allowed: true`) para não indisponibilizar importações legítimas por falha de cache/estado auxiliar, compensado pelo timeout curto (`7000ms`) e limite de 1 retry no cliente HTTP.

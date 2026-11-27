@@ -451,7 +451,7 @@ Todas as variáveis são opcionais com defaults seguros para que nenhum ambiente
 | `FISCAL_NOTES_SEFAZ_CE_BASE_URL` | `http://nfce.sefaz.ce.gov.br` | `Joi.string().uri({ scheme: ['http', 'https'] })` |
 | `FISCAL_NOTES_HTTP_TIMEOUT_MS` | `7000` | `integer`, min `1000`, max `15000` |
 | `FISCAL_NOTES_HTTP_RETRY_BACKOFF_MS` | `400` | `integer`, min `50`, max `3000` |
-| `FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES` | `1048576` | `integer`, min `65536`, max `5242880` |
+| `FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES` | `1048576` | `integer`, min `65536`, max `1048576` |
 | `FISCAL_NOTES_CACHE_TTL_SECONDS` | `1200` | `integer`, min `60`, max `3600` |
 | `FISCAL_NOTES_RL_USER_PER_MINUTE` | `5` | `integer`, min `1`, max `100` |
 | `FISCAL_NOTES_RL_USER_PER_HOUR` | `30` | `integer`, min `1`, max `1000` |

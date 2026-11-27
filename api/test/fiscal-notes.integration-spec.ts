@@ -1215,6 +1215,39 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
     expect(closedState.state).toBe(CircuitBreakerStates.CLOSED);
   });
 
+  it('atomically increments consecutiveFailures and opens CircuitBreaker once under concurrent recordFailure calls in real Redis', async () => {
+    const cbKey = CacheKeys.fiscalNotes.circuitBreaker(FiscalNoteSupportedUfs.CE);
+    const probeKey = `${cbKey}${CIRCUIT_BREAKER_PROBE_KEY_SUFFIX}`;
+    await redisClient!.set(probeKey, '1', 'EX', 15);
+
+    const opts = {
+      key: cbKey,
+      failureThreshold: 5,
+      cooldownSeconds: [60, 120, 300],
+    };
+
+    const results = await Promise.all(Array.from({ length: 5 }, () => circuitBreakerService.recordFailure(opts)));
+
+    expect(results.map(result => result.consecutiveFailures).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
+
+    const openedResults = results.filter(result => result.opened);
+    expect(openedResults).toHaveLength(1);
+    expect(openedResults[0]).toMatchObject({
+      previousState: CircuitBreakerStates.CLOSED,
+      currentState: CircuitBreakerStates.OPEN,
+      opened: true,
+      retryAfterSeconds: 60,
+      consecutiveFailures: 5,
+      cooldownStage: 0,
+    });
+
+    const persisted = JSON.parse((await redisClient!.get(cbKey))!) as CircuitBreakerStateRecord;
+    expect(persisted.state).toBe(CircuitBreakerStates.OPEN);
+    expect(persisted.consecutiveFailures).toBe(5);
+    expect(persisted.cooldownStage).toBe(0);
+    expect(await redisClient!.get(probeKey)).toBeNull();
+  });
+
   it('validates HTTP client single retry on 503->200, 1MB streaming cap, 302 redirect block, and unknown QR host isolation', async () => {
     const user = await seedUserFixtures('http-client');
     const stack = buildFiscalNoteStack({

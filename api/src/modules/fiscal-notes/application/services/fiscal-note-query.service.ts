@@ -217,6 +217,9 @@ export class FiscalNoteQueryService {
         uf: input.uf,
         channel: input.channel,
         outcome,
+        ...(error instanceof SefazTemporarilyUnavailableError && error.httpStatus !== undefined
+          ? { httpStatus: error.httpStatus }
+          : {}),
         accessKeyMasked: input.maskedAccessKey,
         errorMessage: error instanceof Error ? error.message : String(error),
       });
@@ -259,6 +262,10 @@ export class FiscalNoteQueryService {
 
     if (error instanceof FiscalNoteResponseTooLargeError) {
       return FiscalNoteQueryOutcomes.RESPONSE_TOO_LARGE;
+    }
+
+    if (error instanceof SefazTemporarilyUnavailableError && error.httpStatus !== undefined) {
+      return FiscalNoteQueryOutcomes.HTTP_ERROR;
     }
 
     return FiscalNoteQueryOutcomes.NETWORK_ERROR;

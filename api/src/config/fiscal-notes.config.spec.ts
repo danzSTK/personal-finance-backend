@@ -70,7 +70,7 @@ describe('fiscalNotesConfig', () => {
       process.env.FISCAL_NOTES_SEFAZ_CE_BASE_URL = 'https://nfce.sefaz.ce.gov.br///';
       process.env.FISCAL_NOTES_HTTP_TIMEOUT_MS = '8000';
       process.env.FISCAL_NOTES_HTTP_RETRY_BACKOFF_MS = '500';
-      process.env.FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES = '2097152';
+      process.env.FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES = '524288';
       process.env.FISCAL_NOTES_CACHE_TTL_SECONDS = '1800';
       process.env.FISCAL_NOTES_RL_USER_PER_MINUTE = '8';
       process.env.FISCAL_NOTES_RL_USER_PER_HOUR = '60';
@@ -87,7 +87,7 @@ describe('fiscalNotesConfig', () => {
         http: {
           timeoutMs: 8000,
           retryBackoffMs: 500,
-          maxResponseBytes: 2_097_152,
+          maxResponseBytes: 524_288,
         },
         cache: {
           ttlSeconds: 1800,
@@ -114,6 +114,14 @@ describe('fiscalNotesConfig', () => {
       expect(config.sefazCe.baseUrl).toBe(DEFAULT_FISCAL_NOTES_SEFAZ_CE_BASE_URL);
       expect(config.http.timeoutMs).toBe(DEFAULT_FISCAL_NOTES_HTTP_TIMEOUT_MS);
       expect(config.circuitBreaker.cooldownSeconds).toEqual([...DEFAULT_FISCAL_NOTES_CB_COOLDOWN_SECONDS]);
+    });
+
+    it('clamps FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES above 1 MB to DEFAULT_FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES', () => {
+      process.env.FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES = '5242880';
+      expect(fiscalNotesConfig().http.maxResponseBytes).toBe(DEFAULT_FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES);
+
+      process.env.FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES = '1048577';
+      expect(fiscalNotesConfig().http.maxResponseBytes).toBe(DEFAULT_FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES);
     });
   });
 
@@ -180,5 +188,16 @@ describe('fiscalNotesConfig', () => {
         ]),
       );
     });
+
+    it.each([1_048_577, 5_242_880])(
+      'rejects FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES above 1 MB (%p)',
+      oversizedMaxBytes => {
+        const result = schema.validate({
+          FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES: String(oversizedMaxBytes),
+        });
+
+        expect(result.error?.details.map(detail => detail.path[0])).toContain('FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES');
+      },
+    );
   });
 });

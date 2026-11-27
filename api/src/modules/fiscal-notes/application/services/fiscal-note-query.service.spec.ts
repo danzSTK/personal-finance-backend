@@ -465,5 +465,56 @@ describe('FiscalNoteQueryService', () => {
         expect.objectContaining({ outcome: FiscalNoteQueryOutcomes.RESPONSE_TOO_LARGE }),
       );
     });
+
+    it('classifies SefazTemporarilyUnavailableError with httpStatus as HTTP_ERROR and includes httpStatus in warn log', async () => {
+      cache.get.mockResolvedValue(null);
+      provider.fetchAndParse.mockRejectedValueOnce(new SefazTemporarilyUnavailableError(undefined, undefined, 503));
+
+      await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(SefazTemporarilyUnavailableError);
+      expect(metrics.incrementCounter).toHaveBeenCalledWith(
+        FiscalNoteMetricNames.SEFAZ_QUERY_TOTAL,
+        expect.objectContaining({ outcome: FiscalNoteQueryOutcomes.HTTP_ERROR }),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: FiscalNoteLogEvents.FISCAL_NOTE_SEFAZ_REQUEST_FAILED,
+          outcome: FiscalNoteQueryOutcomes.HTTP_ERROR,
+          httpStatus: 503,
+        }),
+      );
+
+      provider.fetchAndParse.mockRejectedValueOnce(new SefazTemporarilyUnavailableError(undefined, undefined, 500));
+      await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(SefazTemporarilyUnavailableError);
+      expect(metrics.incrementCounter).toHaveBeenLastCalledWith(
+        FiscalNoteMetricNames.SEFAZ_QUERY_TOTAL,
+        expect.objectContaining({ outcome: FiscalNoteQueryOutcomes.HTTP_ERROR }),
+      );
+      expect(warnSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          event: FiscalNoteLogEvents.FISCAL_NOTE_SEFAZ_REQUEST_FAILED,
+          outcome: FiscalNoteQueryOutcomes.HTTP_ERROR,
+          httpStatus: 500,
+        }),
+      );
+    });
+
+    it('classifies SefazTemporarilyUnavailableError without httpStatus as NETWORK_ERROR without httpStatus log field', async () => {
+      cache.get.mockResolvedValue(null);
+      provider.fetchAndParse.mockRejectedValueOnce(new SefazTemporarilyUnavailableError());
+
+      await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(SefazTemporarilyUnavailableError);
+      expect(metrics.incrementCounter).toHaveBeenCalledWith(
+        FiscalNoteMetricNames.SEFAZ_QUERY_TOTAL,
+        expect.objectContaining({ outcome: FiscalNoteQueryOutcomes.NETWORK_ERROR }),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: FiscalNoteLogEvents.FISCAL_NOTE_SEFAZ_REQUEST_FAILED,
+          outcome: FiscalNoteQueryOutcomes.NETWORK_ERROR,
+        }),
+      );
+      const warnCalls = warnSpy.mock.calls as Array<[Record<string, unknown>]>;
+      expect(warnCalls[0]?.[0]).not.toHaveProperty('httpStatus');
+    });
   });
 });

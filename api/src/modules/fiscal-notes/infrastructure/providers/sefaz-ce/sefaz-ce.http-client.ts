@@ -73,11 +73,11 @@ export class SefazCeHttpClient {
             continue;
           }
 
-          throw new SefazTemporarilyUnavailableError();
+          throw new SefazTemporarilyUnavailableError(undefined, undefined, error.status);
         }
 
         if (error instanceof NonRetryableStatusError) {
-          throw new SefazTemporarilyUnavailableError();
+          throw new SefazTemporarilyUnavailableError(undefined, undefined, error.status);
         }
 
         if (this.isNetworkError(error)) {

@@ -36,7 +36,7 @@ Todas as chaves Redis utilizadas pelo módulo `fiscal-notes` são centralizadas 
 | `FISCAL_NOTES_SEFAZ_CE_BASE_URL` | `http://nfce.sefaz.ce.gov.br` | URI `http`/`https` | Base URL allowlisted do provedor SEFAZ-CE |
 | `FISCAL_NOTES_HTTP_TIMEOUT_MS` | `7000` | `1000..15000` | Timeout por tentativa HTTP à SEFAZ-CE |
 | `FISCAL_NOTES_HTTP_RETRY_BACKOFF_MS` | `400` | `50..3000` | Espera antes do único retry transitório |
-| `FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES` | `1048576` | `65536..5242880` | Limite rígido (1 MB default) no corpo da resposta HTTP |
+| `FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES` | `1048576` | `65536..1048576` | Limite rígido (teto de 1 MB) no corpo da resposta HTTP |
 | `FISCAL_NOTES_CACHE_TTL_SECONDS` | `1200` | `60..3600` | TTL do cache Redis da nota parseada |
 | `FISCAL_NOTES_RL_USER_PER_MINUTE` | `5` | `1..100` | Limite de cache miss por usuário em 1 minuto |
 | `FISCAL_NOTES_RL_USER_PER_HOUR` | `30` | `1..1000` | Limite de cache miss por usuário em 1 hora |

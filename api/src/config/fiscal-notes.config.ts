@@ -100,8 +100,8 @@ export default registerAs(FISCAL_NOTES_CONFIG_KEY, (): FiscalNotesConfig => {
     http: {
       timeoutMs: readNumber('FISCAL_NOTES_HTTP_TIMEOUT_MS', DEFAULT_FISCAL_NOTES_HTTP_TIMEOUT_MS),
       retryBackoffMs: readNumber('FISCAL_NOTES_HTTP_RETRY_BACKOFF_MS', DEFAULT_FISCAL_NOTES_HTTP_RETRY_BACKOFF_MS),
-      maxResponseBytes: readNumber(
-        'FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES',
+      maxResponseBytes: Math.min(
+        readNumber('FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES', DEFAULT_FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES),
         DEFAULT_FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES,
       ),
     },
@@ -137,7 +137,7 @@ export const fiscalNotesEnvSchema = {
   FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES: Joi.number()
     .integer()
     .min(65536)
-    .max(5242880)
+    .max(DEFAULT_FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES)
     .default(DEFAULT_FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES),
   FISCAL_NOTES_CACHE_TTL_SECONDS: Joi.number()
     .integer()

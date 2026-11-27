@@ -18,7 +18,7 @@
 - `ListTransactionsUseCase` popula `hasFiscalNote` em lote sem N+1;
 - `RedisFiscalNoteCache` entrega `cacheHit: true` no Redis real mesmo com `CircuitBreakerService` em estado `OPEN`;
 - `RedisFiscalNoteRateLimiter` aplica scripts Lua reais no Redis (`user 1m/1h` antes de `global UF 1m`);
-- `CircuitBreakerService` abre após `failureThreshold`, aplica cooldown progressivo (`60s -> 120s -> 300s`), permite sonda única em `HALF_OPEN` e fecha em sucesso;
+- `CircuitBreakerService` abre após `failureThreshold`, aplica cooldown progressivo (`60s -> 120s -> 300s`), permite sonda única em `HALF_OPEN`, fecha em sucesso e garante atomicidade de `recordFailure` sob concorrência real no Redis via script Lua (`5` chamadas concorrentes incrementam `consecutiveFailures` até `5`, abrem o circuito exatamente uma vez e limpam `:probe`);
 - `SefazCeHttpClient` + `SefazCeHtmlParser` consultam servidor HTTP stub local em porta efêmera validando timeout, limite de 1 MB, 1 retry transitório e descarte do bloco `Consumidor`.
 
 ## Composição
