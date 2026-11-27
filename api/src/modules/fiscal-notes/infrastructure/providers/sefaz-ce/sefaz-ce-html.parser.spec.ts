@@ -1,6 +1,5 @@
 import {
   FiscalNoteCancelledOrDeniedError,
-  FiscalNoteHomologationNotAllowedError,
   FiscalNoteParseFailedError,
   FiscalNoteSefazNotFoundError,
 } from '@/modules/fiscal-notes/application/errors';
@@ -8,6 +7,7 @@ import {
   FiscalNoteSupportedUfs,
   SEFAZ_CE_PARSER_VERSION,
 } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
+import { FiscalNoteHomologationNotAllowedError } from '@/modules/fiscal-notes/domain/errors';
 import { SefazCeHtmlParser } from '@/modules/fiscal-notes/infrastructure/providers/sefaz-ce/sefaz-ce-html.parser';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -145,6 +145,59 @@ describe('SefazCeHtmlParser', () => {
     it('throws FiscalNoteParseFailedError when totals arithmetic differs by more than 1 cent', () => {
       const tamperedHtml = readFixture('sefaz-ce-complete-with-discount-and-consumer.html').replace('40,13', '45,00');
       expect(() => parser.parseHtml(tamperedHtml, VALID_CE_KEY)).toThrow(FiscalNoteParseFailedError);
+    });
+
+    it('accepts quantity and unitPrice with 1, 2, 3, and 4 decimal places within NUMERIC(12, 4)', () => {
+      const baseHtml = readFixture('sefaz-ce-no-discount-no-gross.html');
+
+      const withOneAndTwoDecimals = baseHtml
+        .replace('<strong>Qtde.:</strong>&nbsp;2', '<strong>Qtde.:</strong>&nbsp;1,5')
+        .replace('<strong>Vl. Unit.:</strong>&nbsp;8,50', '<strong>Vl. Unit.:</strong>&nbsp;11,33');
+      const parsedOneTwo = parser.parseHtml(withOneAndTwoDecimals, VALID_CE_KEY);
+      expect(parsedOneTwo.items[0].quantity).toBe(1.5);
+      expect(parsedOneTwo.items[0].unitPrice).toBe(11.33);
+
+      const withThreeAndFourDecimals = baseHtml
+        .replace('<strong>Qtde.:</strong>&nbsp;2', '<strong>Qtde.:</strong>&nbsp;0,352')
+        .replace('<strong>Vl. Unit.:</strong>&nbsp;8,50', '<strong>Vl. Unit.:</strong>&nbsp;1,2500');
+      const parsedThreeFour = parser.parseHtml(withThreeAndFourDecimals, VALID_CE_KEY);
+      expect(parsedThreeFour.items[0].quantity).toBe(0.352);
+      expect(parsedThreeFour.items[0].unitPrice).toBe(1.25);
+
+      const withMaxFourDecimals = baseHtml
+        .replace('<strong>Qtde.:</strong>&nbsp;2', '<strong>Qtde.:</strong>&nbsp;99.999.999,9999')
+        .replace('<strong>Vl. Unit.:</strong>&nbsp;8,50', '<strong>Vl. Unit.:</strong>&nbsp;5,899');
+      const parsedMax = parser.parseHtml(withMaxFourDecimals, VALID_CE_KEY);
+      expect(parsedMax.items[0].quantity).toBe(99999999.9999);
+      expect(parsedMax.items[0].unitPrice).toBe(5.899);
+    });
+
+    it('throws FiscalNoteParseFailedError when quantity or unitPrice exceeds NUMERIC(12, 4) bounds', () => {
+      const baseHtml = readFixture('sefaz-ce-no-discount-no-gross.html');
+
+      const fiveDecimalQuantityHtml = baseHtml.replace(
+        '<strong>Qtde.:</strong>&nbsp;2',
+        '<strong>Qtde.:</strong>&nbsp;1,23456',
+      );
+      expect(() => parser.parseHtml(fiveDecimalQuantityHtml, VALID_CE_KEY)).toThrow(FiscalNoteParseFailedError);
+
+      const fiveDecimalUnitPriceHtml = baseHtml.replace(
+        '<strong>Vl. Unit.:</strong>&nbsp;8,50',
+        '<strong>Vl. Unit.:</strong>&nbsp;10,12345',
+      );
+      expect(() => parser.parseHtml(fiveDecimalUnitPriceHtml, VALID_CE_KEY)).toThrow(FiscalNoteParseFailedError);
+
+      const nineIntegerDigitsQuantityHtml = baseHtml.replace(
+        '<strong>Qtde.:</strong>&nbsp;2',
+        '<strong>Qtde.:</strong>&nbsp;100000000,00',
+      );
+      expect(() => parser.parseHtml(nineIntegerDigitsQuantityHtml, VALID_CE_KEY)).toThrow(FiscalNoteParseFailedError);
+
+      const nineIntegerDigitsUnitPriceHtml = baseHtml.replace(
+        '<strong>Vl. Unit.:</strong>&nbsp;8,50',
+        '<strong>Vl. Unit.:</strong>&nbsp;100.000.000,00',
+      );
+      expect(() => parser.parseHtml(nineIntegerDigitsUnitPriceHtml, VALID_CE_KEY)).toThrow(FiscalNoteParseFailedError);
     });
   });
 });

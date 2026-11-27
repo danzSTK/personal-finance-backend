@@ -62,5 +62,5 @@ O módulo `fiscal-notes` instrumenta métricas via `IMetricsRecorder` e alertas 
   - `FISCAL_NOTE_SEFAZ_CB_CLOSED` (`RESOLVED`, chave `fiscal-notes:sefaz:cb:{uf}`) — recuperação do Circuit Breaker na transição para `CLOSED`.
   - `FISCAL_NOTE_SEFAZ_PARSER_FAILURE` (`CRITICAL`, chave `fiscal-notes:sefaz:parser:{uf}`) — falha estrutural ou de integridade no parser HTML da SEFAZ.
   - `FISCAL_NOTE_SEFAZ_GLOBAL_RL_HIT` (`WARN`, chave `fiscal-notes:sefaz:global-rl:{uf}`) — cota global por minuto da UF atingida em cache miss.
-  - `FISCAL_NOTE_UNKNOWN_QR_HOST` (`WARN`, chave `fiscal-notes:qr:unknown-host:{host}`) — URL de QR Code com host fora da allowlist (requisição externa bloqueada pelo backend).
+  - `FISCAL_NOTE_UNKNOWN_QR_HOST` (`WARN`, chave `fiscal-notes:qr:unknown-host:{uf}`, com `host` em `metadata`) — URL de QR Code com host fora da allowlist (requisição externa bloqueada pelo backend).
 - **Isolamento de `/health`:** o status do Circuit Breaker e a disponibilidade da SEFAZ **nunca** entram em `/health/liveness` ou `/health/readiness`.

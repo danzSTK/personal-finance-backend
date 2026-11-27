@@ -19,12 +19,15 @@ import {
 } from '@/modules/fiscal-notes/application/ports';
 import { FiscalNoteQueryService } from '@/modules/fiscal-notes/application/services/fiscal-note-query.service';
 import {
+  FISCAL_NOTE_PROBE_LOCK_SAFETY_BUFFER_SECONDS,
   FiscalNoteAlertKeys,
   FiscalNoteCacheLookupResults,
   FiscalNoteLogEvents,
   FiscalNoteMetricNames,
   FiscalNoteQueryChannels,
   FiscalNoteQueryOutcomes,
+  FiscalNoteSupportedUfs,
+  SEFAZ_CE_MAX_RETRY_ATTEMPTS,
   SEFAZ_CE_PARSER_VERSION,
 } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
 import { CircuitBreakerService, CircuitBreakerStates } from '@/shared/circuit-breaker';
@@ -71,6 +74,11 @@ function buildParsed(): ParsedFiscalNoteData {
 describe('FiscalNoteQueryService', () => {
   const userId = '11111111-1111-4111-a111-111111111111';
   const config = {
+    http: {
+      timeoutMs: 7000,
+      retryBackoffMs: 400,
+      maxResponseBytes: 1_048_576,
+    },
     circuitBreaker: {
       failureThreshold: 5,
       cooldownSeconds: [60, 120, 300],
@@ -148,25 +156,95 @@ describe('FiscalNoteQueryService', () => {
   });
 
   describe('resolve', () => {
-    it('logs warning and emits WARN alert for unknown QR host without blocking resolution', async () => {
+    it('logs warning and emits WARN alert keyed by UF for distinct unknown QR hosts while preserving host metadata', async () => {
       const parsed = buildParsed();
       cache.get.mockResolvedValue(parsed);
 
-      const result = await service.resolve(`https://unknown.qr.example/nfce?p=${VALID_CE_KEY}|2|1|1|HASH`, userId);
+      const firstResult = await service.resolve(`https://unknown.qr.example/nfce?p=${VALID_CE_KEY}|2|1|1|HASH`, userId);
+      const secondResult = await service.resolve(
+        `https://other-unknown.qr.example/nfce?p=${VALID_CE_KEY}|2|1|1|HASH`,
+        userId,
+      );
 
-      expect(result.cacheHit).toBe(true);
-      expect(warnSpy).toHaveBeenCalledWith(
+      expect(firstResult.cacheHit).toBe(true);
+      expect(secondResult.cacheHit).toBe(true);
+      expect(warnSpy).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({
           event: FiscalNoteLogEvents.FISCAL_NOTE_UNKNOWN_QR_HOST,
+          uf: FiscalNoteSupportedUfs.CE,
           host: 'unknown.qr.example',
         }),
       );
-      expect(alerts.notify).toHaveBeenCalledWith(
+      expect(warnSpy).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining({
-          alertKey: FiscalNoteAlertKeys.unknownQrHost('unknown.qr.example'),
-          severity: OperationalAlertSeverities.WARN,
+          event: FiscalNoteLogEvents.FISCAL_NOTE_UNKNOWN_QR_HOST,
+          uf: FiscalNoteSupportedUfs.CE,
+          host: 'other-unknown.qr.example',
         }),
       );
+      expect(alerts.notify).toHaveBeenCalledTimes(2);
+      expect(alerts.notify.mock.calls[0]?.[0]).toMatchObject({
+        alertKey: FiscalNoteAlertKeys.unknownQrHost(FiscalNoteSupportedUfs.CE),
+        severity: OperationalAlertSeverities.WARN,
+        metadata: {
+          uf: FiscalNoteSupportedUfs.CE,
+          host: 'unknown.qr.example',
+        },
+      });
+      expect(alerts.notify.mock.calls[1]?.[0]).toMatchObject({
+        alertKey: FiscalNoteAlertKeys.unknownQrHost(FiscalNoteSupportedUfs.CE),
+        severity: OperationalAlertSeverities.WARN,
+        metadata: {
+          uf: FiscalNoteSupportedUfs.CE,
+          host: 'other-unknown.qr.example',
+        },
+      });
+    });
+
+    it('sizes CircuitBreaker probeLockTtlSeconds from http timeout, retry backoff, and safety buffer', async () => {
+      const parsed = buildParsed();
+      cache.get.mockResolvedValue(null);
+      provider.fetchAndParse.mockResolvedValue(parsed);
+
+      await service.resolve(VALID_CE_KEY, userId);
+
+      const expectedDefaultTtl =
+        Math.ceil(
+          (config.http.timeoutMs * (SEFAZ_CE_MAX_RETRY_ATTEMPTS + 1) +
+            config.http.retryBackoffMs * SEFAZ_CE_MAX_RETRY_ATTEMPTS) /
+            1_000,
+        ) + FISCAL_NOTE_PROBE_LOCK_SAFETY_BUFFER_SECONDS;
+      expect(circuitBreaker.canExecute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          probeLockTtlSeconds: expectedDefaultTtl,
+        }),
+      );
+
+      const worstCaseConfig = {
+        http: {
+          timeoutMs: 15_000,
+          retryBackoffMs: 3_000,
+          maxResponseBytes: 1_048_576,
+        },
+        circuitBreaker: config.circuitBreaker,
+      } as unknown as FiscalNotesConfig;
+      const worstCaseService = new FiscalNoteQueryService(
+        cache,
+        registry,
+        circuitBreaker,
+        rateLimiter,
+        worstCaseConfig,
+        metrics,
+        alerts as unknown as OperationalAlertService,
+      );
+
+      await worstCaseService.resolve(VALID_CE_KEY, userId);
+
+      const worstCaseCall = circuitBreaker.canExecute.mock.calls.at(-1)?.[0];
+      expect(worstCaseCall?.probeLockTtlSeconds).toBe(38);
+      expect(worstCaseCall?.probeLockTtlSeconds).toBeGreaterThanOrEqual(33);
     });
 
     it('returns cache hit without consulting CircuitBreaker, RateLimiter, or Provider', async () => {

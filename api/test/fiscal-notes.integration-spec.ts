@@ -1113,7 +1113,7 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
     await flushPendingAlerts();
     expect(alertSendMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        alertKey: FiscalNoteAlertKeys.unknownQrHost('evil.attacker.example'),
+        alertKey: FiscalNoteAlertKeys.unknownQrHost(FiscalNoteSupportedUfs.CE),
         event: FiscalNoteLogEvents.FISCAL_NOTE_UNKNOWN_QR_HOST,
         severity: OperationalAlertSeverities.WARN,
       }),

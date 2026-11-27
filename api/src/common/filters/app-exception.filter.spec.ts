@@ -28,20 +28,22 @@ import { PasswordByteLimitExceededError } from '@/common/domain/errors';
 import {
   FiscalNoteAlreadyImportedError,
   FiscalNoteCancelledOrDeniedError,
-  FiscalNoteHomologationNotAllowedError,
-  FiscalNoteInvalidInputError,
   FiscalNoteNotFoundError,
   FiscalNoteParseFailedError,
   FiscalNoteRateLimitExceededError,
   FiscalNoteResponseTooLargeError,
   FiscalNoteSefazNotFoundError,
-  FiscalNoteUnsupportedUfError,
   SefazTemporarilyUnavailableError,
   SefazTimeoutError,
   TransactionAlreadyHasFiscalNoteError,
 } from '@/modules/fiscal-notes/application/errors';
 import { FiscalNoteErrorCodes } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
-import { InvalidFiscalNoteError } from '@/modules/fiscal-notes/domain/errors';
+import {
+  FiscalNoteHomologationNotAllowedError,
+  FiscalNoteInvalidInputError,
+  FiscalNoteUnsupportedUfError,
+  InvalidFiscalNoteError,
+} from '@/modules/fiscal-notes/domain/errors';
 import { DomainError } from '@/shared/domain';
 
 describe('AppExceptionFilter', () => {

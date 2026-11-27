@@ -210,15 +210,15 @@ O catálogo completo de erros e contratos HTTP de NFC-e está em [HTTP and Error
 
 | Código | HTTP Status | Origem / Observação |
 | --- | --- | --- |
-| `FISCAL_NOTE_INVALID_INPUT` | `400` | `ApplicationError` — entrada vazia/malformada, modelo != `65` ou DV mod-11 inválido |
+| `FISCAL_NOTE_INVALID_INPUT` | `400` | `DomainError` — entrada vazia/malformada, modelo != `65` ou DV mod-11 inválido |
 | `INVALID_FISCAL_NOTE` | `400` | `DomainError` — violação de invariante da entidade `FiscalNote`, item ou pagamento |
 | `FISCAL_NOTE_NOT_FOUND` | `404` | `ApplicationError` — transação sem nota fiscal ativa vinculada |
 | `FISCAL_NOTE_SEFAZ_NOT_FOUND` | `404` | `ApplicationError` — nota não encontrada ou QR inválido na SEFAZ |
 | `FISCAL_NOTE_ALREADY_IMPORTED` | `409` | `ApplicationError` — `details: { existingTransactionId, existingFiscalNoteId }` |
 | `TRANSACTION_ALREADY_HAS_FISCAL_NOTE` | `409` | `ApplicationError` — `details: { existingFiscalNoteId }` |
 | `TRANSACTION_TYPE_DOES_NOT_SUPPORT_FISCAL_NOTE` | `409` | `DomainError` (`transactions`) — vínculo ou troca de `type` não-`EXPENSE` com nota ativa |
-| `FISCAL_NOTE_UNSUPPORTED_UF` | `422` | `ApplicationError` — UF sem provedor suportado na V1 |
-| `FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED` | `422` | `ApplicationError` — ambiente de homologação rejeitado |
+| `FISCAL_NOTE_UNSUPPORTED_UF` | `422` | `DomainError` — UF sem provedor suportado na V1 |
+| `FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED` | `422` | `DomainError` — ambiente de homologação rejeitado |
 | `FISCAL_NOTE_CANCELLED_OR_DENIED` | `422` | `ApplicationError` — nota cancelada ou denegada na SEFAZ |
 | `FISCAL_NOTE_RATE_LIMIT_EXCEEDED` | `429` | `RetryAfterApplicationError` — `details: { retryAfterSeconds }` + header `Retry-After` |
 | `FISCAL_NOTE_PARSE_FAILED` | `502` | `ApplicationError` — erro estrutural/integridade no parsing da SEFAZ |

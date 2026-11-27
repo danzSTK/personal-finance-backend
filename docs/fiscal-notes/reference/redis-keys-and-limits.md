@@ -21,7 +21,7 @@ Todas as chaves Redis utilizadas pelo módulo `fiscal-notes` são centralizadas 
 | `fiscal-notes:rl:sefaz:user:{userId}:1h` | `CacheKeys.fiscalNotes.rateLimitUser1h(userId)` | `string` (contador) | `3600s` | Rate limit por usuário em cache miss (janela de 1 hora) |
 | `fiscal-notes:rl:sefaz:global:{uf}:1m` | `CacheKeys.fiscalNotes.rateLimitGlobal1m(uf)` | `string` (contador) | `60s` | Rate limit global da VPS por UF em cache miss (janela de 1 minuto) |
 | `fiscal-notes:cb:v1:{uf}` | `CacheKeys.fiscalNotes.circuitBreaker(uf)` | `string` (JSON) | `86400s` (24h) | Estado distribuído do Circuit Breaker (`CLOSED \| OPEN \| HALF_OPEN`, falhas consecutivas, `cooldownStage`, timestamps) |
-| `fiscal-notes:cb:v1:{uf}:probe` | `CircuitBreakerService` (`:probe`) | `string` (`'1'`) | `15s` | Lock curto (`SET ... NX EX 15`) garantindo uma única requisição de sonda na transição `OPEN -> HALF_OPEN` |
+| `fiscal-notes:cb:v1:{uf}:probe` | `CircuitBreakerService` (`:probe`) | `string` (`'1'`) | `20s` (default dinâmico; fallback `15s`) | Lock curto (`SET ... NX EX <probeLockTtlSeconds>`) garantindo uma única requisição de sonda na transição `OPEN -> HALF_OPEN`; `FiscalNoteQueryService` dimensiona `probeLockTtlSeconds` pela janela máxima de timeout + retry (`ceil((timeoutMs * (maxRetries + 1) + retryBackoffMs * maxRetries) / 1000) + 5s`, até `38s` no teto Joi) |
 
 ## Camadas de Rate Limit e Limites HTTP
 

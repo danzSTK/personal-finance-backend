@@ -20,13 +20,13 @@ O fluxo de pré-visualização (`POST /fiscal-notes/preview`) resolve os dados e
 
 ## Passo a Passo Observável
 
-1. **Validação Local (`FiscalNoteInput.parse`):** Valida formato, payload QR v2/v3 ou chave 44d, modelo `65`, dígito verificador mod-11, ambiente de produção (`'1'`) e UF suportada (`'23'`). Se `unknownQrHost` estiver presente, registra log `warn` (`FISCAL_NOTE_UNKNOWN_QR_HOST`) e dispara alerta `WARN` (`fiscal-notes:qr:unknown-host:{host}`).
+1. **Validação Local (`FiscalNoteInput.parse`):** Valida formato, payload QR v2/v3 ou chave 44d, modelo `65`, dígito verificador mod-11, ambiente de produção (`'1'`) e UF suportada (`'23'`). Se `unknownQrHost` estiver presente, registra log `warn` (`FISCAL_NOTE_UNKNOWN_QR_HOST`) e dispara alerta `WARN` (`fiscal-notes:qr:unknown-host:{uf}`, com o `host` preservado em `metadata` e `summary`).
 2. **Consulta ao Cache Redis (`IFiscalNoteCache`):** Lê `fiscal-notes:parsed:v1:{accessKey}`.
    - **Cache Hit:** Incrementa métrica `fiscal_notes.cache.lookup.total` (`result: 'hit'`) e retorna imediatamente os dados sanitizados (`cacheHit: true`), **contornando** Circuit Breaker e rate limiters de SEFAZ.
    - **Cache Miss:** Incrementa `fiscal_notes.cache.lookup.total` (`result: 'miss'`) e avança para os portões de proteção externa.
 3. **Verificação do Circuit Breaker (`CircuitBreakerService.canExecute`):** Consulta `fiscal-notes:cb:v1:{uf}`:
    - Se `OPEN` dentro do cooldown (`now < nextAttemptAtMs`), falha rápido com `503 SEFAZ_TEMPORARILY_UNAVAILABLE` e header `Retry-After` (sem chamar rate limiter nem SEFAZ).
-   - Se `OPEN` com cooldown vencido, tenta adquirir lock de sonda única `fiscal-notes:cb:v1:{uf}:probe` (`SET NX EX 15`); quem adquire promove o circuito para `HALF_OPEN` e executa 1 sonda controlada, enquanto requisições concorrentes recebem `503`.
+   - Se `OPEN` com cooldown vencido, tenta adquirir lock de sonda única `fiscal-notes:cb:v1:{uf}:probe` (`SET NX EX <probeLockTtlSeconds>`), com `probeLockTtlSeconds` dimensionado por `FiscalNoteQueryService` pela janela máxima de timeout + retry (`ceil((timeoutMs * (maxRetries + 1) + retryBackoffMs * maxRetries) / 1000) + 5s`, `20s` no default e até `38s` no pior caso); quem adquire promove o circuito para `HALF_OPEN` e executa 1 sonda controlada, enquanto requisições concorrentes recebem `503`.
 4. **Rate Limiter de Cache Miss em 2 Camadas (`RedisFiscalNoteRateLimiter`):** Executa scripts Lua atômicos no Redis na seguinte ordem:
    - **Camada 2A (Usuário):** Verifica `fiscal-notes:rl:sefaz:user:{userId}:1m` (padrão `5/min`) e `fiscal-notes:rl:sefaz:user:{userId}:1h` (padrão `30/h`). Se excedido, lança `429 FISCAL_NOTE_RATE_LIMIT_EXCEEDED` com `Retry-After` **sem consumir a cota global da UF**.
    - **Camada 2B (Global da VPS por UF):** Verifica `fiscal-notes:rl:sefaz:global:{uf}:1m` (padrão `40/min`). Se excedido, emite log `warn` + alerta `WARN` (`FISCAL_NOTE_SEFAZ_GLOBAL_RL_HIT`) e lança `503 SEFAZ_TEMPORARILY_UNAVAILABLE` com `Retry-After`.

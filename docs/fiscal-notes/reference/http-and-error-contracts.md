@@ -36,7 +36,7 @@ Todos os erros seguem o envelope `PlatformErrorResponse` produzido por `AppExcep
 
 | Código (`code`) | HTTP Status | Camada / Classe | `details` / Headers | Quando ocorre |
 | --- | --- | --- | --- | --- |
-| `FISCAL_NOTE_INVALID_INPUT` | `400` | `ApplicationError` (`FiscalNoteInvalidInputError`) | `details: null` | Entrada vazia, `> 1024` chars, URL não HTTP/HTTPS, parâmetro `p` ausente/malformado, chave != 44 dígitos, modelo != `65` ou DV mod-11 inválido |
+| `FISCAL_NOTE_INVALID_INPUT` | `400` | `DomainError` (`FiscalNoteInvalidInputError`) | `details: null` | Entrada vazia, `> 1024` chars, URL não HTTP/HTTPS, parâmetro `p` ausente/malformado, chave != 44 dígitos, modelo != `65` ou DV mod-11 inválido |
 | `INVALID_FISCAL_NOTE` | `400` | `DomainError` (`InvalidFiscalNoteError`) | `details: null` | Violação de invariante de domínio em `FiscalNote`, `FiscalNoteItem` ou `FiscalNotePayment` |
 | `INVALID_TRANSACTION` | `400` | `DomainError` (`InvalidTransactionError`) | `details: null` | `effectiveAmountCents` inválido no `import` (ex.: nota com `payableAmountCents === 0` sem override positivo) |
 | `FISCAL_NOTE_NOT_FOUND` | `404` | `ApplicationError` (`FiscalNoteNotFoundError`) | `details: null` | Transação não possui nota fiscal ativa no `GET` ou `DELETE` |
@@ -45,8 +45,8 @@ Todos os erros seguem o envelope `PlatformErrorResponse` produzido por `AppExcep
 | `FISCAL_NOTE_ALREADY_IMPORTED` | `409` | `ApplicationError` (`FiscalNoteAlreadyImportedError`) | `details: { existingTransactionId, existingFiscalNoteId }` | Usuário já possui `FiscalNote` ativa com a mesma `accessKey` (pré-checagem ou race `23505` em `UQ_fiscal_notes_user_access_key_active`) |
 | `TRANSACTION_ALREADY_HAS_FISCAL_NOTE` | `409` | `ApplicationError` (`TransactionAlreadyHasFiscalNoteError`) | `details: { existingFiscalNoteId }` | Transação já possui `FiscalNote` ativa (pré-checagem ou race `23505` em `UQ_fiscal_notes_transaction_active`) |
 | `TRANSACTION_TYPE_DOES_NOT_SUPPORT_FISCAL_NOTE` | `409` | `DomainError` (`TransactionTypeDoesNotSupportFiscalNoteError`) | `details: null` | Tentativa de vincular nota a transação não-`EXPENSE` ou de mudar `type` de uma transação com nota ativa |
-| `FISCAL_NOTE_UNSUPPORTED_UF` | `422` | `ApplicationError` (`FiscalNoteUnsupportedUfError`) | `details: null` | UF extraída da chave não possui provedor registrado na V1 (`uf !== '23'`) |
-| `FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED` | `422` | `ApplicationError` (`FiscalNoteHomologationNotAllowedError`) | `details: null` | Nota emitida em ambiente de homologação (`ambiente = 2` no QR ou banner/erro da SEFAZ) |
+| `FISCAL_NOTE_UNSUPPORTED_UF` | `422` | `DomainError` (`FiscalNoteUnsupportedUfError`) | `details: null` | UF extraída da chave não possui provedor registrado na V1 (`uf !== '23'`) |
+| `FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED` | `422` | `DomainError` (`FiscalNoteHomologationNotAllowedError`) | `details: null` | Nota emitida em ambiente de homologação (`ambiente = 2` no QR ou banner/erro da SEFAZ) |
 | `FISCAL_NOTE_CANCELLED_OR_DENIED` | `422` | `ApplicationError` (`FiscalNoteCancelledOrDeniedError`) | `details: null` | Nota cancelada ou denegada segundo retorno `{ erro }` ou HTML da SEFAZ |
 | `FISCAL_NOTE_RATE_LIMIT_EXCEEDED` | `429` | `RetryAfterApplicationError` (`FiscalNoteRateLimitExceededError`) | `details: { retryAfterSeconds }` + header `Retry-After` | Usuário excedeu cota SEFAZ em cache miss (`5/1m` ou `30/1h`) |
 | `FISCAL_NOTE_PARSE_FAILED` | `502` | `ApplicationError` (`FiscalNoteParseFailedError`) | `details: null` | JSON inesperado da SEFAZ, HTML vazio, estrutura quebrada ou falha de integridade pós-parsing |

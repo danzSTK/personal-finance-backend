@@ -8,14 +8,11 @@ import { createValidationException } from '@/common/validation';
 import {
   FiscalNoteAlreadyImportedError,
   FiscalNoteCancelledOrDeniedError,
-  FiscalNoteHomologationNotAllowedError,
-  FiscalNoteInvalidInputError,
   FiscalNoteNotFoundError,
   FiscalNoteParseFailedError,
   FiscalNoteRateLimitExceededError,
   FiscalNoteResponseTooLargeError,
   FiscalNoteSefazNotFoundError,
-  FiscalNoteUnsupportedUfError,
   SefazTemporarilyUnavailableError,
   SefazTimeoutError,
   TransactionAlreadyHasFiscalNoteError,
@@ -31,6 +28,11 @@ import {
   FiscalNoteSupportedUfs,
   SEFAZ_CE_PARSER_VERSION,
 } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
+import {
+  FiscalNoteHomologationNotAllowedError,
+  FiscalNoteInvalidInputError,
+  FiscalNoteUnsupportedUfError,
+} from '@/modules/fiscal-notes/domain/errors';
 import { FiscalNote } from '@/modules/fiscal-notes/domain/entities/fiscal-note.entity';
 import { FiscalNoteItem } from '@/modules/fiscal-notes/domain/entities/fiscal-note-item.entity';
 import { FiscalNotePayment } from '@/modules/fiscal-notes/domain/entities/fiscal-note-payment.entity';

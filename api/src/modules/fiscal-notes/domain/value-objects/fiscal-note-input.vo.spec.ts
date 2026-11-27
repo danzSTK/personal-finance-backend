@@ -2,7 +2,7 @@ import {
   FiscalNoteHomologationNotAllowedError,
   FiscalNoteInvalidInputError,
   FiscalNoteUnsupportedUfError,
-} from '@/modules/fiscal-notes/application/errors';
+} from '@/modules/fiscal-notes/domain/errors';
 import {
   FISCAL_NOTE_INPUT_MAX_LENGTH,
   FiscalNoteEnvironments,

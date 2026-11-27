@@ -1,7 +1,7 @@
 import { FiscalNoteErrorCodes } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
-import { ApplicationError } from '@/shared/application';
+import { DomainError } from '@/shared/domain';
 
-export class FiscalNoteUnsupportedUfError extends ApplicationError {
+export class FiscalNoteUnsupportedUfError extends DomainError {
   readonly code = FiscalNoteErrorCodes.FISCAL_NOTE_UNSUPPORTED_UF;
 
   constructor(uf?: string) {

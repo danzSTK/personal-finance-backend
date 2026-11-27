@@ -9,6 +9,7 @@ import {
   FiscalNoteEnvironments,
   FiscalNoteQrVersions,
   FiscalNoteQueryChannels,
+  SEFAZ_CE_MAX_RETRY_ATTEMPTS,
   SEFAZ_CE_PATHS,
   SEFAZ_CE_RETRYABLE_STATUS_CODES,
   SEFAZ_CE_USER_AGENT,
@@ -27,7 +28,6 @@ const HEADER_ACCEPT = 'Accept';
 const HEADER_USER_AGENT = 'User-Agent';
 const HEADER_CONTENT_LENGTH = 'content-length';
 const APPLICATION_JSON = 'application/json';
-const MAX_RETRY_ATTEMPTS = 1;
 
 @Injectable()
 export class SefazCeHttpClient {
@@ -46,8 +46,8 @@ export class SefazCeHttpClient {
     const url = `${this.baseUrl}${endpointPath}`;
     const payload = this.buildPayload(input);
 
-    for (let attempt = 0; attempt <= MAX_RETRY_ATTEMPTS; attempt += 1) {
-      const hasRetryRemaining = attempt < MAX_RETRY_ATTEMPTS;
+    for (let attempt = 0; attempt <= SEFAZ_CE_MAX_RETRY_ATTEMPTS; attempt += 1) {
+      const hasRetryRemaining = attempt < SEFAZ_CE_MAX_RETRY_ATTEMPTS;
 
       try {
         return await this.executeAttempt(url, payload);

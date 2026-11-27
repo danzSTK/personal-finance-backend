@@ -1,7 +1,6 @@
 import { DateOnlyString, isValidDateOnly, toDateOnly } from '@/common/utils/date-only';
 import {
   FiscalNoteCancelledOrDeniedError,
-  FiscalNoteHomologationNotAllowedError,
   FiscalNoteParseFailedError,
   FiscalNoteSefazNotFoundError,
 } from '@/modules/fiscal-notes/application/errors';
@@ -12,6 +11,8 @@ import {
 } from '@/modules/fiscal-notes/application/ports/fiscal-note-provider.port';
 import {
   FISCAL_NOTE_CNPJ_REGEX,
+  FISCAL_NOTE_DECIMAL_MAX_FRACTION_DIGITS,
+  FISCAL_NOTE_DECIMAL_MAX_INTEGER_DIGITS,
   FISCAL_NOTE_TOTAL_TOLERANCE_CENTS,
   FiscalNoteSupportedUfs,
   SEFAZ_CE_CONSUMER_SECTION_KEYWORD,
@@ -23,6 +24,7 @@ import {
   SefazCeStatusKeywords,
   SefazCeTotalLabels,
 } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
+import { FiscalNoteHomologationNotAllowedError } from '@/modules/fiscal-notes/domain/errors';
 import { Injectable } from '@nestjs/common';
 import * as cheerio from 'cheerio/slim';
 
@@ -33,7 +35,9 @@ const CNPJ_EXTRACT_REGEX = /cnpj\s*:\s*([\d.\-/ ]+)/i;
 const STORE_CODE_EXTRACT_REGEX = /c[oó]digo\s*:\s*([^)]*)/i;
 const UNIT_EXTRACT_REGEX = /un\s*:\s*(.*)/i;
 const LABEL_PREFIX_REGEX = /^[^:]*:\s*/;
-const PT_BR_DECIMAL_REGEX = /^\d+(?:\.\d{3})*(?:,\d+)?$|^\d+(?:,\d+)?$/;
+const PT_BR_DECIMAL_REGEX = new RegExp(
+  `^\\d+(?:\\.\\d{3})*(?:,\\d{1,${FISCAL_NOTE_DECIMAL_MAX_FRACTION_DIGITS}})?$|^\\d+(?:,\\d{1,${FISCAL_NOTE_DECIMAL_MAX_FRACTION_DIGITS}})?$`,
+);
 const PT_BR_MONEY_REGEX = /^(\d+(?:\.\d{3})*|\d+)(?:,(\d{1,2}))?$/;
 const NUMBER_EXTRACT_REGEX = /n[uú]mero\s*:\s*(\d+)/i;
 const SERIES_EXTRACT_REGEX = /s[eé]rie\s*:\s*(\d+)/i;
@@ -511,7 +515,17 @@ export class SefazCeHtmlParser {
       return null;
     }
 
-    const parsed = Number(cleaned.replace(/\./g, '').replace(',', '.'));
+    const [integerWithDots, fractionPart = ''] = cleaned.split(',');
+    const integerPart = integerWithDots.replace(/\./g, '');
+    if (
+      integerPart.length > FISCAL_NOTE_DECIMAL_MAX_INTEGER_DIGITS ||
+      fractionPart.length > FISCAL_NOTE_DECIMAL_MAX_FRACTION_DIGITS
+    ) {
+      return null;
+    }
+
+    const normalized = fractionPart ? `${integerPart}.${fractionPart}` : integerPart;
+    const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : null;
   }
 

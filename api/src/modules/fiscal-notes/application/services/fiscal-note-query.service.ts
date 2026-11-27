@@ -2,11 +2,9 @@ import { CacheKeys } from '@/common/utils/cache-keys.factory';
 import fiscalNotesConfig, { type FiscalNotesConfig } from '@/config/fiscal-notes.config';
 import {
   FiscalNoteCancelledOrDeniedError,
-  FiscalNoteHomologationNotAllowedError,
   FiscalNoteParseFailedError,
   FiscalNoteResponseTooLargeError,
   FiscalNoteSefazNotFoundError,
-  FiscalNoteUnsupportedUfError,
   SefazTemporarilyUnavailableError,
   SefazTimeoutError,
 } from '@/modules/fiscal-notes/application/errors';
@@ -17,6 +15,7 @@ import {
   ParsedFiscalNoteData,
 } from '@/modules/fiscal-notes/application/ports';
 import {
+  FISCAL_NOTE_PROBE_LOCK_SAFETY_BUFFER_SECONDS,
   FiscalNoteAlertKeys,
   FiscalNoteCacheLookupResults,
   FiscalNoteLogEvents,
@@ -24,7 +23,12 @@ import {
   FiscalNoteMetricNames,
   FiscalNoteQueryOutcome,
   FiscalNoteQueryOutcomes,
+  SEFAZ_CE_MAX_RETRY_ATTEMPTS,
 } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
+import {
+  FiscalNoteHomologationNotAllowedError,
+  FiscalNoteUnsupportedUfError,
+} from '@/modules/fiscal-notes/domain/errors';
 import { FiscalNoteInput } from '@/modules/fiscal-notes/domain/value-objects/fiscal-note-input.vo';
 import { CircuitBreakerService, CircuitBreakerStates } from '@/shared/circuit-breaker';
 import {
@@ -72,7 +76,7 @@ export class FiscalNoteQueryService {
       });
 
       this.operationalAlertService?.notify({
-        alertKey: FiscalNoteAlertKeys.unknownQrHost(input.unknownQrHost),
+        alertKey: FiscalNoteAlertKeys.unknownQrHost(input.uf),
         event: FiscalNoteLogEvents.FISCAL_NOTE_UNKNOWN_QR_HOST,
         severity: OperationalAlertSeverities.WARN,
         title: 'QR Code de NFC-e com host fora da allowlist',
@@ -109,10 +113,16 @@ export class FiscalNoteQueryService {
       throw new FiscalNoteUnsupportedUfError(input.uf);
     }
 
+    const maxRequestWindowMs =
+      this.config.http.timeoutMs * (SEFAZ_CE_MAX_RETRY_ATTEMPTS + 1) +
+      this.config.http.retryBackoffMs * SEFAZ_CE_MAX_RETRY_ATTEMPTS;
+    const probeLockTtlSeconds = Math.ceil(maxRequestWindowMs / 1_000) + FISCAL_NOTE_PROBE_LOCK_SAFETY_BUFFER_SECONDS;
+
     const cbOptions = {
       key: CacheKeys.fiscalNotes.circuitBreaker(input.uf),
       failureThreshold: this.config.circuitBreaker.failureThreshold,
       cooldownSeconds: this.config.circuitBreaker.cooldownSeconds,
+      probeLockTtlSeconds,
     };
 
     const decision = await this.circuitBreaker.canExecute(cbOptions);

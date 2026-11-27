@@ -136,7 +136,7 @@ export const FiscalNoteAlertKeys = {
   sefazCircuitBreaker: (uf: string) => `fiscal-notes:sefaz:cb:${uf}`,
   sefazParserFailure: (uf: string) => `fiscal-notes:sefaz:parser:${uf}`,
   sefazGlobalRateLimit: (uf: string) => `fiscal-notes:sefaz:global-rl:${uf}`,
-  unknownQrHost: (host: string) => `fiscal-notes:qr:unknown-host:${host}`,
+  unknownQrHost: (uf: string) => `fiscal-notes:qr:unknown-host:${uf}`,
 } as const;
 
 export const FiscalNoteDbConstraints = {
@@ -199,6 +199,10 @@ export const FISCAL_NOTES_HTTP_THROTTLE_LIMIT = 10;
 export const FISCAL_NOTES_HTTP_THROTTLE_TTL_MS = 60_000;
 export const FISCAL_NOTE_TOTAL_TOLERANCE_CENTS = 1;
 export const FISCAL_NOTE_DEFAULT_RETRY_AFTER_SECONDS = 60;
+export const FISCAL_NOTE_DECIMAL_MAX_INTEGER_DIGITS = 8;
+export const FISCAL_NOTE_DECIMAL_MAX_FRACTION_DIGITS = 4;
+export const SEFAZ_CE_MAX_RETRY_ATTEMPTS = 1;
+export const FISCAL_NOTE_PROBE_LOCK_SAFETY_BUFFER_SECONDS = 5;
 
 export function maskAccessKeyForLog(accessKey: string): string {
   const digits = accessKey.replace(/\D/g, '');
