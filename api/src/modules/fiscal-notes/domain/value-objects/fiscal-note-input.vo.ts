@@ -267,7 +267,7 @@ export class FiscalNoteInput {
         const cscId = parts[6];
         const qrHash = parts[7];
 
-        if (!contingencyIssueDay || !contingencyTotalAmount || !contingencyDigestValue || !cscId || !qrHash) {
+        if (!contingencyIssueDay || !contingencyTotalAmount || !cscId || !qrHash) {
           throw new FiscalNoteInvalidInputError('Contingency QR Code v2 payload has missing required fields.');
         }
 
@@ -280,7 +280,7 @@ export class FiscalNoteInput {
           qrHash,
           contingencyIssueDay,
           contingencyTotalAmount,
-          contingencyDigestValue,
+          contingencyDigestValue: contingencyDigestValue || null,
         };
       }
 

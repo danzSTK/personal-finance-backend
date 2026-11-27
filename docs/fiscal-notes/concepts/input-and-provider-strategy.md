@@ -27,7 +27,7 @@ O Value Object aceita uma string não vazia de até `1024` caracteres (`FISCAL_N
 | Chave de acesso de 44 dígitos (fallback) | `2326 1003 5394 ...` | `qrcode_v3` | Remove caracteres não numéricos (`/\D/g`) e assume ambiente de produção (`'1'`) |
 
 - **QR Code v2 Normal (5 campos):** `chave | 2 | ambiente | idCSC | hash`.
-- **QR Code v2 Contingência (8 campos):** `chave | 2 | ambiente | diaEmissao | valorTotal | digVal | idCSC | hash`.
+- **QR Code v2 Contingência (8 campos):** `chave | 2 | ambiente | diaEmissao | valorTotal | digVal | idCSC | hash`. O campo `digVal` (`parts[5]`) pode chegar vazio (`||`) em QR Codes reais de PDVs em contingência; quando todos os demais campos obrigatórios (`diaEmissao`, `valorTotal`, `idCSC`, `hash`) e a chave de 44 dígitos são válidos, `FiscalNoteInput` aceita a entrada normalizando `contingencyDigestValue` para `null` e preservando `channel: 'qrcode_v2'`, `qrVersion: '2'`, `sourceHost` e `unknownQrHost` fiéis ao QR Code original.
 - **QR Code v3 (mínimo 3 campos):** `chave | 3 | ambiente`.
 
 ## Validação Local Obrigatória (Fail-Fast)
@@ -53,4 +53,4 @@ Mesmo quando o cliente envia uma URL completa de QR Code, o backend **jamais** r
 
 - **`IFiscalNoteProvider`:** Contrato abstrato expondo `readonly uf: string` e `fetchAndParse(input: FiscalNoteInput): Promise<ParsedFiscalNoteData>`.
 - **`IFiscalNoteProviderRegistry` (`FiscalNoteProviderRegistry`):** Mapeia provedores injetados via token `FISCAL_NOTE_PROVIDERS_TOKEN` por código IBGE da UF.
-- **Provedor V1 (`SefazCeProvider`, `UF = '23'`):** Roteia internamente para `POST /nfce/api/notasFiscal/qrcodev2/` quando o canal é `qrcode_v2` (enviando CSC/hash e campos de contingência quando presentes) ou `POST /nfce/api/notasFiscal/qrcodev3/` quando o canal é `qrcode_v3`, sempre com `tipo_ambiente: '1'`.
+- **Provedor V1 (`SefazCeProvider`, `UF = '23'`):** O `SefazCeHttpClient` encapsula o roteamento específico da SEFAZ-CE: envia para `POST /nfce/api/notasFiscal/qrcodev2/` quando o canal é `qrcode_v2` com `digVal` preenchido (ou não contingência), e faz fallback interno para `POST /nfce/api/notasFiscal/qrcodev3/` (`{ chave_acesso, versao_qrcode: '3', tipo_ambiente: '1' }`) quando o canal é `qrcode_v3` **ou** quando é contingência v2 com `contingencyDigestValue === null` (pois a SEFAZ-CE rejeita `dig_val` vazio no `/qrcodev2/`, mas aceita a consulta por chave no `/qrcodev3/`). Essa regra permanece isolada no cliente da SEFAZ-CE sem assumir suporte v3 por chave de 44 dígitos para futuros provedores de outras UFs.

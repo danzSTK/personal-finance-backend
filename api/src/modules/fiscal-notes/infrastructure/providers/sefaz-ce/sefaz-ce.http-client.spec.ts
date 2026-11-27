@@ -120,6 +120,31 @@ describe('SefazCeHttpClient', () => {
       );
     });
 
+    it('routes QR Code v2 contingency with empty digVal (contingencyDigestValue === null) to qrcodev3 endpoint', async () => {
+      const fetchMock = jest.fn().mockResolvedValue(createJsonResponse({ xml: '<html>ok</html>' }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const client = new SefazCeHttpClient(createConfig());
+      const contingencyAccessKey = '23261103539462000250651030000832639499160820';
+      const input = FiscalNoteInput.parse(
+        `http://nfce.sefaz.ce.gov.br/pages/ShowNFCe.html?p=${contingencyAccessKey}|2|1|25|15.63||1|D1042A26152D9548BC455EF1DCD7C3C538B5E2D9`,
+      );
+
+      await client.queryFiscalNote(input);
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        `http://nfce.sefaz.ce.gov.br${SEFAZ_CE_PATHS.QRCODE_V3}`,
+        expect.objectContaining({
+          body: JSON.stringify({
+            chave_acesso: contingencyAccessKey,
+            versao_qrcode: '3',
+            tipo_ambiente: '1',
+          }),
+        }),
+      );
+    });
+
     it('sends QR Code v3 / 44-digit access key payload to qrcodev3 endpoint', async () => {
       const fetchMock = jest.fn().mockResolvedValue(createJsonResponse({ erro: '100 - Nao encontrada' }));
       global.fetch = fetchMock as unknown as typeof fetch;

@@ -15,7 +15,6 @@ import { IFiscalNoteRepository } from '@/modules/fiscal-notes/domain/repositorie
 import { FiscalNoteInput } from '@/modules/fiscal-notes/domain/value-objects/fiscal-note-input.vo';
 import { TransactionFiscalNotePort } from '@/modules/transactions/application/ports/transaction-fiscal-note.port';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
-import { InvalidTransactionError } from '@/modules/transactions/domain/errors';
 import { METRICS_RECORDER } from '@/shared/observability';
 import { Test } from '@nestjs/testing';
 import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
@@ -171,18 +170,34 @@ describe('ImportFiscalNoteUseCase', () => {
       expect(result.fiscalNote.items).toHaveLength(1);
     });
 
-    it('rejects zero payableAmountCents without positive override with InvalidTransactionError before opening transaction', async () => {
+    it('delegates zero payableAmountCents to TransactionFiscalNotePort, propagates error, and does not save FiscalNote', async () => {
       const parsed = buildParsed(0);
       queryService.resolve.mockResolvedValue({
         input: FiscalNoteInput.parse(VALID_CE_KEY),
         parsed,
         cacheHit: false,
       });
+      fiscalNoteRepository.findActiveByUserIdAndAccessKey.mockResolvedValue(null);
 
-      await expect(useCase.execute({ userId, input: VALID_CE_KEY, accountId, categoryId })).rejects.toThrow(
-        InvalidTransactionError,
+      const portValidationError = new Error('Transaction amountCents must be a positive safe integer.');
+      transactionPort.createExpenseWithinTransaction.mockRejectedValue(portValidationError);
+
+      await expect(useCase.execute({ userId, input: VALID_CE_KEY, accountId, categoryId })).rejects.toBe(
+        portValidationError,
       );
-      expect(dataSource.transaction).not.toHaveBeenCalled();
+      expect(transactionPort.createExpenseWithinTransaction).toHaveBeenCalledWith(
+        {
+          userId,
+          accountId,
+          categoryId,
+          amountCents: 0,
+          date: '2026-10-15',
+          description: 'SUPERMERCADO EXEMPLO',
+          status: TransactionStatus.EFFECTIVE,
+        },
+        { manager },
+      );
+      expect(fiscalNoteRepository.save).not.toHaveBeenCalled();
     });
 
     it('throws FiscalNoteAlreadyImportedError when note is already active for user', async () => {

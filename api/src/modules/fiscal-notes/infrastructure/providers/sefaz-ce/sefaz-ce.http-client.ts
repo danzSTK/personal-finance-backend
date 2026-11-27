@@ -8,6 +8,7 @@ import {
 import {
   FiscalNoteEnvironments,
   FiscalNoteQrVersions,
+  type FiscalNoteQueryChannel,
   FiscalNoteQueryChannels,
   SEFAZ_CE_MAX_RETRY_ATTEMPTS,
   SEFAZ_CE_PATHS,
@@ -41,10 +42,11 @@ export class SefazCeHttpClient {
   }
 
   async queryFiscalNote(input: FiscalNoteInput): Promise<SefazCeApiResponse> {
+    const effectiveChannel = this.resolveEffectiveChannel(input);
     const endpointPath =
-      input.channel === FiscalNoteQueryChannels.QRCODE_V2 ? SEFAZ_CE_PATHS.QRCODE_V2 : SEFAZ_CE_PATHS.QRCODE_V3;
+      effectiveChannel === FiscalNoteQueryChannels.QRCODE_V2 ? SEFAZ_CE_PATHS.QRCODE_V2 : SEFAZ_CE_PATHS.QRCODE_V3;
     const url = `${this.baseUrl}${endpointPath}`;
-    const payload = this.buildPayload(input);
+    const payload = this.buildPayload(input, effectiveChannel);
 
     for (let attempt = 0; attempt <= SEFAZ_CE_MAX_RETRY_ATTEMPTS; attempt += 1) {
       const hasRetryRemaining = attempt < SEFAZ_CE_MAX_RETRY_ATTEMPTS;
@@ -233,8 +235,16 @@ export class SefazCeHttpClient {
     };
   }
 
-  private buildPayload(input: FiscalNoteInput): Record<string, unknown> {
-    if (input.channel === FiscalNoteQueryChannels.QRCODE_V2) {
+  private resolveEffectiveChannel(input: FiscalNoteInput): FiscalNoteQueryChannel {
+    if (input.channel === FiscalNoteQueryChannels.QRCODE_V3 || (input.isContingency && !input.contingencyDigestValue)) {
+      return FiscalNoteQueryChannels.QRCODE_V3;
+    }
+
+    return FiscalNoteQueryChannels.QRCODE_V2;
+  }
+
+  private buildPayload(input: FiscalNoteInput, effectiveChannel: FiscalNoteQueryChannel): Record<string, unknown> {
+    if (effectiveChannel === FiscalNoteQueryChannels.QRCODE_V2) {
       return {
         chave_acesso: input.accessKey,
         versao_qrcode: FiscalNoteQrVersions.V2,

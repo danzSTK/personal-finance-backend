@@ -1,4 +1,4 @@
-import { TRANSACTION_AMOUNT_CENTS_MAX, TRANSACTION_DESCRIPTION_MAX_LENGTH } from '@/common/models/constants';
+import { TRANSACTION_DESCRIPTION_MAX_LENGTH } from '@/common/models/constants';
 import { TransactionStatus } from '@/common/models/enums';
 import { FiscalNoteAlreadyImportedError } from '@/modules/fiscal-notes/application/errors';
 import {
@@ -17,7 +17,6 @@ import {
 } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
 import { IFiscalNoteRepository } from '@/modules/fiscal-notes/domain/repositories';
 import { TransactionFiscalNotePort } from '@/modules/transactions/application/ports/transaction-fiscal-note.port';
-import { InvalidTransactionError } from '@/modules/transactions/domain/errors';
 import { type IMetricsRecorder, METRICS_RECORDER } from '@/shared/observability';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -41,14 +40,6 @@ export class ImportFiscalNoteUseCase {
     const { parsed } = await this.fiscalNoteQueryService.resolve(input, expenseFields.userId);
 
     const effectiveAmountCents = amountCents ?? parsed.payableAmountCents;
-    if (
-      !Number.isSafeInteger(effectiveAmountCents) ||
-      effectiveAmountCents <= 0 ||
-      effectiveAmountCents > TRANSACTION_AMOUNT_CENTS_MAX
-    ) {
-      throw new InvalidTransactionError('Transaction amountCents must be a positive safe integer.');
-    }
-
     const effectiveDate = date ?? parsed.issuedDate;
     const effectiveDescription =
       description !== undefined ? description : parsed.issuerName.slice(0, TRANSACTION_DESCRIPTION_MAX_LENGTH);

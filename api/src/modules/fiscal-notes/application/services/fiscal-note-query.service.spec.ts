@@ -353,20 +353,64 @@ describe('FiscalNoteQueryService', () => {
       );
     });
 
-    it('does not record CircuitBreaker failure for SEFAZ business errors and releases HALF_OPEN probe', async () => {
+    it('resets consecutive failures via recordSuccess without recording failure on SEFAZ business errors in CLOSED state', async () => {
+      cache.get.mockResolvedValue(null);
+      circuitBreaker.canExecute.mockResolvedValue({
+        allowed: true,
+        state: CircuitBreakerStates.CLOSED,
+      });
+      circuitBreaker.recordSuccess.mockResolvedValue({
+        previousState: CircuitBreakerStates.CLOSED,
+        currentState: CircuitBreakerStates.CLOSED,
+        closedFromHalfOpen: false,
+      });
+      provider.fetchAndParse.mockRejectedValueOnce(new FiscalNoteSefazNotFoundError());
+
+      await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(FiscalNoteSefazNotFoundError);
+      expect(circuitBreaker.recordFailure).not.toHaveBeenCalled();
+      expect(circuitBreaker.recordSuccess).toHaveBeenCalledTimes(1);
+      expect(circuitBreaker.recordSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'fiscal-notes:cb:v1:23',
+        }),
+      );
+      expect(alerts.notify).not.toHaveBeenCalled();
+
+      provider.fetchAndParse.mockRejectedValueOnce(new FiscalNoteCancelledOrDeniedError());
+      await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(FiscalNoteCancelledOrDeniedError);
+      expect(circuitBreaker.recordFailure).not.toHaveBeenCalled();
+      expect(circuitBreaker.recordSuccess).toHaveBeenCalledTimes(2);
+    });
+
+    it('closes HALF_OPEN circuit and notifies RESOLVED when SEFAZ business error closes probe', async () => {
       cache.get.mockResolvedValue(null);
       circuitBreaker.canExecute.mockResolvedValue({
         allowed: true,
         state: CircuitBreakerStates.HALF_OPEN,
       });
-      provider.fetchAndParse.mockRejectedValue(new FiscalNoteSefazNotFoundError());
+      circuitBreaker.recordSuccess.mockResolvedValue({
+        previousState: CircuitBreakerStates.HALF_OPEN,
+        currentState: CircuitBreakerStates.CLOSED,
+        closedFromHalfOpen: true,
+      });
+      provider.fetchAndParse.mockRejectedValueOnce(new FiscalNoteSefazNotFoundError());
 
       await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(FiscalNoteSefazNotFoundError);
       expect(circuitBreaker.recordFailure).not.toHaveBeenCalled();
       expect(circuitBreaker.recordSuccess).toHaveBeenCalledTimes(1);
-
-      provider.fetchAndParse.mockRejectedValueOnce(new FiscalNoteCancelledOrDeniedError());
-      await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(FiscalNoteCancelledOrDeniedError);
+      expect(circuitBreaker.recordSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'fiscal-notes:cb:v1:23',
+        }),
+      );
+      expect(alerts.notify).toHaveBeenCalledTimes(1);
+      expect(alerts.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          alertKey: FiscalNoteAlertKeys.sefazCircuitBreaker('23'),
+          event: FiscalNoteLogEvents.FISCAL_NOTE_SEFAZ_CB_CLOSED,
+          severity: OperationalAlertSeverities.RESOLVED,
+        }),
+      );
     });
 
     it('records failure and sends CRITICAL parser and CB alerts on FiscalNoteParseFailedError', async () => {

@@ -164,11 +164,9 @@ export class FiscalNoteQueryService {
       const durationMs = performance.now() - startedAt;
 
       if (this.isSefazBusinessError(error)) {
-        if (decision.state === CircuitBreakerStates.HALF_OPEN) {
-          const cbSuccess = await this.circuitBreaker.recordSuccess(cbOptions);
-          if (cbSuccess.closedFromHalfOpen) {
-            this.notifyCircuitBreakerClosed(input.uf, cbSuccess.previousState);
-          }
+        const cbSuccess = await this.circuitBreaker.recordSuccess(cbOptions);
+        if (cbSuccess.closedFromHalfOpen) {
+          this.notifyCircuitBreakerClosed(input.uf, cbSuccess.previousState);
         }
 
         this.recordQueryMetrics(input, FiscalNoteQueryOutcomes.BUSINESS_ERROR, durationMs);

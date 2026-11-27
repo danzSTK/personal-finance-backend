@@ -62,7 +62,10 @@ import { DeleteTransactionUseCase } from '@/modules/transactions/application/use
 import { GetTransactionUseCase } from '@/modules/transactions/application/use-cases/get-transaction/get-transaction.use-case';
 import { ListTransactionsUseCase } from '@/modules/transactions/application/use-cases/list-transactions/list-transactions.use-case';
 import { UpdateTransactionUseCase } from '@/modules/transactions/application/use-cases/update-transaction/update-transaction.use-case';
-import { TransactionTypeDoesNotSupportFiscalNoteError } from '@/modules/transactions/domain/errors';
+import {
+  InvalidTransactionError,
+  TransactionTypeDoesNotSupportFiscalNoteError,
+} from '@/modules/transactions/domain/errors';
 import { TransactionAttachmentOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-attachment-orm.entity';
 import { TransactionAttachmentRepository } from '@/modules/transactions/infrastructure/persistence/transaction-attachment.repository';
 import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
@@ -723,6 +726,41 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
         existingFiscalNoteId: importedA.fiscalNote.id,
       },
     });
+  });
+
+  it('rejects importing a note with payableAmountCents === 0 via CreateTransactionUseCase with INVALID_TRANSACTION and rolls back transaction + fiscal note', async () => {
+    const user = await seedUserFixtures('zero-amount');
+    const stack = buildFiscalNoteStack();
+    const zeroKey = buildValidCeKey('000099000');
+
+    activeStubHandler = (req, res) => {
+      const requestedKey = typeof req.body.chave_acesso === 'string' ? req.body.chave_acesso : zeroKey;
+      const html = renderFixtureForKey('sefaz-ce-no-discount-no-gross.html', requestedKey)
+        .replaceAll('8,50', '0,00')
+        .replaceAll('17,00', '0,00');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ xml: html }));
+    };
+
+    await expect(
+      stack.importUseCase.execute({
+        userId: user.userId,
+        input: zeroKey,
+        accountId: user.accountId,
+        categoryId: user.expenseCategoryId,
+      }),
+    ).rejects.toBeInstanceOf(InvalidTransactionError);
+
+    const [{ noteCount }] = await dataSource!.query<Array<{ noteCount: string }>>(
+      `SELECT count(*)::text AS "noteCount" FROM "fiscal_notes" WHERE "user_id" = $1`,
+      [user.userId],
+    );
+    const [{ txCount }] = await dataSource!.query<Array<{ txCount: string }>>(
+      `SELECT count(*)::text AS "txCount" FROM "transactions" WHERE "user_id" = $1`,
+      [user.userId],
+    );
+    expect(Number(noteCount)).toBe(0);
+    expect(Number(txCount)).toBe(0);
   });
 
   it('handles concurrent duplicate import race condition cleanly via 23505 without 25P02 aborted transaction', async () => {

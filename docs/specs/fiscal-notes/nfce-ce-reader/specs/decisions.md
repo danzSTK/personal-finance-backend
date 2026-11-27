@@ -114,3 +114,14 @@ Este documento registra as escolhas técnicas, alternativas avaliadas e impactos
   - Embutir `items[]` e `payments[]` na listagem paginada: rejeitada por bloat de payload e memória (uma nota de supermercado pode ter 50+ itens).
   - Aplicar `DATE(issued_at AT TIME ZONE ...)` no `WHERE`: rejeitada por impedir o uso do índice B-Tree em `(user_id, issued_at DESC)`.
 - **Impacto:** Listagem rápida (2 queries por página, ou 1 se `total === 0`), paginação estável com desempate determinístico por `id`, zero N+1 e filtro de texto seguro contra SQL/LIKE wildcards.
+
+## DEC-13 — Fallback de QR Code v2 em Contingência sem `digVal` Escopado ao Provider SEFAZ-CE
+
+- **Decisão:**
+  - `FiscalNoteInput` (VO agnóstico de UF) aceita QR Code v2 em contingência (8 campos) com `contingencyDigestValue` (`parts[5]`) vazio (`||`) **somente** quando os outros 4 campos obrigatórios (`contingencyIssueDay`, `contingencyTotalAmount`, `cscId`, `qrHash`) e a chave de 44 dígitos (modelo `65`, DV mod-11, ambiente `1`, UF suportada) são válidos, armazenando `contingencyDigestValue: null` e preservando `qrVersion: '2'`, `sourceHost` e detecção de `unknownQrHost`.
+  - A decisão de rotear esse caso para `/nfce/api/notasFiscal/qrcodev3/` (consulta por chave de 44 dígitos) fica **estritamente encapsulada no `SefazCeHttpClient`** (específico da SEFAZ-CE, que rejeita `dig_val` vazio no `/qrcodev2/` com `100 - QR Code Inválido`, mas aceita no `/qrcodev3/`).
+- **Alternativas consideradas:**
+  - Reescrever `FiscalNoteInput` globalmente para `QRCODE_V3` no domínio: rejeitada porque assumiria prematuramente que futuros providers de outras UFs suportam consulta v3 apenas por chave de 44 dígitos e descartaria metadados do QR original.
+  - Exigir normalização apenas no frontend: rejeitada porque quebraria clientes mobile, Swagger/Postman ou chamadas diretas à API com a URL bruta de PDVs reais do Ceará.
+- **Impacto:** Notas reais em contingência com `digVal` vazio funcionam transparentemente na SEFAZ-CE sem abrir brechas de validação nem vazar premissas específicas do Ceará para futuros providers de outras UFs.
+

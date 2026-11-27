@@ -97,6 +97,36 @@ describe('FiscalNoteInput', () => {
       expect(parsed.qrHash).toBe('HASHCONTINGENCY');
     });
 
+    it('should parse a real POS QR Code v2 contingency URL with empty digVal (||) while preserving QRCODE_V2 metadata', () => {
+      const realContingencyUrl =
+        'http://nfce.sefaz.ce.gov.br/pages/ShowNFCe.html?p=23261103539462000250651030000832639499160820|2|1|25|15.63||1|D1042A26152D9548BC455EF1DCD7C3C538B5E2D9';
+      const parsed = FiscalNoteInput.parse(realContingencyUrl);
+
+      expect(parsed.accessKey).toBe('23261103539462000250651030000832639499160820');
+      expect(parsed.uf).toBe(FiscalNoteSupportedUfs.CE);
+      expect(parsed.channel).toBe(FiscalNoteQueryChannels.QRCODE_V2);
+      expect(parsed.qrVersion).toBe(FiscalNoteQrVersions.V2);
+      expect(parsed.isContingency).toBe(true);
+      expect(parsed.contingencyIssueDay).toBe('25');
+      expect(parsed.contingencyTotalAmount).toBe('15.63');
+      expect(parsed.contingencyDigestValue).toBeNull();
+      expect(parsed.cscId).toBe('1');
+      expect(parsed.qrHash).toBe('D1042A26152D9548BC455EF1DCD7C3C538B5E2D9');
+      expect(parsed.sourceHost).toBe('nfce.sefaz.ce.gov.br');
+      expect(parsed.unknownQrHost).toBeNull();
+    });
+
+    it('should still record unknownQrHost on a QR Code v2 contingency URL with empty digVal', () => {
+      const unknownHostContingencyUrl =
+        'https://unknown.pos.example/pages/ShowNFCe.html?p=23261103539462000250651030000832639499160820|2|1|25|15.63||1|D1042A26152D9548BC455EF1DCD7C3C538B5E2D9';
+      const parsed = FiscalNoteInput.parse(unknownHostContingencyUrl);
+
+      expect(parsed.channel).toBe(FiscalNoteQueryChannels.QRCODE_V2);
+      expect(parsed.contingencyDigestValue).toBeNull();
+      expect(parsed.sourceHost).toBe('unknown.pos.example');
+      expect(parsed.unknownQrHost).toBe('unknown.pos.example');
+    });
+
     it('should parse a valid QR Code v3 payload', () => {
       const v3Url = `http://nfce.sefaz.ce.gov.br/nfce/pagina?p=${VALID_CE_ACCESS_KEY}|3|1`;
       const parsed = FiscalNoteInput.parse(v3Url);
@@ -168,6 +198,18 @@ describe('FiscalNoteInput', () => {
       expect(() => FiscalNoteInput.parse(`${VALID_CE_ACCESS_KEY}|2|1|1`)).toThrow(FiscalNoteInvalidInputError);
       expect(() => FiscalNoteInput.parse(`${VALID_CE_ACCESS_KEY}|2|1||HASH`)).toThrow(FiscalNoteInvalidInputError);
       expect(() => FiscalNoteInput.parse(`${VALID_CE_ACCESS_KEY}|4|1`)).toThrow(FiscalNoteInvalidInputError);
+      expect(() => FiscalNoteInput.parse(`${VALID_CE_ACCESS_KEY}|2|1||15.63||1|HASH`)).toThrow(
+        FiscalNoteInvalidInputError,
+      );
+      expect(() => FiscalNoteInput.parse(`${VALID_CE_ACCESS_KEY}|2|1|25|||1|HASH`)).toThrow(
+        FiscalNoteInvalidInputError,
+      );
+      expect(() => FiscalNoteInput.parse(`${VALID_CE_ACCESS_KEY}|2|1|25|15.63|||HASH`)).toThrow(
+        FiscalNoteInvalidInputError,
+      );
+      expect(() => FiscalNoteInput.parse(`${VALID_CE_ACCESS_KEY}|2|1|25|15.63||1|`)).toThrow(
+        FiscalNoteInvalidInputError,
+      );
     });
   });
 
