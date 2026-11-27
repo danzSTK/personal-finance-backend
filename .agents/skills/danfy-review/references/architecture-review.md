@@ -100,3 +100,15 @@ Consulte `docs/architecture/module-boundaries.md` antes de sinalizar acoplamento
   - nomes de headers HTTP (ex.: `X-Request-Id`), chaves ou prefixos Redis fora de `CacheKeys` e constantes dedicadas;
   - nomes de filas/jobs BullMQ, discriminadores `object`, chaves de alerta e valores sentinela (ex.: `'[REDACTED]'`).
 - **O que NAO gera ruido:** frases humanas descritivas de uso unico (mensagens de erro amigaveis ou logs informativos unicos) e textos exclusivamente locais de teste sem contrato compartilhado.
+
+---
+
+## 8. Dono Unico de Criacao/Mutacao de Entidades e Derivacao de DTOs/Tipos
+
+- **Dono unico da logica (`Single Owner of Entity Mutation`):**
+  - a cadeia `lock -> validacao de referencias -> Factory.create -> repository.save`, bem como regras, locks e persistencia ao criar ou mutar uma entidade, pertence **exclusivamente ao Use Case dono dessa entidade** no seu modulo (ex.: `CreateTransactionUseCase` para `Transaction`);
+  - fluxos compostos ou cross-module (ex.: importar `FiscalNote` criando `Transaction` atomicamente) devem delegar pela porta publica diretamente para esse Use Case, que aceita `options?: IRepositoryOptions` (reutilizando `options.manager` quando presente ou abrindo transacao propria quando ausente);
+  - **sinalize como `P1`** em codigo novo qualquer duplicacao da cadeia de criacao/mutacao de entidade de outro modulo em adapter ou segundo use case.
+- **Derivacao de DTOs e tipos de entrada:**
+  - DTOs HTTP (`presentation/dto/`) e interfaces de porta/use case que especializam ou estendem a criacao/edicao de outra entidade devem **derivar** do DTO/interface canonico usando composicao (`OmitType`, `PickType`, `PartialType`, `IntersectionType` de `@nestjs/swagger` e `Omit<>` / `Pick<>` em TypeScript), sobrescrevendo apenas os campos que efetivamente mudam e repassando os demais por composicao/spread;
+  - **sinalize como `P1`/`P2`** em codigo novo a copia manual do snapshot de campos de outro modulo/entidade sem derivacao, pelo risco concreto de drift silencioso de invariantes e schema quando novos campos ou regras forem adicionados.

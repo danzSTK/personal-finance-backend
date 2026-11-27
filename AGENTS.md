@@ -110,6 +110,13 @@ As skills canônicas ficam em `.agents/skills/` (espelhadas em `.claude/skills/`
 - `email-template-constructor`: criação, versionamento e validação de templates de e-mail transacional.
 - `nestjs-module`, `backend-dev-env`, `danfy-issues`: criação de módulos, ambiente local e issues.
 
+### Pull Requests e Vínculo com Issues
+
+- Toda PR que resolve uma issue deve seguir `.github/PULL_REQUEST_TEMPLATE.md` e incluir `Closes #<numero>` na seção `## Issue vinculada`.
+- Como a branch padrão do repositório no GitHub é `main` e PRs de entrega miram `develop`, apenas `Closes #<numero>` na descrição **não** vincula automaticamente a PR no painel `Development` da issue nem fecha a issue ao fazer merge em `develop`.
+- Garanta o vínculo real logo após criar a PR, vinculando-a diretamente no painel `Development` da issue via GraphQL `addCloseIssueReferences` (ou GitHub UI), e confirme antes de marcar a PR pronta com `gh pr view <PR> --json closingIssuesReferences`.
+- **Não** crie outra branch quando o trabalho já estiver em um worktree/branch existente; use `gh issue develop <N> --base develop --name <branch>` apenas se ainda não existir branch criada para a issue.
+
 ## Architecture Rules
 
 When implementing or changing error handling, use the repo skill `platform-errors`. Domain and application errors must be framework-independent and translated to the frontend HTTP contract by the global `AppExceptionFilter`.
@@ -172,9 +179,11 @@ Use `@/` imports for project code. Do not use `src/*` imports.
 - One directory per use case: `application/use-cases/<action>/`.
 - Each use case directory contains `<action>.use-case.ts` and `<action>.dto.ts`.
 - Use cases are `@Injectable()` classes with `execute(dto, options?)`.
+- **Single Owner of Entity Mutation:** Rules, locks, reference validations, factory calls, and persistence for creating or mutating an entity belong exclusively to the owning Use Case in its module (e.g., `CreateTransactionUseCase` for `Transaction`). Never duplicate `lock -> validate -> Factory.create -> repository.save` in an adapter or second use case when another module needs that mutation inside a larger transaction; instead, the owning Use Case accepts `options?: IRepositoryOptions` (reusing `options.manager` when present or opening its own transaction otherwise), and the cross-module public port delegates directly to it.
 - Use cases orchestrate domain and infrastructure; business rules stay in domain entities/value objects.
 - Use cases inject repository interfaces or cross-module application ports, never concrete TypeORM or cached repositories.
 - Use case DTOs are plain TypeScript interfaces, not `class-validator` classes.
+- Port and composite use case input interfaces that specialize or extend another entity's creation/mutation must derive from the canonical use case DTO via TypeScript utility types (`Omit<>`, `Pick<>`, `Partial<>`, intersection) rather than copying fields manually, overriding only fields that genuinely change and forwarding the rest.
 - Throw `ApplicationError` subclasses (not NestJS `HttpException`) for orchestration failures such as not found, ownership, uniqueness, or state conflicts; let `AppExceptionFilter` translate them to HTTP.
 
 ## Infrastructure Layer
@@ -199,6 +208,7 @@ Use `@/` imports for project code. Do not use `src/*` imports.
 - `ApiModule` registers 4 global `APP_GUARD`s in order: `OriginGuard` -> `JwtAuthGuard` -> `EmailVerificationStatusGuard` -> `ThrottlerGuard`. Endpoints are protected by default; bypass decorators (`@Public()`, `@SkipOriginCheck()`, `@AllowPendingEmailVerification()`, `@SkipThrottle()`) are explicit exceptions that require security review.
 - Access the authenticated user with `@CurrentUser()`, never from request body, query, or params.
 - Request DTOs live in `presentation/dto/` and use `class-validator` and `class-transformer` under global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`.
+- Request DTOs in `presentation/dto/` that specialize or extend another entity's creation/edition DTO must derive from the canonical DTO using `@nestjs/swagger` composition (`OmitType`, `PickType`, `PartialType`, `IntersectionType`) rather than manually copying fields, overriding only fields that genuinely change and forwarding the rest.
 - Use `@Type()` for numeric, date, and nested object fields (and `@ValidateNested()` for nested objects).
 - Always return response DTOs; never expose domain entities or ORM entities directly.
 - Response DTOs should declare an `object` string property that identifies the response shape for consumers. Use centralized values from `@/common/models/constants`, with keys separated by module/shape such as `transaction.list`, `transaction_summary.type`, and `account.list`. Dynamic responses must use one DTO per shape and each shape must expose its own `object`.
@@ -303,6 +313,14 @@ If code contradicts an applicable documented decision in a way that can affect c
 - **Violation:** Report new framework imports/decorators or `HttpException` in domain/use cases, ORM entities escaping infrastructure, controllers containing business rules, use cases depending on concrete adapters or new cross-module internal repositories, direct R2 calls outside `assets`, or API/Worker role leakage.
 - **Consequence:** Reverses dependency direction, couples business behavior to delivery technology, breaks module isolation, and makes isolated testing or independent API/Worker scaling unsafe.
 - **Safe path:** Define entities, value objects, errors, and ports in inner layers; use public application ports or outbox events across modules; implement adapters in infrastructure and translate transport errors in `AppExceptionFilter`. Tolerated exceptions (`*OrmEntity` `@ManyToOne`/`@OneToMany` relations, existing `DT-01..03`) are listed in `docs/architecture/module-boundaries.md`.
+
+### Single owner of entity mutation and DTO derivation
+
+- **Context:** Changes that create or mutate an entity from another module or composite flow, or define HTTP DTOs/port interfaces specializing another entity's creation or edition contract.
+- **Invariant:** Only the entity's owning Use Case implements its `lock -> validate -> Factory.create -> repository.save` flow (accepting `options?: IRepositoryOptions` to share `options.manager`), cross-module ports delegate directly to it, and specialized HTTP DTOs/input interfaces derive from the canonical DTO/interface (`OmitType`/`PickType`/`PartialType`/`IntersectionType` or `Omit<>`/`Pick<>`).
+- **Violation:** Report as **P1** (or **P2** when limited to low-risk DTO/type duplication) any new code that duplicates another module's entity creation/mutation chain in an adapter or secondary use case, or manually copies a snapshot of another entity's DTO/port fields without derivation.
+- **Consequence:** Silent drift of domain invariants, locks, validation rules, and schemas whenever new optional fields or rules are added to the owning entity.
+- **Safe path:** Propagate `options?: IRepositoryOptions` to the owning Use Case via the cross-module public port, derive specialized DTOs and input interfaces from canonical definitions, override only fields that genuinely change, and forward the rest.
 
 ### SQL and logical database design
 
