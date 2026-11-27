@@ -96,11 +96,31 @@ export const FiscalNoteOperations = {
   PREVIEW: 'preview',
   IMPORT: 'import',
   LINK: 'link',
+  LIST: 'list',
   GET: 'get',
   UNLINK: 'unlink',
 } as const;
 
 export type FiscalNoteOperation = (typeof FiscalNoteOperations)[keyof typeof FiscalNoteOperations];
+
+export const FISCAL_NOTE_LIST_DEFAULT_PAGE = 1;
+export const FISCAL_NOTE_LIST_DEFAULT_LIMIT = 20;
+export const FISCAL_NOTE_LIST_MAX_LIMIT = 100;
+export const FISCAL_NOTE_LIST_SEARCH_MAX_LENGTH = 120;
+
+export const FiscalNoteListSorts = {
+  ISSUED_AT_DESC: 'issuedAt:desc',
+  ISSUED_AT_ASC: 'issuedAt:asc',
+  PAYABLE_AMOUNT_DESC: 'payableAmountCents:desc',
+  PAYABLE_AMOUNT_ASC: 'payableAmountCents:asc',
+  CREATED_AT_DESC: 'createdAt:desc',
+  CREATED_AT_ASC: 'createdAt:asc',
+} as const;
+
+export type FiscalNoteListSort = (typeof FiscalNoteListSorts)[keyof typeof FiscalNoteListSorts];
+
+export const FISCAL_NOTE_LIST_SORT_VALUES: readonly FiscalNoteListSort[] = Object.values(FiscalNoteListSorts);
+export const FISCAL_NOTE_LIST_DEFAULT_SORT: FiscalNoteListSort = FiscalNoteListSorts.ISSUED_AT_DESC;
 
 export const FiscalNoteCacheLookupResults = {
   HIT: 'hit',

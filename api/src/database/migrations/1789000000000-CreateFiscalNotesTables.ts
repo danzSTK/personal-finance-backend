@@ -69,6 +69,12 @@ export class CreateFiscalNotesTables1789000000000 implements MigrationInterface 
     `);
 
     await queryRunner.query(`
+      CREATE INDEX "idx_fiscal_notes_user_issued_at_active"
+      ON "fiscal_notes" ("user_id", "issued_at" DESC)
+      WHERE "deleted_at" IS NULL
+    `);
+
+    await queryRunner.query(`
       CREATE INDEX "idx_fiscal_notes_transaction_id"
       ON "fiscal_notes" ("transaction_id")
     `);
@@ -134,6 +140,7 @@ export class CreateFiscalNotesTables1789000000000 implements MigrationInterface 
     await queryRunner.query(`DROP TABLE IF EXISTS "fiscal_note_items"`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_fiscal_notes_updated_at ON "fiscal_notes"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_fiscal_notes_transaction_id"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_fiscal_notes_user_issued_at_active"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_fiscal_notes_user_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "UQ_fiscal_notes_transaction_active"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "UQ_fiscal_notes_user_access_key_active"`);

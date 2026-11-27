@@ -138,7 +138,7 @@ export class FiscalNoteMapper {
     };
   }
 
-  private static toSafeNonNegativeCents(raw: string, field: string): number {
+  static toSafeNonNegativeCents(raw: string | number, field: string): number {
     const parsed = Number(raw);
     if (!Number.isSafeInteger(parsed) || parsed < 0) {
       throw new InvalidFiscalNoteError(`Persisted fiscal note ${field} is invalid.`);

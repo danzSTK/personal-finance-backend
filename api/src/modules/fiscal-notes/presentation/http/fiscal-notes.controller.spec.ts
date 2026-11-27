@@ -2,9 +2,14 @@
 import { RESPONSE_OBJECT_TYPES } from '@/common/models/constants';
 import { TransactionStatus, TransactionType } from '@/common/models/enums';
 import { toDateOnly } from '@/common/utils/date-only';
+import { GetFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/get-fiscal-note/get-fiscal-note.use-case';
 import { ImportFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/import-fiscal-note/import-fiscal-note.use-case';
+import { ListFiscalNotesUseCase } from '@/modules/fiscal-notes/application/use-cases/list-fiscal-notes/list-fiscal-notes.use-case';
 import { PreviewFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/preview-fiscal-note/preview-fiscal-note.use-case';
-import { SEFAZ_CE_PARSER_VERSION } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
+import {
+  FiscalNoteListSorts,
+  SEFAZ_CE_PARSER_VERSION,
+} from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
 import { FiscalNote } from '@/modules/fiscal-notes/domain/entities/fiscal-note.entity';
 import { FiscalNoteItem } from '@/modules/fiscal-notes/domain/entities/fiscal-note-item.entity';
 import { FiscalNotePayment } from '@/modules/fiscal-notes/domain/entities/fiscal-note-payment.entity';
@@ -22,14 +27,141 @@ describe('FiscalNotesController', () => {
   const noteId = '55555555-5555-4555-a555-555555555555';
 
   let controller: FiscalNotesController;
+  let listUseCase: jest.Mocked<ListFiscalNotesUseCase>;
+  let getUseCase: jest.Mocked<GetFiscalNoteUseCase>;
   let previewUseCase: jest.Mocked<PreviewFiscalNoteUseCase>;
   let importUseCase: jest.Mocked<ImportFiscalNoteUseCase>;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    listUseCase = { execute: jest.fn() } as unknown as jest.Mocked<ListFiscalNotesUseCase>;
+    getUseCase = { execute: jest.fn() } as unknown as jest.Mocked<GetFiscalNoteUseCase>;
     previewUseCase = { execute: jest.fn() } as unknown as jest.Mocked<PreviewFiscalNoteUseCase>;
     importUseCase = { execute: jest.fn() } as unknown as jest.Mocked<ImportFiscalNoteUseCase>;
-    controller = new FiscalNotesController(previewUseCase, importUseCase);
+    controller = new FiscalNotesController(listUseCase, getUseCase, previewUseCase, importUseCase);
+  });
+
+  describe('list', () => {
+    it('delegates filters to ListFiscalNotesUseCase and returns fiscal_note.list DTO', async () => {
+      const issuedAt = new Date('2026-10-16T01:15:30.000Z');
+      listUseCase.execute.mockResolvedValue({
+        items: [
+          {
+            id: noteId,
+            transactionId,
+            accessKey: VALID_CE_KEY,
+            sourceUf: '23',
+            number: '76054',
+            series: '103',
+            issuedAt,
+            issuerName: 'SUPERMERCADO EXEMPLO',
+            issuerCnpj: '03539462000250',
+            grossAmountCents: 3141,
+            discountAmountCents: 0,
+            payableAmountCents: 3141,
+            taxAmountCents: 0,
+            itemsCount: 1,
+            createdAt: issuedAt,
+            updatedAt: issuedAt,
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        summary: {
+          totalNotes: 1,
+          totalGrossAmountCents: 3141,
+          totalDiscountAmountCents: 0,
+          totalPayableAmountCents: 3141,
+          totalTaxAmountCents: 0,
+        },
+      });
+
+      const response = await controller.list(user, {
+        search: 'CAFE',
+        sort: FiscalNoteListSorts.ISSUED_AT_DESC,
+      });
+
+      expect(listUseCase.execute).toHaveBeenCalledWith({
+        userId: user.id,
+        issuedFrom: undefined,
+        issuedTo: undefined,
+        issuerCnpj: undefined,
+        sourceUf: undefined,
+        minAmountCents: undefined,
+        maxAmountCents: undefined,
+        search: 'CAFE',
+        page: undefined,
+        limit: undefined,
+        sort: FiscalNoteListSorts.ISSUED_AT_DESC,
+      });
+      expect(response.object).toBe(RESPONSE_OBJECT_TYPES.FISCAL_NOTE_LIST);
+      expect(response.data[0].object).toBe(RESPONSE_OBJECT_TYPES.FISCAL_NOTE_SUMMARY);
+      expect(response.summary.object).toBe(RESPONSE_OBJECT_TYPES.FISCAL_NOTE_SUMMARY_TOTALS);
+    });
+  });
+
+  describe('getById', () => {
+    it('delegates to GetFiscalNoteUseCase and returns fiscal_note.item DTO', async () => {
+      const fiscalNote = FiscalNote.create(
+        {
+          id: noteId,
+          userId: user.id,
+          transactionId,
+          accessKey: VALID_CE_KEY,
+          sourceUf: '23',
+          number: '76054',
+          series: '103',
+          issuedAt: new Date('2026-10-16T01:15:30.000Z'),
+          protocol: null,
+          issuerName: 'SUPERMERCADO EXEMPLO',
+          issuerCnpj: '03539462000250',
+          issuerAddress: null,
+          grossAmountCents: 3141,
+          discountAmountCents: 0,
+          payableAmountCents: 3141,
+          taxAmountCents: 0,
+          changeAmountCents: null,
+          xmlVersion: null,
+          xsltVersion: null,
+          parserVersion: SEFAZ_CE_PARSER_VERSION,
+          items: [
+            FiscalNoteItem.create({
+              fiscalNoteId: noteId,
+              position: 1,
+              rawDescription: 'CAFE',
+              storeCode: null,
+              unit: 'UN',
+              quantity: 1,
+              unitPrice: 31.41,
+              totalPriceCents: 3141,
+            }),
+          ],
+          payments: [
+            FiscalNotePayment.create({
+              fiscalNoteId: noteId,
+              position: 1,
+              methodLabel: 'PIX',
+              amountCents: 3141,
+            }),
+          ],
+        },
+        noteId,
+      );
+      getUseCase.execute.mockResolvedValue(fiscalNote);
+
+      const response = await controller.getById(user, noteId);
+
+      expect(getUseCase.execute).toHaveBeenCalledWith({
+        userId: user.id,
+        fiscalNoteId: noteId,
+      });
+      expect(response.object).toBe(RESPONSE_OBJECT_TYPES.FISCAL_NOTE_ITEM);
+      expect(response.id).toBe(noteId);
+    });
   });
 
   describe('preview', () => {

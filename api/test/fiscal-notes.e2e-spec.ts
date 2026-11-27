@@ -18,13 +18,16 @@ import {
   TransactionAlreadyHasFiscalNoteError,
 } from '@/modules/fiscal-notes/application/errors';
 import { ParsedFiscalNoteData } from '@/modules/fiscal-notes/application/ports';
+import { GetFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/get-fiscal-note/get-fiscal-note.use-case';
 import { GetTransactionFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/get-transaction-fiscal-note/get-transaction-fiscal-note.use-case';
 import { ImportFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/import-fiscal-note/import-fiscal-note.use-case';
 import { LinkFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/link-fiscal-note/link-fiscal-note.use-case';
+import { ListFiscalNotesUseCase } from '@/modules/fiscal-notes/application/use-cases/list-fiscal-notes/list-fiscal-notes.use-case';
 import { PreviewFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/preview-fiscal-note/preview-fiscal-note.use-case';
 import { UnlinkTransactionFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/unlink-transaction-fiscal-note/unlink-transaction-fiscal-note.use-case';
 import {
   FiscalNoteErrorCodes,
+  FiscalNoteListSorts,
   FiscalNoteSupportedUfs,
   SEFAZ_CE_PARSER_VERSION,
 } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
@@ -252,6 +255,14 @@ function buildDomainTransaction(hasFiscalNote: boolean, id = TEST_TRANSACTION_ID
 describe('Fiscal notes HTTP contract (e2e)', () => {
   let app: INestApplication;
 
+  const listFiscalNotesExecute = jest.fn<
+    ReturnType<ListFiscalNotesUseCase['execute']>,
+    Parameters<ListFiscalNotesUseCase['execute']>
+  >();
+  const getFiscalNoteByIdExecute = jest.fn<
+    ReturnType<GetFiscalNoteUseCase['execute']>,
+    Parameters<GetFiscalNoteUseCase['execute']>
+  >();
   const previewExecute = jest.fn<
     ReturnType<PreviewFiscalNoteUseCase['execute']>,
     Parameters<PreviewFiscalNoteUseCase['execute']>
@@ -295,6 +306,8 @@ describe('Fiscal notes HTTP contract (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [FiscalNotesController, TransactionFiscalNoteController, TransactionsController, HealthController],
       providers: [
+        { provide: ListFiscalNotesUseCase, useValue: { execute: listFiscalNotesExecute } },
+        { provide: GetFiscalNoteUseCase, useValue: { execute: getFiscalNoteByIdExecute } },
         { provide: PreviewFiscalNoteUseCase, useValue: { execute: previewExecute } },
         { provide: ImportFiscalNoteUseCase, useValue: { execute: importExecute } },
         { provide: LinkFiscalNoteUseCase, useValue: { execute: linkExecute } },
@@ -358,6 +371,279 @@ describe('Fiscal notes HTTP contract (e2e)', () => {
         path: '/fiscal-notes/preview',
       });
       expect(previewExecute).not.toHaveBeenCalled();
+    });
+
+    it('rejects unauthenticated GET /fiscal-notes and GET /fiscal-notes/:id with 401', async () => {
+      const listRes = await request(getServer()).get('/fiscal-notes').expect(401);
+      expect(listRes.body).toMatchObject({
+        statusCode: 401,
+        code: 'UNAUTHORIZED',
+        path: '/fiscal-notes',
+      });
+      expect(listFiscalNotesExecute).not.toHaveBeenCalled();
+
+      const getRes = await request(getServer()).get(`/fiscal-notes/${TEST_FISCAL_NOTE_ID}`).expect(401);
+      expect(getRes.body).toMatchObject({
+        statusCode: 401,
+        code: 'UNAUTHORIZED',
+        path: `/fiscal-notes/${TEST_FISCAL_NOTE_ID}`,
+      });
+      expect(getFiscalNoteByIdExecute).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /fiscal-notes', () => {
+    it('returns 200 OK with fiscal_note.list, fiscal_note.summary items, meta, and summary_totals', async () => {
+      const issuedAt = new Date('2026-10-16T01:15:30.000Z');
+      const createdAt = new Date('2026-10-16T01:20:00.000Z');
+      const updatedAt = new Date('2026-10-16T01:20:00.000Z');
+
+      listFiscalNotesExecute.mockResolvedValueOnce({
+        items: [
+          {
+            id: TEST_FISCAL_NOTE_ID,
+            transactionId: TEST_TRANSACTION_ID,
+            accessKey: VALID_CE_ACCESS_KEY,
+            sourceUf: FiscalNoteSupportedUfs.CE,
+            number: '76054',
+            series: '103',
+            issuedAt,
+            issuerName: 'SUPERMERCADO EXEMPLO FORTALEZA LTDA',
+            issuerCnpj: '03539462000250',
+            grossAmountCents: 4013,
+            discountAmountCents: 872,
+            payableAmountCents: 3141,
+            taxAmountCents: 1051,
+            itemsCount: 2,
+            createdAt,
+            updatedAt,
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        summary: {
+          totalNotes: 1,
+          totalGrossAmountCents: 4013,
+          totalDiscountAmountCents: 872,
+          totalPayableAmountCents: 3141,
+          totalTaxAmountCents: 1051,
+        },
+      });
+
+      const response = await request(getServer())
+        .get('/fiscal-notes')
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .expect(200);
+
+      expect(listFiscalNotesExecute).toHaveBeenCalledWith({
+        userId: TEST_USER_ID,
+        issuedFrom: undefined,
+        issuedTo: undefined,
+        issuerCnpj: undefined,
+        sourceUf: undefined,
+        minAmountCents: undefined,
+        maxAmountCents: undefined,
+        search: undefined,
+        page: undefined,
+        limit: undefined,
+        sort: undefined,
+      });
+      expect(response.body).toEqual({
+        object: RESPONSE_OBJECT_TYPES.FISCAL_NOTE_LIST,
+        data: [
+          {
+            object: RESPONSE_OBJECT_TYPES.FISCAL_NOTE_SUMMARY,
+            id: TEST_FISCAL_NOTE_ID,
+            transactionId: TEST_TRANSACTION_ID,
+            accessKey: VALID_CE_ACCESS_KEY,
+            sourceUf: FiscalNoteSupportedUfs.CE,
+            number: '76054',
+            series: '103',
+            issuedAt: '2026-10-16T01:15:30.000Z',
+            issuerName: 'SUPERMERCADO EXEMPLO FORTALEZA LTDA',
+            issuerCnpj: '03539462000250',
+            grossAmountCents: 4013,
+            discountAmountCents: 872,
+            payableAmountCents: 3141,
+            taxAmountCents: 1051,
+            itemsCount: 2,
+            createdAt: '2026-10-16T01:20:00.000Z',
+            updatedAt: '2026-10-16T01:20:00.000Z',
+          },
+        ],
+        meta: {
+          total: 1,
+          page: 1,
+          limit: 20,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+        summary: {
+          object: RESPONSE_OBJECT_TYPES.FISCAL_NOTE_SUMMARY_TOTALS,
+          totalNotes: 1,
+          totalGrossAmountCents: 4013,
+          totalDiscountAmountCents: 872,
+          totalPayableAmountCents: 3141,
+          totalTaxAmountCents: 1051,
+        },
+      });
+    });
+
+    it('forwards normalized filters and pagination params and treats empty numeric strings as undefined', async () => {
+      listFiscalNotesExecute.mockResolvedValueOnce({
+        items: [],
+        total: 0,
+        page: 2,
+        limit: 10,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        summary: {
+          totalNotes: 0,
+          totalGrossAmountCents: 0,
+          totalDiscountAmountCents: 0,
+          totalPayableAmountCents: 0,
+          totalTaxAmountCents: 0,
+        },
+      });
+
+      await request(getServer())
+        .get('/fiscal-notes')
+        .query({
+          issuedFrom: '2026-10-01',
+          issuedTo: '2026-10-31',
+          issuerCnpj: '03.539.462/0002-50',
+          sourceUf: '23',
+          minAmountCents: '100',
+          maxAmountCents: '',
+          search: '  QUEIJO  ',
+          page: '2',
+          limit: '10',
+          sort: FiscalNoteListSorts.PAYABLE_AMOUNT_ASC,
+        })
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .expect(200);
+
+      expect(listFiscalNotesExecute).toHaveBeenCalledWith({
+        userId: TEST_USER_ID,
+        issuedFrom: '2026-10-01',
+        issuedTo: '2026-10-31',
+        issuerCnpj: '03539462000250',
+        sourceUf: '23',
+        minAmountCents: 100,
+        maxAmountCents: undefined,
+        search: 'QUEIJO',
+        page: 2,
+        limit: 10,
+        sort: FiscalNoteListSorts.PAYABLE_AMOUNT_ASC,
+      });
+    });
+
+    it('returns 400 Bad Request for invalid query parameters and cross-field range errors', async () => {
+      const invalidQueries = [
+        { sort: 'invalid:desc' },
+        { issuerCnpj: '123456780001ab' },
+        { limit: '101' },
+        { search: 'a'.repeat(121) },
+        { minAmountCents: '-5' },
+        { issuedFrom: '2026-10-32' },
+        { extraField: 'unexpected' },
+      ];
+
+      for (const query of invalidQueries) {
+        const res = await request(getServer())
+          .get('/fiscal-notes')
+          .query(query)
+          .set('Authorization', TEST_BEARER_TOKEN)
+          .expect(400);
+
+        expect(res.body).toMatchObject({
+          statusCode: 400,
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      expect(listFiscalNotesExecute).not.toHaveBeenCalled();
+
+      listFiscalNotesExecute.mockRejectedValueOnce(
+        new FiscalNoteInvalidInputError('issuedFrom must be less than or equal to issuedTo.'),
+      );
+      const dateRangeRes = await request(getServer())
+        .get('/fiscal-notes')
+        .query({ issuedFrom: '2026-10-20', issuedTo: '2026-10-10' })
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .expect(400);
+      expect(dateRangeRes.body).toMatchObject({
+        statusCode: 400,
+        code: FiscalNoteErrorCodes.FISCAL_NOTE_INVALID_INPUT,
+        details: null,
+      });
+
+      listFiscalNotesExecute.mockRejectedValueOnce(
+        new FiscalNoteInvalidInputError('minAmountCents must be less than or equal to maxAmountCents.'),
+      );
+      const amountRangeRes = await request(getServer())
+        .get('/fiscal-notes')
+        .query({ minAmountCents: '5000', maxAmountCents: '1000' })
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .expect(400);
+      expect(amountRangeRes.body).toMatchObject({
+        statusCode: 400,
+        code: FiscalNoteErrorCodes.FISCAL_NOTE_INVALID_INPUT,
+        details: null,
+      });
+    });
+  });
+
+  describe('GET /fiscal-notes/:id', () => {
+    it('returns 200 OK with fiscal_note.item including items and payments', async () => {
+      getFiscalNoteByIdExecute.mockResolvedValueOnce(buildDomainFiscalNote());
+
+      const response = await request(getServer())
+        .get(`/fiscal-notes/${TEST_FISCAL_NOTE_ID}`)
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .expect(200);
+
+      expect(getFiscalNoteByIdExecute).toHaveBeenCalledWith({
+        userId: TEST_USER_ID,
+        fiscalNoteId: TEST_FISCAL_NOTE_ID,
+      });
+      expect(response.body).toMatchObject({
+        object: RESPONSE_OBJECT_TYPES.FISCAL_NOTE_ITEM,
+        id: TEST_FISCAL_NOTE_ID,
+        transactionId: TEST_TRANSACTION_ID,
+        accessKey: VALID_CE_ACCESS_KEY,
+        items: [expect.objectContaining({ rawDescription: 'QUEIJO MUSSARELA FATIADO' })],
+        payments: [expect.objectContaining({ methodLabel: 'Cartão de Débito', amountCents: 3141 })],
+      });
+    });
+
+    it('returns 404 FISCAL_NOTE_NOT_FOUND when note is not found and 400 for non-UUID :id', async () => {
+      getFiscalNoteByIdExecute.mockRejectedValueOnce(new FiscalNoteNotFoundError());
+      const notFoundRes = await request(getServer())
+        .get(`/fiscal-notes/${TEST_FISCAL_NOTE_ID}`)
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .expect(404);
+
+      expect(notFoundRes.body).toMatchObject({
+        statusCode: 404,
+        code: FiscalNoteErrorCodes.FISCAL_NOTE_NOT_FOUND,
+        details: null,
+      });
+
+      const badUuidRes = await request(getServer())
+        .get('/fiscal-notes/not-a-uuid')
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .expect(400);
+
+      expect(badUuidRes.body).toMatchObject({
+        statusCode: 400,
+      });
+      expect(getFiscalNoteByIdExecute).toHaveBeenCalledTimes(1);
     });
   });
 

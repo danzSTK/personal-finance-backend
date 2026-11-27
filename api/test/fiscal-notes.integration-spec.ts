@@ -28,15 +28,18 @@ import {
 } from '@/modules/fiscal-notes/application/errors';
 import { FiscalNoteQueryService } from '@/modules/fiscal-notes/application/services/fiscal-note-query.service';
 import { FiscalNoteTransactionLifecycleAdapter } from '@/modules/fiscal-notes/application/services/fiscal-note-transaction-lifecycle.adapter';
+import { GetFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/get-fiscal-note/get-fiscal-note.use-case';
 import { GetTransactionFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/get-transaction-fiscal-note/get-transaction-fiscal-note.use-case';
 import { ImportFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/import-fiscal-note/import-fiscal-note.use-case';
 import { LinkFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/link-fiscal-note/link-fiscal-note.use-case';
+import { ListFiscalNotesUseCase } from '@/modules/fiscal-notes/application/use-cases/list-fiscal-notes/list-fiscal-notes.use-case';
 import { PreviewFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/preview-fiscal-note/preview-fiscal-note.use-case';
 import { UnlinkTransactionFiscalNoteUseCase } from '@/modules/fiscal-notes/application/use-cases/unlink-transaction-fiscal-note/unlink-transaction-fiscal-note.use-case';
 import {
   FISCAL_NOTE_ACCESS_KEY_DATA_LENGTH,
   FiscalNoteAlertKeys,
   FiscalNoteDbConstraints,
+  FiscalNoteListSorts,
   FiscalNoteLogEvents,
   FiscalNoteSupportedUfs,
   SEFAZ_CE_PARSER_VERSION,
@@ -263,6 +266,8 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
       dataSource!,
       metricsRecorder,
     );
+    const listFiscalNotesUseCase = new ListFiscalNotesUseCase(fiscalNoteRepository, metricsRecorder);
+    const getFiscalNoteByIdUseCase = new GetFiscalNoteUseCase(fiscalNoteRepository, metricsRecorder);
 
     return {
       config,
@@ -275,6 +280,8 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
       linkUseCase,
       getFiscalNoteUseCase,
       unlinkFiscalNoteUseCase,
+      listFiscalNotesUseCase,
+      getFiscalNoteByIdUseCase,
     };
   }
 
@@ -554,6 +561,12 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
         to_regclass('public.fiscal_note_payments') AS payments
     `);
     expect(relationsAfterDown).toEqual([{ fn: null, items: null, payments: null }]);
+    const indexesAfterDown = await dataSource!.query<Array<{ indexname: string }>>(`
+      SELECT indexname FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND indexname = 'idx_fiscal_notes_user_issued_at_active'
+    `);
+    expect(indexesAfterDown).toHaveLength(0);
 
     await runMigration(queryRunner => migration.up(queryRunner));
 
@@ -568,6 +581,7 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
         FiscalNoteDbConstraints.USER_ACCESS_KEY_ACTIVE,
         FiscalNoteDbConstraints.TRANSACTION_ACTIVE,
         'idx_fiscal_notes_user_id',
+        'idx_fiscal_notes_user_issued_at_active',
         'idx_fiscal_notes_transaction_id',
         'PK_fiscal_note_items',
         'UQ_fiscal_note_items_fiscal_note_position',
@@ -575,6 +589,9 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
         'UQ_fiscal_note_payments_fiscal_note_position',
       ]),
     );
+    const issuedAtPartialIndex = indexes.find(row => row.indexname === 'idx_fiscal_notes_user_issued_at_active');
+    expect(issuedAtPartialIndex?.indexdef).toMatch(/issued_at DESC/i);
+    expect(issuedAtPartialIndex?.indexdef).toMatch(/WHERE \(?deleted_at IS NULL\)?/i);
     const nonPartialFkIndexes = indexes.filter(row =>
       ['idx_fiscal_notes_user_id', 'idx_fiscal_notes_transaction_id'].includes(row.indexname),
     );
@@ -1232,6 +1249,408 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
       stack.previewUseCase.execute({ userId: user.userId, input: buildValidCeKey('000030003') }),
     ).rejects.toBeInstanceOf(SefazTemporarilyUnavailableError);
     expect(redirectTargetCalled).toBe(false);
+  });
+
+  it('lists and gets fiscal notes with PostgreSQL filters, -03:00 boundaries, EXISTS search with LIKE escaping, sorting, pagination, and tenant isolation', async () => {
+    const userA = await seedUserFixtures('list-a');
+    const userB = await seedUserFixtures('list-b');
+    const stack = buildFiscalNoteStack();
+
+    async function seedNote(params: {
+      id: string;
+      user: UserFixtures;
+      serial: string;
+      sourceUf?: string;
+      issuedAtIso: string;
+      createdAtIso: string;
+      issuerName: string;
+      issuerCnpj: string;
+      grossAmountCents: number;
+      discountAmountCents: number;
+      payableAmountCents: number;
+      taxAmountCents: number;
+      deletedAtIso?: string | null;
+      itemDescriptions: string[];
+    }): Promise<void> {
+      const txId = randomUUID();
+      const uf = params.sourceUf ?? FiscalNoteSupportedUfs.CE;
+      const base43 = `${uf}2610${params.issuerCnpj}65103${params.serial.padStart(9, '0').slice(-9)}144320878`;
+      const accessKey = computeMod11AccessKey(base43);
+
+      await dataSource!.query(
+        `INSERT INTO "transactions" ("id", "user_id", "account_id", "category_id", "type", "status", "amount_cents", "date", "effective_at")
+         VALUES ($1, $2, $3, $4, 'EXPENSE', 'EFFECTIVE', $5, '2026-10-15', $6)`,
+        [
+          txId,
+          params.user.userId,
+          params.user.accountId,
+          params.user.expenseCategoryId,
+          String(params.payableAmountCents),
+          params.issuedAtIso,
+        ],
+      );
+
+      await dataSource!.query(
+        `INSERT INTO "fiscal_notes" (
+          "id", "user_id", "transaction_id", "access_key", "source_uf", "number", "series",
+          "issued_at", "issuer_name", "issuer_cnpj", "gross_amount_cents", "discount_amount_cents",
+          "payable_amount_cents", "tax_amount_cents", "parser_version", "created_at", "updated_at", "deleted_at"
+        ) VALUES ($1, $2, $3, $4, $5, $6, '103', $7, $8, $9, $10, $11, $12, $13, $14, $15, $15, $16)`,
+        [
+          params.id,
+          params.user.userId,
+          txId,
+          accessKey,
+          uf,
+          params.serial,
+          params.issuedAtIso,
+          params.issuerName,
+          params.issuerCnpj,
+          String(params.grossAmountCents),
+          String(params.discountAmountCents),
+          String(params.payableAmountCents),
+          String(params.taxAmountCents),
+          SEFAZ_CE_PARSER_VERSION,
+          params.createdAtIso,
+          params.deletedAtIso ?? null,
+        ],
+      );
+
+      for (let index = 0; index < params.itemDescriptions.length; index += 1) {
+        await dataSource!.query(
+          `INSERT INTO "fiscal_note_items" (
+            "fiscal_note_id", "position", "raw_description", "unit", "quantity", "unit_price", "total_price_cents"
+          ) VALUES ($1, $2, $3, 'UN', '1.0000', '10.0000', $4)`,
+          [params.id, index + 1, params.itemDescriptions[index], String(params.payableAmountCents)],
+        );
+      }
+
+      await dataSource!.query(
+        `INSERT INTO "fiscal_note_payments" ("fiscal_note_id", "position", "method_label", "amount_cents")
+         VALUES ($1, 1, 'PIX', $2)`,
+        [params.id, String(params.payableAmountCents)],
+      );
+    }
+
+    const noteBeforeDay = '00000000-0000-4000-a000-000000000001';
+    const noteBoundaryStartLowId = '00000000-0000-4000-a000-000000000002';
+    const noteBoundaryStartHighId = '00000000-0000-4000-a000-000000000003';
+    const noteBoundaryEnd = '00000000-0000-4000-a000-000000000004';
+    const noteAfterDay = '00000000-0000-4000-a000-000000000005';
+    const noteDeleted = '00000000-0000-4000-a000-000000000006';
+    const noteUserB = '00000000-0000-4000-a000-000000000007';
+
+    // 2026-10-14 23:30:00-03:00 -> 2026-10-15T02:30:00Z (previous civil day in -03:00!)
+    await seedNote({
+      id: noteBeforeDay,
+      user: userA,
+      serial: '100001',
+      issuedAtIso: '2026-10-14T23:30:00-03:00',
+      createdAtIso: '2026-10-15T03:00:00.000Z',
+      issuerName: 'PADARIA DO BAIRRO',
+      issuerCnpj: '11111111000111',
+      grossAmountCents: 1500,
+      discountAmountCents: 0,
+      payableAmountCents: 1500,
+      taxAmountCents: 100,
+      itemDescriptions: ['PAO FRANCES 50% INTEGRAL', 'CAFE TORRADO'],
+    });
+
+    // Two notes with identical issuedAt & payableAmountCents to verify deterministic id tie-breaker
+    await seedNote({
+      id: noteBoundaryStartLowId,
+      user: userA,
+      serial: '100002',
+      issuedAtIso: '2026-10-15T00:30:00-03:00',
+      createdAtIso: '2026-10-15T04:00:00.000Z',
+      issuerName: 'MERCADO CENTRAL LTDA',
+      issuerCnpj: '22222222000122',
+      grossAmountCents: 2500,
+      discountAmountCents: 500,
+      payableAmountCents: 2000,
+      taxAmountCents: 200,
+      itemDescriptions: ['LEITE INTEGRAL', 'QUEIJO COALHO', 'QUEIJO MUSSARELA'],
+    });
+
+    await seedNote({
+      id: noteBoundaryStartHighId,
+      user: userA,
+      serial: '100003',
+      issuedAtIso: '2026-10-15T00:30:00-03:00',
+      createdAtIso: '2026-10-15T05:00:00.000Z',
+      issuerName: 'FARMACIA A_B LTDA',
+      issuerCnpj: '33333333000133',
+      grossAmountCents: 2200,
+      discountAmountCents: 200,
+      payableAmountCents: 2000,
+      taxAmountCents: 300,
+      itemDescriptions: ['VITAMINA C', 'PROTETOR SOLAR'],
+    });
+
+    // 2026-10-15 23:30:00-03:00 -> 2026-10-16T02:30:00Z (still 2026-10-15 in -03:00!)
+    await seedNote({
+      id: noteBoundaryEnd,
+      user: userA,
+      serial: '100004',
+      sourceUf: '35',
+      issuedAtIso: '2026-10-15T23:30:00-03:00',
+      createdAtIso: '2026-10-16T03:00:00.000Z',
+      issuerName: 'LOJA X\\Y VARIEDADES',
+      issuerCnpj: '22222222000122',
+      grossAmountCents: 6000,
+      discountAmountCents: 1000,
+      payableAmountCents: 5000,
+      taxAmountCents: 500,
+      itemDescriptions: ['CABO USB', 'QUEIJO RALADO'],
+    });
+
+    // 2026-10-16 00:30:00-03:00 -> next civil day in -03:00
+    await seedNote({
+      id: noteAfterDay,
+      user: userA,
+      serial: '100005',
+      issuedAtIso: '2026-10-16T00:30:00-03:00',
+      createdAtIso: '2026-10-16T04:00:00.000Z',
+      issuerName: 'RESTAURANTE SABOR',
+      issuerCnpj: '44444444000144',
+      grossAmountCents: 8000,
+      discountAmountCents: 0,
+      payableAmountCents: 8000,
+      taxAmountCents: 800,
+      itemDescriptions: ['ALMOCO EXECUTIVO'],
+    });
+
+    // Soft-deleted note for User A (must be excluded everywhere)
+    await seedNote({
+      id: noteDeleted,
+      user: userA,
+      serial: '100006',
+      issuedAtIso: '2026-10-15T12:00:00-03:00',
+      createdAtIso: '2026-10-15T15:00:00.000Z',
+      issuerName: 'MERCADO DELETADO',
+      issuerCnpj: '22222222000122',
+      grossAmountCents: 9999,
+      discountAmountCents: 0,
+      payableAmountCents: 9999,
+      taxAmountCents: 999,
+      deletedAtIso: '2026-10-15T16:00:00.000Z',
+      itemDescriptions: ['QUEIJO DELETADO'],
+    });
+
+    // User B note (must be isolated)
+    await seedNote({
+      id: noteUserB,
+      user: userB,
+      serial: '100007',
+      issuedAtIso: '2026-10-15T12:00:00-03:00',
+      createdAtIso: '2026-10-15T15:00:00.000Z',
+      issuerName: 'MERCADO OUTRO USUARIO',
+      issuerCnpj: '22222222000122',
+      grossAmountCents: 7777,
+      discountAmountCents: 0,
+      payableAmountCents: 7777,
+      taxAmountCents: 777,
+      itemDescriptions: ['QUEIJO USUARIO B'],
+    });
+
+    // 1. Pagination + default sort (issuedAt:desc, id:desc) + soft-delete & multi-tenant exclusion
+    const page1 = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      page: 1,
+      limit: 2,
+    });
+    expect(page1.total).toBe(5);
+    expect(page1.totalPages).toBe(3);
+    expect(page1.hasNextPage).toBe(true);
+    expect(page1.hasPreviousPage).toBe(false);
+    expect(page1.items.map(item => item.id)).toEqual([noteAfterDay, noteBoundaryEnd]);
+    expect(page1.summary).toEqual({
+      totalNotes: 5,
+      totalGrossAmountCents: 20200,
+      totalDiscountAmountCents: 1700,
+      totalPayableAmountCents: 18500,
+      totalTaxAmountCents: 1900,
+    });
+
+    // Out-of-range page skips data query while preserving total and summary
+    const pageOut = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      page: 10,
+      limit: 2,
+    });
+    expect(pageOut.items).toEqual([]);
+    expect(pageOut.total).toBe(5);
+    expect(pageOut.totalPages).toBe(3);
+    expect(pageOut.hasNextPage).toBe(false);
+    expect(pageOut.hasPreviousPage).toBe(true);
+    expect(pageOut.summary).toEqual(page1.summary);
+
+    // 2. All 6 sort modes + deterministic tie-breaking on id
+    const issuedAsc = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      sort: FiscalNoteListSorts.ISSUED_AT_ASC,
+    });
+    expect(issuedAsc.items.map(item => item.id)).toEqual([
+      noteBeforeDay,
+      noteBoundaryStartLowId,
+      noteBoundaryStartHighId,
+      noteBoundaryEnd,
+      noteAfterDay,
+    ]);
+
+    const issuedDesc = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      sort: FiscalNoteListSorts.ISSUED_AT_DESC,
+    });
+    expect(issuedDesc.items.map(item => item.id)).toEqual([
+      noteAfterDay,
+      noteBoundaryEnd,
+      noteBoundaryStartHighId,
+      noteBoundaryStartLowId,
+      noteBeforeDay,
+    ]);
+
+    const payableDesc = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      sort: FiscalNoteListSorts.PAYABLE_AMOUNT_DESC,
+    });
+    expect(payableDesc.items.map(item => item.id)).toEqual([
+      noteAfterDay,
+      noteBoundaryEnd,
+      noteBoundaryStartHighId,
+      noteBoundaryStartLowId,
+      noteBeforeDay,
+    ]);
+
+    const payableAsc = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      sort: FiscalNoteListSorts.PAYABLE_AMOUNT_ASC,
+    });
+    expect(payableAsc.items.map(item => item.id)).toEqual([
+      noteBeforeDay,
+      noteBoundaryStartLowId,
+      noteBoundaryStartHighId,
+      noteBoundaryEnd,
+      noteAfterDay,
+    ]);
+
+    const createdDesc = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      sort: FiscalNoteListSorts.CREATED_AT_DESC,
+    });
+    expect(createdDesc.items.map(item => item.id)).toEqual([
+      noteAfterDay,
+      noteBoundaryEnd,
+      noteBoundaryStartHighId,
+      noteBoundaryStartLowId,
+      noteBeforeDay,
+    ]);
+
+    const createdAsc = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      sort: FiscalNoteListSorts.CREATED_AT_ASC,
+    });
+    expect(createdAsc.items.map(item => item.id)).toEqual([
+      noteBeforeDay,
+      noteBoundaryStartLowId,
+      noteBoundaryStartHighId,
+      noteBoundaryEnd,
+      noteAfterDay,
+    ]);
+
+    // 3. Civil-date -03:00 boundary filtering (issuedFrom / issuedTo)
+    const dayRange = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      issuedFrom: toDateOnly('2026-10-15'),
+      issuedTo: toDateOnly('2026-10-15'),
+      sort: FiscalNoteListSorts.ISSUED_AT_ASC,
+    });
+    expect(dayRange.items.map(item => item.id)).toEqual([
+      noteBoundaryStartLowId,
+      noteBoundaryStartHighId,
+      noteBoundaryEnd,
+    ]);
+    expect(dayRange.total).toBe(3);
+
+    // 4. Structured filters: issuerCnpj, sourceUf, minAmountCents, maxAmountCents
+    const filteredCnpjUfAmount = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      issuerCnpj: '22222222000122',
+      sourceUf: '35',
+      minAmountCents: 4000,
+      maxAmountCents: 6000,
+    });
+    expect(filteredCnpjUfAmount.items.map(item => item.id)).toEqual([noteBoundaryEnd]);
+
+    // 5. Case-insensitive search on issuer_name
+    const byIssuerName = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      search: 'mercado central',
+    });
+    expect(byIssuerName.items.map(item => item.id)).toEqual([noteBoundaryStartLowId]);
+
+    // 6. Search matching multiple items in one note -> zero row duplication & zero double counting + accurate itemsCount
+    const byItemMultiMatch = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      search: 'queijo',
+      sort: FiscalNoteListSorts.ISSUED_AT_ASC,
+    });
+    expect(byItemMultiMatch.items.map(item => item.id)).toEqual([noteBoundaryStartLowId, noteBoundaryEnd]);
+    expect(byItemMultiMatch.total).toBe(2);
+    expect(byItemMultiMatch.items[0].itemsCount).toBe(3);
+    expect(byItemMultiMatch.items[1].itemsCount).toBe(2);
+    expect(byItemMultiMatch.summary).toEqual({
+      totalNotes: 2,
+      totalGrossAmountCents: 8500,
+      totalDiscountAmountCents: 1500,
+      totalPayableAmountCents: 7000,
+      totalTaxAmountCents: 700,
+    });
+
+    // 7. LIKE wildcard escaping for %, _, and \
+    const searchPercent = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      search: '%',
+    });
+    expect(searchPercent.items.map(item => item.id)).toEqual([noteBeforeDay]);
+
+    const searchUnderscore = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      search: 'A_B',
+    });
+    expect(searchUnderscore.items.map(item => item.id)).toEqual([noteBoundaryStartHighId]);
+
+    const searchBackslash = await stack.listFiscalNotesUseCase.execute({
+      userId: userA.userId,
+      search: 'X\\Y',
+    });
+    expect(searchBackslash.items.map(item => item.id)).toEqual([noteBoundaryEnd]);
+
+    // 8. GetFiscalNoteUseCase: returns active note for owner, throws 404 for deleted or other user's note
+    const loadedNote = await stack.getFiscalNoteByIdUseCase.execute({
+      userId: userA.userId,
+      fiscalNoteId: noteBoundaryStartLowId,
+    });
+    expect(loadedNote.id).toBe(noteBoundaryStartLowId);
+    expect(loadedNote.items).toHaveLength(3);
+    expect(loadedNote.payments).toHaveLength(1);
+
+    await expect(
+      stack.getFiscalNoteByIdUseCase.execute({
+        userId: userA.userId,
+        fiscalNoteId: noteDeleted,
+      }),
+    ).rejects.toBeInstanceOf(FiscalNoteNotFoundError);
+
+    await expect(
+      stack.getFiscalNoteByIdUseCase.execute({
+        userId: userA.userId,
+        fiscalNoteId: noteUserB,
+      }),
+    ).rejects.toBeInstanceOf(FiscalNoteNotFoundError);
+
+    const listUserB = await stack.listFiscalNotesUseCase.execute({ userId: userB.userId });
+    expect(listUserB.items.map(item => item.id)).toEqual([noteUserB]);
   });
 });
 
