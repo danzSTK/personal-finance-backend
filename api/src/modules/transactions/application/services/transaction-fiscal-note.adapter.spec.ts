@@ -1,12 +1,9 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { CategoryType, TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
+import { TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
 import { toDateOnly } from '@/common/utils/date-only';
-import { Account } from '@/modules/accounts/domain/entities/account.entity';
-import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
-import { Category } from '@/modules/categories/domain/entities/category.entity';
 import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import { TransactionFiscalNoteAdapter } from '@/modules/transactions/application/services/transaction-fiscal-note.adapter';
-import { TransactionReferenceValidator } from '@/modules/transactions/application/services/transaction-reference-validator.service';
+import { CreateTransactionUseCase } from '@/modules/transactions/application/use-cases/create-transaction/create-transaction.use-case';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import { TransactionTypeDoesNotSupportFiscalNoteError } from '@/modules/transactions/domain/errors';
 import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
@@ -21,8 +18,7 @@ describe('TransactionFiscalNoteAdapter', () => {
 
   let adapter: TransactionFiscalNoteAdapter;
   let transactionRepository: jest.Mocked<ITransactionRepository>;
-  let accountBalanceLockPort: jest.Mocked<AccountBalanceLockPort>;
-  let referenceValidator: jest.Mocked<TransactionReferenceValidator>;
+  let createTransactionUseCase: jest.Mocked<CreateTransactionUseCase>;
   let manager: jest.Mocked<EntityManager>;
 
   beforeEach(() => {
@@ -37,57 +33,41 @@ describe('TransactionFiscalNoteAdapter', () => {
       save: jest.fn().mockImplementation((tx: Transaction) => Promise.resolve(tx)),
     } as unknown as jest.Mocked<ITransactionRepository>;
 
-    accountBalanceLockPort = {
-      lockAccountsForBalanceMutation: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<AccountBalanceLockPort>;
+    createTransactionUseCase = {
+      execute: jest.fn(),
+    } as unknown as jest.Mocked<CreateTransactionUseCase>;
 
-    referenceValidator = {
-      validate: jest.fn().mockResolvedValue({
-        account: { id: accountId } as unknown as Account,
-        destinationAccount: null,
-        category: { id: categoryId, type: CategoryType.EXPENSE } as unknown as Category,
-      }),
-    } as unknown as jest.Mocked<TransactionReferenceValidator>;
-
-    adapter = new TransactionFiscalNoteAdapter(transactionRepository, accountBalanceLockPort, referenceValidator);
+    adapter = new TransactionFiscalNoteAdapter(transactionRepository, createTransactionUseCase);
   });
 
   describe('createExpenseWithinTransaction', () => {
-    it('locks account, validates expense references, persists transaction and marks hasFiscalNote=true', async () => {
-      const result = await adapter.createExpenseWithinTransaction(
-        {
-          userId,
-          accountId,
-          categoryId,
-          amountCents: 1590,
-          date: toDateOnly('2026-10-15'),
-          description: 'SUPERMERCADO MODELO',
-          status: TransactionStatus.EFFECTIVE,
-        },
-        { manager },
-      );
+    it('delegates to CreateTransactionUseCase with EXPENSE defaults and options.manager, then marks hasFiscalNote=true', async () => {
+      const createdExpense = createDomainTransaction(TransactionType.EXPENSE);
+      createTransactionUseCase.execute.mockResolvedValue(createdExpense);
 
-      expect(accountBalanceLockPort.lockAccountsForBalanceMutation).toHaveBeenCalledWith(
-        { userId, accountIds: [accountId] },
-        { manager },
-      );
-      expect(referenceValidator.validate).toHaveBeenCalledWith(
+      const input = {
+        userId,
+        accountId,
+        categoryId,
+        amountCents: 1590,
+        date: toDateOnly('2026-10-15'),
+        description: 'SUPERMERCADO MODELO',
+        status: TransactionStatus.EFFECTIVE,
+      };
+
+      const result = await adapter.createExpenseWithinTransaction(input, { manager });
+
+      expect(createTransactionUseCase.execute).toHaveBeenCalledWith(
         {
-          userId,
-          accountId,
-          destinationAccountId: null,
-          categoryId,
+          ...input,
           type: TransactionType.EXPENSE,
+          destinationAccountId: null,
+          direction: null,
         },
         { manager },
       );
-      expect(transactionRepository.save).toHaveBeenCalledWith(expect.any(Transaction), { manager });
+      expect(result).toBe(createdExpense);
       expect(result.type).toBe(TransactionType.EXPENSE);
-      expect(result.status).toBe(TransactionStatus.EFFECTIVE);
-      expect(result.amountCents).toBe(1590);
-      expect(result.date).toBe('2026-10-15');
-      expect(result.description).toBe('SUPERMERCADO MODELO');
-      expect(result.categoryId).toBe(categoryId);
       expect(result.hasFiscalNote).toBe(true);
     });
   });

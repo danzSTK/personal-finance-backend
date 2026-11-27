@@ -1,3 +1,4 @@
+import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
 import { TransactionType } from '@/common/models/enums';
 import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
 import {
@@ -21,39 +22,50 @@ export class CreateTransactionUseCase {
     private readonly transactionReferenceValidator: TransactionReferenceValidator,
   ) {}
 
-  async execute(data: CreateTransactionUseCaseInput): Promise<CreateTransactionUseCaseOutput> {
-    return this.dataSource.transaction(async manager => {
-      const options = { manager };
-      const accountIdsToLock = [
-        data.accountId,
-        ...(data.type === TransactionType.TRANSFER && data.destinationAccountId ? [data.destinationAccountId] : []),
-      ];
+  async execute(
+    data: CreateTransactionUseCaseInput,
+    options?: IRepositoryOptions,
+  ): Promise<CreateTransactionUseCaseOutput> {
+    if (options?.manager) {
+      return this.executeWithinManager(data, { manager: options.manager });
+    }
 
-      await this.accountBalanceLockPort.lockAccountsForBalanceMutation(
-        {
-          userId: data.userId,
-          accountIds: accountIdsToLock,
-        },
-        options,
-      );
+    return this.dataSource.transaction(async manager => this.executeWithinManager(data, { manager }));
+  }
 
-      const references = await this.transactionReferenceValidator.validate(
-        {
-          userId: data.userId,
-          accountId: data.accountId,
-          destinationAccountId: data.destinationAccountId ?? null,
-          categoryId: data.categoryId,
-          type: data.type,
-        },
-        options,
-      );
+  private async executeWithinManager(
+    data: CreateTransactionUseCaseInput,
+    options: Required<IRepositoryOptions>,
+  ): Promise<CreateTransactionUseCaseOutput> {
+    const accountIdsToLock = [
+      data.accountId,
+      ...(data.type === TransactionType.TRANSFER && data.destinationAccountId ? [data.destinationAccountId] : []),
+    ];
 
-      const transaction = TransactionFactory.create({
-        ...data,
-        categoryId: references.category.id,
-      });
+    await this.accountBalanceLockPort.lockAccountsForBalanceMutation(
+      {
+        userId: data.userId,
+        accountIds: accountIdsToLock,
+      },
+      options,
+    );
 
-      return this.transactionRepository.save(transaction, options);
+    const references = await this.transactionReferenceValidator.validate(
+      {
+        userId: data.userId,
+        accountId: data.accountId,
+        destinationAccountId: data.destinationAccountId ?? null,
+        categoryId: data.categoryId,
+        type: data.type,
+      },
+      options,
+    );
+
+    const transaction = TransactionFactory.create({
+      ...data,
+      categoryId: references.category.id,
     });
+
+    return this.transactionRepository.save(transaction, options);
   }
 }

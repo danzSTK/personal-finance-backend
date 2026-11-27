@@ -30,6 +30,7 @@ O fluxo de pré-visualização (`POST /fiscal-notes/preview`) resolve os dados e
 4. **Rate Limiter de Cache Miss em 2 Camadas (`RedisFiscalNoteRateLimiter`):** Executa scripts Lua atômicos no Redis na seguinte ordem:
    - **Camada 2A (Usuário):** Verifica `fiscal-notes:rl:sefaz:user:{userId}:1m` (padrão `5/min`) e `fiscal-notes:rl:sefaz:user:{userId}:1h` (padrão `30/h`). Se excedido, lança `429 FISCAL_NOTE_RATE_LIMIT_EXCEEDED` com `Retry-After` **sem consumir a cota global da UF**.
    - **Camada 2B (Global da VPS por UF):** Verifica `fiscal-notes:rl:sefaz:global:{uf}:1m` (padrão `40/min`). Se excedido, emite log `warn` + alerta `WARN` (`FISCAL_NOTE_SEFAZ_GLOBAL_RL_HIT`) e lança `503 SEFAZ_TEMPORARILY_UNAVAILABLE` com `Retry-After`.
+   - **Liberação de Sonda `HALF_OPEN`:** Se qualquer camada rejeitar uma requisição que havia recebido sonda `HALF_OPEN` no passo 3, `FiscalNoteQueryService` chama `circuitBreaker.releaseProbe(cbOptions)`, removendo `:probe` e restaurando o estado para `OPEN` (preservando `consecutiveFailures`, `cooldownStage`, `openedAtMs` e `nextAttemptAtMs` já expirados) para que o próximo usuário elegível possa sondar imediatamente sem esperar o TTL do lock (`20s`–`38s`).
 5. **Chamada HTTP ao Provedor (`SefazCeHttpClient`):** Envia `POST` para o endpoint allowlisted (`qrcodev2` ou `qrcodev3`) com `redirect: 'error'`, timeout configurável (padrão `7000 ms`) e limite rígido de **1 MB** (`1_048_576` bytes) checado em `Content-Length` e por streaming de chunks. Em falha transitória (timeout, erro de rede ou HTTP `502`/`503`/`504`), executa no máximo **1 retry** após `400 ms` (padrão).
 6. **Parsing Sanitizado (`SefazCeHtmlParser`):**
    - Se a resposta `200` trouxer `{ "erro": ... }`, decodifica entidades HTML malformadas (ex.: `&aacute`) com `cheerio/slim` e lança erro de negócio (`404 FISCAL_NOTE_SEFAZ_NOT_FOUND`, `422 FISCAL_NOTE_CANCELLED_OR_DENIED` ou `422 FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED`).
@@ -50,8 +51,8 @@ O fluxo de pré-visualização (`POST /fiscal-notes/preview`) resolve os dados e
 | Input inválido, mod != `65`, mod-11 inválido | Não | Não | — | `400 FISCAL_NOTE_INVALID_INPUT` |
 | Ambiente homologação (`2`) ou UF != `23` | Não | Não | — | `422 FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED` / `FISCAL_NOTE_UNSUPPORTED_UF` |
 | Circuit Breaker `OPEN` ou sonda em andamento | Não | Mantém estado | Métrica `outcome: 'cb_open'` | `503 SEFAZ_TEMPORARILY_UNAVAILABLE` + `Retry-After` |
-| Rate limit por usuário (1m ou 1h) | Não | Não | Métrica `outcome: 'rate_limited'` | `429 FISCAL_NOTE_RATE_LIMIT_EXCEEDED` + `Retry-After` |
-| Rate limit global por UF (1m) | Não | Não | Log `warn` + Alerta `WARN` (`FISCAL_NOTE_SEFAZ_GLOBAL_RL_HIT`) | `503 SEFAZ_TEMPORARILY_UNAVAILABLE` + `Retry-After` |
+| Rate limit por usuário (1m ou 1h) | Não | Não (em `HALF_OPEN`, chama `releaseProbe`) | Métrica `outcome: 'rate_limited'` | `429 FISCAL_NOTE_RATE_LIMIT_EXCEEDED` + `Retry-After` |
+| Rate limit global por UF (1m) | Não | Não (em `HALF_OPEN`, chama `releaseProbe`) | Log `warn` + Alerta `WARN` (`FISCAL_NOTE_SEFAZ_GLOBAL_RL_HIT`) | `503 SEFAZ_TEMPORARILY_UNAVAILABLE` + `Retry-After` |
 | SEFAZ retornou `{ "erro": ... }` ou banner fiscal | Não | Não (em `HALF_OPEN`, fecha o CB) | Métrica `outcome: 'business_error'` | `404 FISCAL_NOTE_SEFAZ_NOT_FOUND` ou `422` |
 | Timeout / erro de rede / HTTP `502`, `503`, `504` | Máx. 1 retry (`400ms`) | Sim (`recordFailure`) | Log `warn` (`FISCAL_NOTE_SEFAZ_REQUEST_FAILED`) + Alerta `CRITICAL` se abrir CB | `504 SEFAZ_TIMEOUT` ou `503 SEFAZ_TEMPORARILY_UNAVAILABLE` |
 | Corpo `> 1 MB` (`Content-Length` ou stream) | Não | Sim (`recordFailure`) | Log `warn` + Alerta `CRITICAL` se abrir CB | `502 FISCAL_NOTE_RESPONSE_TOO_LARGE` |

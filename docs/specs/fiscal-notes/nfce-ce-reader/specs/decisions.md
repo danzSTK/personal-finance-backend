@@ -83,3 +83,21 @@ Este documento registra as escolhas técnicas, alternativas avaliadas e impactos
   - `LEFT JOIN` com `fiscal_notes` dentro de `TransactionRepository`: rejeitada por acoplar SQL do repositório de `transactions` a tabelas pertencentes ao módulo `fiscal-notes`.
   - Embutir `fiscalNote` inteiro na listagem de transações: rejeitada por bloat de payload e latência.
 - **Impacto:** Segue exatamente o padrão já consolidado de `attachmentsCount` em `Transaction` + `ListTransactionsUseCase`, mantendo fronteira limpa entre módulos e performance constante (1 query em lote por página).
+
+## DEC-10 — Dono Único de Criação de `Transaction` (`CreateTransactionUseCase`) e Derivação de DTO/Tipos
+
+- **Decisão:**
+  - Evoluir `CreateTransactionUseCase.execute(data, options?)` para aceitar `IRepositoryOptions` (`options?.manager`), reutilizando a transação PostgreSQL externa quando fornecida ou abrindo `dataSource.transaction` quando omitida, mantendo lock de saldo, validação de referências, `TransactionFactory.create` e `save()` centralizados em um único fluxo interno.
+  - Fazer `TransactionFiscalNoteAdapter.createExpenseWithinTransaction` delegar diretamente para `CreateTransactionUseCase.execute({ ...input, type: EXPENSE, destinationAccountId: null, direction: null }, options)` e marcar `saved.setHasFiscalNote(true)`.
+  - Derivar `CreateExpenseForFiscalNoteInput` de `CreateTransactionUseCaseInput` (`Omit<..., 'type' | 'destinationAccountId' | 'direction' | 'categoryId'> & { categoryId: string }`), `ImportFiscalNoteInput` de `CreateExpenseForFiscalNoteInput` e `ImportFiscalNoteDto` de `CreateTransactionDto` via `@nestjs/swagger` `OmitType`.
+- **Alternativas consideradas:**
+  - Manter cópia manual de campos e da sequência lock/validate/create/save no `TransactionFiscalNoteAdapter` e nos DTOs de importação: rejeitada por alto risco de drift quando `CreateTransactionDto` / `CreateTransactionUseCase` ganharem novos campos ou regras.
+- **Impacto:** Garante ponto único de criação de transações e propagação automática de novos campos/validações sem quebrar o isolamento transacional de `ImportFiscalNoteUseCase`.
+
+## DEC-11 — Liberação do Probe Lock (`releaseProbe`) em Rejeição Prévia de Rate Limit na Sonda `HALF_OPEN`
+
+- **Decisão:** Preservar a ordem `circuitBreaker.canExecute` antes de `rateLimiter.consumeSefazQuota` (evitando que requisições com circuito `OPEN` consumam cota), e adicionar `CircuitBreakerService.releaseProbe(options)` para liberar o lock `:probe` e restaurar `HALF_OPEN -> OPEN` (preservando `consecutiveFailures`, `cooldownStage`, `openedAtMs` e `nextAttemptAtMs` já expirados) sempre que `consumeSefazQuota` rejeitar uma requisição que havia recebido sonda `HALF_OPEN`.
+- **Alternativas consideradas:**
+  - Checar rate limit antes de `canExecute`: rejeitada porque queimaria cota do usuário/global mesmo quando o circuito já estivesse `OPEN` falhando rápido.
+  - Aguardar expiração natural do TTL do lock `:probe` (20s–38s): rejeitada porque atrasa a recuperação da SEFAZ sem sequer tê-la sondado.
+- **Impacto:** O próximo usuário elegível após rejeição por rate limit em `HALF_OPEN` pode sondar a SEFAZ imediatamente, sem falso bloqueio até o TTL do lock expirar.

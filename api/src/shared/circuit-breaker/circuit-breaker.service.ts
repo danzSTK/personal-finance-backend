@@ -295,6 +295,30 @@ export class CircuitBreakerService {
     }
   }
 
+  async releaseProbe(options: CircuitBreakerOptions): Promise<void> {
+    if (!this.redisService) {
+      return;
+    }
+
+    try {
+      const record = await this.readState(options.key);
+      await this.releaseProbeLock(options.key);
+
+      if (record.state !== CircuitBreakerStates.HALF_OPEN) {
+        return;
+      }
+
+      const restoredRecord: CircuitBreakerStateRecord = {
+        ...record,
+        state: CircuitBreakerStates.OPEN,
+      };
+
+      await this.writeState(options.key, restoredRecord, this.resolveStateTtlSeconds(options.stateTtlSeconds));
+    } catch (error) {
+      this.logRedisError(options.key, error);
+    }
+  }
+
   private createClosedState(): CircuitBreakerStateRecord {
     return {
       state: CircuitBreakerStates.CLOSED,

@@ -26,7 +26,7 @@ Este documento descreve a persistência de `FiscalNote` na etapa de confirmaçã
 2. Calcula os valores efetivos da transação com fallback para os dados da nota: `amountCents ?? payableAmountCents`, `date ?? issuedDate`, `description ?? issuerName` (truncado ao limite de descrição), `status ?? EFFECTIVE`.
 3. Abre transação curta PostgreSQL (`dataSource.transaction`):
    - Verifica se já existe `FiscalNote` ativa para `(userId, accessKey)`. Se existir, aborta com `409 FISCAL_NOTE_ALREADY_IMPORTED` contendo `details: { existingTransactionId, existingFiscalNoteId }`.
-   - Delega ao `TransactionFiscalNotePort.createExpenseWithinTransaction` o lock de saldo da conta (`AccountBalanceLockPort`), validação de conta/categoria e persistência da `Transaction (EXPENSE)`.
+   - Delega ao `TransactionFiscalNotePort.createExpenseWithinTransaction` (que delega ao `CreateTransactionUseCase.execute(..., options)` dentro do mesmo `EntityManager`) o lock de saldo da conta (`AccountBalanceLockPort`), validação de conta/categoria e persistência da `Transaction (EXPENSE)`.
    - Constrói o agregado `FiscalNote` + `FiscalNoteItem[]` + `FiscalNotePayment[]` e persiste na mesma transação.
 4. Registra métrica `fiscal_notes.operations.total` (`operation: 'import'`) e retorna `201 Created` (`fiscal_note.import`) com `transaction` (`hasFiscalNote: true`) e `fiscalNote`.
 

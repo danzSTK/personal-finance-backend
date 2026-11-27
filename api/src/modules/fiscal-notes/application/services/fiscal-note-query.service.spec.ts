@@ -128,6 +128,7 @@ describe('FiscalNoteQueryService', () => {
         consecutiveFailures: 1,
         cooldownStage: 0,
       }),
+      releaseProbe: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<CircuitBreakerService>;
     rateLimiter = {
       consumeSefazQuota: jest.fn().mockResolvedValue(undefined),
@@ -284,12 +285,38 @@ describe('FiscalNoteQueryService', () => {
       });
     });
 
-    it('propagates rate limit errors without recording CircuitBreaker failure', async () => {
+    it('propagates rate limit errors without recording CircuitBreaker failure or releasing probe when CLOSED', async () => {
       cache.get.mockResolvedValue(null);
       rateLimiter.consumeSefazQuota.mockRejectedValue(new FiscalNoteRateLimitExceededError(20));
 
       await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(FiscalNoteRateLimitExceededError);
       expect(circuitBreaker.recordFailure).not.toHaveBeenCalled();
+      expect(circuitBreaker.releaseProbe).not.toHaveBeenCalled();
+      expect(metrics.incrementCounter).toHaveBeenCalledWith(FiscalNoteMetricNames.SEFAZ_QUERY_TOTAL, {
+        uf: '23',
+        channel: FiscalNoteQueryChannels.QRCODE_V3,
+        outcome: FiscalNoteQueryOutcomes.RATE_LIMITED,
+      });
+    });
+
+    it('releases CircuitBreaker probe lock when rate limiter rejects a HALF_OPEN probe', async () => {
+      cache.get.mockResolvedValue(null);
+      circuitBreaker.canExecute.mockResolvedValue({
+        allowed: true,
+        state: CircuitBreakerStates.HALF_OPEN,
+        transitionedTo: CircuitBreakerStates.HALF_OPEN,
+      });
+      rateLimiter.consumeSefazQuota.mockRejectedValue(new FiscalNoteRateLimitExceededError(20));
+
+      await expect(service.resolve(VALID_CE_KEY, userId)).rejects.toThrow(FiscalNoteRateLimitExceededError);
+      expect(circuitBreaker.releaseProbe).toHaveBeenCalledTimes(1);
+      expect(circuitBreaker.releaseProbe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'fiscal-notes:cb:v1:23',
+        }),
+      );
+      expect(circuitBreaker.recordFailure).not.toHaveBeenCalled();
+      expect(provider.fetchAndParse).not.toHaveBeenCalled();
       expect(metrics.incrementCounter).toHaveBeenCalledWith(FiscalNoteMetricNames.SEFAZ_QUERY_TOTAL, {
         uf: '23',
         channel: FiscalNoteQueryChannels.QRCODE_V3,

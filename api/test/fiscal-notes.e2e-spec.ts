@@ -64,6 +64,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HealthCheckService, MemoryHealthIndicator, TypeOrmHealthIndicator } from '@nestjs/terminus';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -642,10 +643,6 @@ describe('Fiscal notes HTTP contract (e2e)', () => {
         input: VALID_CE_QR_URL,
         accountId: TEST_ACCOUNT_ID,
         categoryId: TEST_CATEGORY_ID,
-        amountCents: undefined,
-        date: undefined,
-        description: undefined,
-        status: undefined,
       });
       expect(response.body).toMatchObject({
         object: RESPONSE_OBJECT_TYPES.FISCAL_NOTE_IMPORT,
@@ -708,7 +705,77 @@ describe('Fiscal notes HTTP contract (e2e)', () => {
         })
         .expect(400);
 
+      await request(getServer())
+        .post('/fiscal-notes/import')
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .send({
+          input: VALID_CE_QR_URL,
+          accountId: TEST_ACCOUNT_ID,
+        })
+        .expect(400);
+
+      await request(getServer())
+        .post('/fiscal-notes/import')
+        .set('Authorization', TEST_BEARER_TOKEN)
+        .send({
+          input: VALID_CE_QR_URL,
+          categoryId: TEST_CATEGORY_ID,
+        })
+        .expect(400);
+
+      for (const disallowedField of [
+        { type: TransactionType.EXPENSE },
+        { destinationAccountId: TEST_ACCOUNT_ID },
+        { direction: 'INCREASE' },
+      ]) {
+        await request(getServer())
+          .post('/fiscal-notes/import')
+          .set('Authorization', TEST_BEARER_TOKEN)
+          .send({
+            input: VALID_CE_QR_URL,
+            accountId: TEST_ACCOUNT_ID,
+            categoryId: TEST_CATEGORY_ID,
+            ...disallowedField,
+          })
+          .expect(400);
+      }
+
+      for (const nullOverride of [{ amountCents: null }, { date: null }, { status: null }]) {
+        await request(getServer())
+          .post('/fiscal-notes/import')
+          .set('Authorization', TEST_BEARER_TOKEN)
+          .send({
+            input: VALID_CE_QR_URL,
+            accountId: TEST_ACCOUNT_ID,
+            categoryId: TEST_CATEGORY_ID,
+            ...nullOverride,
+          })
+          .expect(400);
+      }
+
       expect(importExecute).not.toHaveBeenCalled();
+    });
+
+    it('builds valid Swagger schema for ImportFiscalNoteDto derived from CreateTransactionDto', () => {
+      const document = SwaggerModule.createDocument(
+        app,
+        new DocumentBuilder().setTitle('Test').setVersion('1.0').build(),
+      );
+      const schema = document.components?.schemas?.ImportFiscalNoteDto as
+        | { properties?: Record<string, unknown>; required?: string[] }
+        | undefined;
+
+      expect(schema).toBeDefined();
+      expect(Object.keys(schema?.properties ?? {})).toEqual(
+        expect.arrayContaining(['input', 'accountId', 'categoryId', 'amountCents', 'date', 'description', 'status']),
+      );
+      expect(schema?.properties).not.toHaveProperty('type');
+      expect(schema?.properties).not.toHaveProperty('destinationAccountId');
+      expect(schema?.properties).not.toHaveProperty('direction');
+      expect(schema?.required).toEqual(expect.arrayContaining(['input', 'accountId', 'categoryId']));
+      expect(schema?.required).not.toContain('amountCents');
+      expect(schema?.required).not.toContain('date');
+      expect(schema?.required).not.toContain('status');
     });
 
     it('returns 409 Conflict for FISCAL_NOTE_ALREADY_IMPORTED propagating details with existing IDs', async () => {

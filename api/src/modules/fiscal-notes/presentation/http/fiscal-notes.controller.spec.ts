@@ -169,10 +169,6 @@ describe('FiscalNotesController', () => {
         input: VALID_CE_KEY,
         accountId,
         categoryId,
-        amountCents: undefined,
-        date: undefined,
-        description: undefined,
-        status: undefined,
       });
       expect(response.object).toBe(RESPONSE_OBJECT_TYPES.FISCAL_NOTE_IMPORT);
       expect(response.transaction.id).toBe(transactionId);

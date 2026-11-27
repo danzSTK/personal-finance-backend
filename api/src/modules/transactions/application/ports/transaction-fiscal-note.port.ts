@@ -1,17 +1,13 @@
-import { TransactionStatus } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
-import { DateOnlyString } from '@/common/utils/date-only';
+import { CreateTransactionUseCaseInput } from '@/modules/transactions/application/use-cases/create-transaction/create-transaction.dto';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 
-export interface CreateExpenseForFiscalNoteInput {
-  userId: string;
-  accountId: string;
+export type CreateExpenseForFiscalNoteInput = Omit<
+  CreateTransactionUseCaseInput,
+  'type' | 'destinationAccountId' | 'direction' | 'categoryId'
+> & {
   categoryId: string;
-  amountCents: number;
-  date: DateOnlyString;
-  description: string | null;
-  status: TransactionStatus;
-}
+};
 
 export interface LockAndValidateExpenseForFiscalNoteLinkInput {
   userId: string;

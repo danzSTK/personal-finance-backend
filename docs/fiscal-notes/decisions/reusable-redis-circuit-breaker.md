@@ -14,7 +14,7 @@ related:
 
 Implementar o Circuit Breaker como componente transversal reutilizável em `api/src/shared/circuit-breaker/` (`CircuitBreakerModule` e `CircuitBreakerService`), com:
 
-- estado persistido em JSON no Redis (`CLOSED`, `OPEN`, `HALF_OPEN`) e lock curto de sonda única (`:probe` via `SET NX EX <probeLockTtlSeconds>`, fallback `15s`) durante `HALF_OPEN`, onde `FiscalNoteQueryService` dimensiona `probeLockTtlSeconds` pela janela máxima de timeout + retry + buffer de segurança (`5s`);
+- estado persistido em JSON no Redis (`CLOSED`, `OPEN`, `HALF_OPEN`) e lock curto de sonda única (`:probe` via `SET NX EX <probeLockTtlSeconds>`, fallback `15s`) durante `HALF_OPEN`, onde `FiscalNoteQueryService` dimensiona `probeLockTtlSeconds` pela janela máxima de timeout + retry + buffer de segurança (`5s`), com `releaseProbe(options)` para devolver o circuito a `OPEN` (preservando cooldown já vencido) caso uma etapa anterior ao provedor (ex.: rate limiter) rejeite a sonda;
 - limiar configurável de falhas consecutivas (padrão `5`) e cooldown progressivo em degraus (padrão `60s -> 120s -> 300s`);
 - degradação segura **fail-open** caso o Redis falhe ou esteja indisponível (log `warn` `CIRCUIT_BREAKER_REDIS_ERROR`, sem derrubar requisições);
 - **isolamento total de `/health/liveness` e `/health/readiness`**: o estado do Circuit Breaker e a disponibilidade da SEFAZ nunca interferem nos health checks da API.

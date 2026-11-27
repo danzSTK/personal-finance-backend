@@ -341,13 +341,64 @@ describe('CircuitBreakerService', () => {
     });
   });
 
+  describe('releaseProbe', () => {
+    it('releases probe lock and restores HALF_OPEN state to OPEN preserving metadata so next caller can probe immediately', async () => {
+      const openedAtMs = Date.now() - 120_000;
+      const nextAttemptAtMs = Date.now();
+      store.set(
+        baseKey,
+        JSON.stringify({
+          state: CircuitBreakerStates.OPEN,
+          consecutiveFailures: 5,
+          cooldownStage: 1,
+          openedAtMs,
+          nextAttemptAtMs,
+        }),
+      );
+
+      const firstProbe = await service.canExecute(baseOptions);
+      expect(firstProbe).toEqual({
+        allowed: true,
+        state: CircuitBreakerStates.HALF_OPEN,
+        transitionedTo: CircuitBreakerStates.HALF_OPEN,
+      });
+      expect(store.has(`${baseKey}${CIRCUIT_BREAKER_PROBE_KEY_SUFFIX}`)).toBe(true);
+
+      await service.releaseProbe(baseOptions);
+
+      expect(store.has(`${baseKey}${CIRCUIT_BREAKER_PROBE_KEY_SUFFIX}`)).toBe(false);
+      expect(JSON.parse(store.get(baseKey) ?? '{}')).toEqual({
+        state: CircuitBreakerStates.OPEN,
+        consecutiveFailures: 5,
+        cooldownStage: 1,
+        openedAtMs,
+        nextAttemptAtMs,
+      });
+
+      const nextProbe = await service.canExecute(baseOptions);
+      expect(nextProbe).toEqual({
+        allowed: true,
+        state: CircuitBreakerStates.HALF_OPEN,
+        transitionedTo: CircuitBreakerStates.HALF_OPEN,
+      });
+    });
+
+    it('is a state no-op when circuit is CLOSED and does not write state', async () => {
+      await service.releaseProbe(baseOptions);
+
+      expect(redisClient.del).toHaveBeenCalledWith(`${baseKey}${CIRCUIT_BREAKER_PROBE_KEY_SUFFIX}`);
+      expect(redisClient.set).not.toHaveBeenCalled();
+    });
+  });
+
   describe('fail-open resilience', () => {
-    it('fails open and logs warning when Redis throws during canExecute, recordSuccess, or recordFailure', async () => {
+    it('fails open and logs warning when Redis throws during canExecute, recordSuccess, recordFailure, or releaseProbe', async () => {
       redisClient.get.mockRejectedValue(new Error('Redis connection lost'));
 
       const decision = await service.canExecute(baseOptions);
       const success = await service.recordSuccess(baseOptions);
       const failure = await service.recordFailure(baseOptions);
+      await expect(service.releaseProbe(baseOptions)).resolves.toBeUndefined();
 
       expect(decision).toEqual({
         allowed: true,
@@ -365,7 +416,7 @@ describe('CircuitBreakerService', () => {
         consecutiveFailures: 0,
         cooldownStage: 0,
       });
-      expect(warnSpy).toHaveBeenCalledTimes(3);
+      expect(warnSpy).toHaveBeenCalledTimes(4);
       expect(warnSpy).toHaveBeenCalledWith({
         event: CircuitBreakerLogEvents.REDIS_ERROR,
         key: baseKey,
@@ -392,6 +443,7 @@ describe('CircuitBreakerService', () => {
         consecutiveFailures: 0,
         cooldownStage: 0,
       });
+      await expect(noRedisService.releaseProbe(baseOptions)).resolves.toBeUndefined();
     });
   });
 });

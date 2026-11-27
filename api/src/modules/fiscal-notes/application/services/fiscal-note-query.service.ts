@@ -134,6 +134,9 @@ export class FiscalNoteQueryService {
     try {
       await this.rateLimiter.consumeSefazQuota({ userId, uf: input.uf });
     } catch (error: unknown) {
+      if (decision.state === CircuitBreakerStates.HALF_OPEN) {
+        await this.circuitBreaker.releaseProbe(cbOptions);
+      }
       this.recordQueryCounter(input, FiscalNoteQueryOutcomes.RATE_LIMITED);
       throw error;
     }

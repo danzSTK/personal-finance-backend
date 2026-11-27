@@ -73,14 +73,8 @@ export class FiscalNotesController {
     @Body() body: ImportFiscalNoteDto,
   ): Promise<ImportFiscalNoteResponseDto> {
     const output = await this.importFiscalNoteUseCase.execute({
+      ...body,
       userId: user.id,
-      input: body.input,
-      accountId: body.accountId,
-      categoryId: body.categoryId,
-      amountCents: body.amountCents,
-      date: body.date,
-      description: body.description,
-      status: body.status,
     });
 
     return ImportFiscalNoteResponseDto.fromOutput(output);

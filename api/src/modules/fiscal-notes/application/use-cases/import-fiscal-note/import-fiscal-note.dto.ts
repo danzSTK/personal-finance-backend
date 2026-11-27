@@ -1,18 +1,13 @@
-import { TransactionStatus } from '@/common/models/enums';
 import { DateOnlyString } from '@/common/utils/date-only';
 import { FiscalNote } from '@/modules/fiscal-notes/domain/entities/fiscal-note.entity';
+import { CreateExpenseForFiscalNoteInput } from '@/modules/transactions/application/ports/transaction-fiscal-note.port';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 
-export interface ImportFiscalNoteInput {
-  userId: string;
+export type ImportFiscalNoteInput = Omit<CreateExpenseForFiscalNoteInput, 'amountCents' | 'date'> & {
   input: string;
-  accountId: string;
-  categoryId: string;
   amountCents?: number;
   date?: DateOnlyString;
-  description?: string | null;
-  status?: TransactionStatus;
-}
+};
 
 export interface ImportFiscalNoteOutput {
   transaction: Transaction;

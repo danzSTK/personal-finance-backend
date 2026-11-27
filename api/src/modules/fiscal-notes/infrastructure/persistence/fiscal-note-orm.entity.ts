@@ -24,9 +24,7 @@ import {
   unique: true,
   where: 'deleted_at IS NULL',
 })
-@Index('idx_fiscal_notes_user_active', ['userId'], {
-  where: 'deleted_at IS NULL',
-})
+@Index('idx_fiscal_notes_user_id', ['userId'])
 @Index('idx_fiscal_notes_transaction_id', ['transactionId'])
 @Check('CHK_fiscal_notes_access_key_digits', `"access_key" ~ '^[0-9]{44}$'`)
 @Check('CHK_fiscal_notes_source_uf_digits', `"source_uf" ~ '^[0-9]{2}$'`)

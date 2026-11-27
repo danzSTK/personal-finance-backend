@@ -37,9 +37,10 @@ export class ImportFiscalNoteUseCase {
   ) {}
 
   async execute(dto: ImportFiscalNoteInput): Promise<ImportFiscalNoteOutput> {
-    const { parsed } = await this.fiscalNoteQueryService.resolve(dto.input, dto.userId);
+    const { input, amountCents, date, description, status, ...expenseFields } = dto;
+    const { parsed } = await this.fiscalNoteQueryService.resolve(input, expenseFields.userId);
 
-    const effectiveAmountCents = dto.amountCents ?? parsed.payableAmountCents;
+    const effectiveAmountCents = amountCents ?? parsed.payableAmountCents;
     if (
       !Number.isSafeInteger(effectiveAmountCents) ||
       effectiveAmountCents <= 0 ||
@@ -48,16 +49,16 @@ export class ImportFiscalNoteUseCase {
       throw new InvalidTransactionError('Transaction amountCents must be a positive safe integer.');
     }
 
-    const effectiveDate = dto.date ?? parsed.issuedDate;
+    const effectiveDate = date ?? parsed.issuedDate;
     const effectiveDescription =
-      dto.description !== undefined ? dto.description : parsed.issuerName.slice(0, TRANSACTION_DESCRIPTION_MAX_LENGTH);
-    const effectiveStatus = dto.status ?? TransactionStatus.EFFECTIVE;
+      description !== undefined ? description : parsed.issuerName.slice(0, TRANSACTION_DESCRIPTION_MAX_LENGTH);
+    const effectiveStatus = status ?? TransactionStatus.EFFECTIVE;
 
     const result = await this.dataSource.transaction(async manager => {
       const options = { manager };
 
       const existing = await this.fiscalNoteRepository.findActiveByUserIdAndAccessKey(
-        dto.userId,
+        expenseFields.userId,
         parsed.accessKey,
         options,
       );
@@ -67,9 +68,7 @@ export class ImportFiscalNoteUseCase {
 
       const transaction = await this.transactionFiscalNotePort.createExpenseWithinTransaction(
         {
-          userId: dto.userId,
-          accountId: dto.accountId,
-          categoryId: dto.categoryId,
+          ...expenseFields,
           amountCents: effectiveAmountCents,
           date: effectiveDate,
           description: effectiveDescription,
@@ -79,7 +78,7 @@ export class ImportFiscalNoteUseCase {
       );
 
       const fiscalNote = buildFiscalNoteEntityFromParsed({
-        userId: dto.userId,
+        userId: expenseFields.userId,
         transactionId: transaction.id,
         parsed,
       });
@@ -93,7 +92,7 @@ export class ImportFiscalNoteUseCase {
       } catch (error: unknown) {
         return handleFiscalNoteUniqueConstraintError({
           error,
-          userId: dto.userId,
+          userId: expenseFields.userId,
           transactionId: transaction.id,
           accessKey: parsed.accessKey,
           fiscalNoteRepository: this.fiscalNoteRepository,

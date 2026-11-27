@@ -65,6 +65,7 @@ import { TransactionAttachmentRepository } from '@/modules/transactions/infrastr
 import { TransactionOrmEntity } from '@/modules/transactions/infrastructure/persistence/transaction-orm.entity';
 import { TransactionRepository } from '@/modules/transactions/infrastructure/persistence/transaction.repository';
 import { CircuitBreakerService, CircuitBreakerStates, type CircuitBreakerStateRecord } from '@/shared/circuit-breaker';
+import { CIRCUIT_BREAKER_PROBE_KEY_SUFFIX } from '@/shared/circuit-breaker/constants/circuit-breaker.constants';
 import {
   type IMetricsRecorder,
   type IOperationalAlertNotifier,
@@ -401,11 +402,13 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
     categoryRepository = new CategoryRepository(dataSource.getRepository(CategoryOrmEntity));
     accountBalanceLockPort = new AccountBalanceLockAdapter(accountRepository);
     transactionReferenceValidator = new TransactionReferenceValidator(accountRepository, categoryRepository);
-    transactionFiscalNotePort = new TransactionFiscalNoteAdapter(
+    const createTransactionUseCase = new CreateTransactionUseCase(
+      dataSource,
       transactionRepository,
       accountBalanceLockPort,
       transactionReferenceValidator,
     );
+    transactionFiscalNotePort = new TransactionFiscalNoteAdapter(transactionRepository, createTransactionUseCase);
     fiscalNoteLifecyclePort = new FiscalNoteTransactionLifecycleAdapter(fiscalNoteRepository);
     circuitBreakerService = new CircuitBreakerService(redisService);
   });
@@ -554,8 +557,8 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
 
     await runMigration(queryRunner => migration.up(queryRunner));
 
-    const indexes = await dataSource!.query<Array<{ indexname: string }>>(`
-      SELECT indexname FROM pg_indexes
+    const indexes = await dataSource!.query<Array<{ indexname: string; indexdef: string }>>(`
+      SELECT indexname, indexdef FROM pg_indexes
       WHERE schemaname = 'public'
         AND tablename IN ('fiscal_notes', 'fiscal_note_items', 'fiscal_note_payments')
     `);
@@ -564,7 +567,7 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
         'PK_fiscal_notes',
         FiscalNoteDbConstraints.USER_ACCESS_KEY_ACTIVE,
         FiscalNoteDbConstraints.TRANSACTION_ACTIVE,
-        'idx_fiscal_notes_user_active',
+        'idx_fiscal_notes_user_id',
         'idx_fiscal_notes_transaction_id',
         'PK_fiscal_note_items',
         'UQ_fiscal_note_items_fiscal_note_position',
@@ -572,6 +575,13 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
         'UQ_fiscal_note_payments_fiscal_note_position',
       ]),
     );
+    const nonPartialFkIndexes = indexes.filter(row =>
+      ['idx_fiscal_notes_user_id', 'idx_fiscal_notes_transaction_id'].includes(row.indexname),
+    );
+    expect(nonPartialFkIndexes).toHaveLength(2);
+    for (const row of nonPartialFkIndexes) {
+      expect(row.indexdef).not.toMatch(/\bWHERE\b/i);
+    }
 
     const user = await seedUserFixtures('migration');
     const txId = randomUUID();
@@ -1078,6 +1088,76 @@ describe('Fiscal notes PostgreSQL + Redis + HTTP stub integration', () => {
         severity: OperationalAlertSeverities.RESOLVED,
       }),
     );
+  });
+
+  it('releases HALF_OPEN probe lock when rate limiter rejects the probe so the next eligible user can probe immediately', async () => {
+    const rateLimitedUser = await seedUserFixtures('cb-rl-user1');
+    const openerUser = await seedUserFixtures('cb-rl-opener');
+    const eligibleUser = await seedUserFixtures('cb-rl-user2');
+    const stack = buildFiscalNoteStack({
+      http: {
+        timeoutMs: DEFAULT_FISCAL_NOTES_HTTP_TIMEOUT_MS,
+        retryBackoffMs: 10,
+        maxResponseBytes: DEFAULT_FISCAL_NOTES_HTTP_MAX_RESPONSE_BYTES,
+      },
+      rateLimit: {
+        userPerMinute: 1,
+        userPerHour: 10,
+        globalPerMinute: 40,
+      },
+      circuitBreaker: {
+        failureThreshold: 1,
+        cooldownSeconds: [15, 45, 90],
+      },
+    });
+    const cbKey = CacheKeys.fiscalNotes.circuitBreaker(FiscalNoteSupportedUfs.CE);
+    const probeKey = `${cbKey}${CIRCUIT_BREAKER_PROBE_KEY_SUFFIX}`;
+
+    await stack.previewUseCase.execute({
+      userId: rateLimitedUser.userId,
+      input: buildValidCeKey('000025001'),
+    });
+
+    activeStubHandler = (_req, res) => {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ erro: 'unavailable' }));
+    };
+
+    await expect(
+      stack.previewUseCase.execute({
+        userId: openerUser.userId,
+        input: buildValidCeKey('000025002'),
+      }),
+    ).rejects.toBeInstanceOf(SefazTemporarilyUnavailableError);
+
+    await expireCircuitBreakerCooldownInRedis(redisClient!, cbKey);
+
+    await expect(
+      stack.previewUseCase.execute({
+        userId: rateLimitedUser.userId,
+        input: buildValidCeKey('000025003'),
+      }),
+    ).rejects.toBeInstanceOf(FiscalNoteRateLimitExceededError);
+
+    expect(await redisClient!.get(probeKey)).toBeNull();
+    const stateAfterRejectedProbe = JSON.parse((await redisClient!.get(cbKey))!) as CircuitBreakerStateRecord;
+    expect(stateAfterRejectedProbe.state).toBe(CircuitBreakerStates.OPEN);
+
+    activeStubHandler = (req, res) => {
+      const requestedKey = typeof req.body.chave_acesso === 'string' ? req.body.chave_acesso : FIXTURE_CANONICAL_KEY;
+      const html = renderFixtureForKey('sefaz-ce-complete-with-discount-and-consumer.html', requestedKey);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ xml: html }));
+    };
+
+    const recovered = await stack.previewUseCase.execute({
+      userId: eligibleUser.userId,
+      input: buildValidCeKey('000025004'),
+    });
+    expect(recovered.cacheHit).toBe(false);
+
+    const closedState = JSON.parse((await redisClient!.get(cbKey))!) as CircuitBreakerStateRecord;
+    expect(closedState.state).toBe(CircuitBreakerStates.CLOSED);
   });
 
   it('validates HTTP client single retry on 503->200, 1MB streaming cap, 302 redirect block, and unknown QR host isolation', async () => {

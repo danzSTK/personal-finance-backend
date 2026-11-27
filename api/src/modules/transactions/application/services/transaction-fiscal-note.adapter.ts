@@ -1,6 +1,5 @@
 import { TransactionType } from '@/common/models/enums';
 import { IRepositoryOptions } from '@/common/models/interfaces/repository-options.interface';
-import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
 import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import {
   AssertTransactionAccessibleInput,
@@ -8,10 +7,9 @@ import {
   LockAndValidateExpenseForFiscalNoteLinkInput,
   TransactionFiscalNotePort,
 } from '@/modules/transactions/application/ports/transaction-fiscal-note.port';
-import { TransactionReferenceValidator } from '@/modules/transactions/application/services/transaction-reference-validator.service';
+import { CreateTransactionUseCase } from '@/modules/transactions/application/use-cases/create-transaction/create-transaction.use-case';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import { TransactionTypeDoesNotSupportFiscalNoteError } from '@/modules/transactions/domain/errors';
-import { TransactionFactory } from '@/modules/transactions/domain/factories/transaction.factory';
 import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { Injectable } from '@nestjs/common';
 
@@ -19,47 +17,22 @@ import { Injectable } from '@nestjs/common';
 export class TransactionFiscalNoteAdapter implements TransactionFiscalNotePort {
   constructor(
     private readonly transactionRepository: ITransactionRepository,
-    private readonly accountBalanceLockPort: AccountBalanceLockPort,
-    private readonly transactionReferenceValidator: TransactionReferenceValidator,
+    private readonly createTransactionUseCase: CreateTransactionUseCase,
   ) {}
 
   async createExpenseWithinTransaction(
     input: CreateExpenseForFiscalNoteInput,
     options: Required<IRepositoryOptions>,
   ): Promise<Transaction> {
-    await this.accountBalanceLockPort.lockAccountsForBalanceMutation(
+    const saved = await this.createTransactionUseCase.execute(
       {
-        userId: input.userId,
-        accountIds: [input.accountId],
-      },
-      options,
-    );
-
-    const references = await this.transactionReferenceValidator.validate(
-      {
-        userId: input.userId,
-        accountId: input.accountId,
-        destinationAccountId: null,
-        categoryId: input.categoryId,
+        ...input,
         type: TransactionType.EXPENSE,
+        destinationAccountId: null,
+        direction: null,
       },
       options,
     );
-
-    const transaction = TransactionFactory.create({
-      userId: input.userId,
-      accountId: input.accountId,
-      destinationAccountId: null,
-      categoryId: references.category.id,
-      type: TransactionType.EXPENSE,
-      status: input.status,
-      amountCents: input.amountCents,
-      date: input.date,
-      description: input.description,
-      direction: null,
-    });
-
-    const saved = await this.transactionRepository.save(transaction, options);
     saved.setHasFiscalNote(true);
 
     return saved;

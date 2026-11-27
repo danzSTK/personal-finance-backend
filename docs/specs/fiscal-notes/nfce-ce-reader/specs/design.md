@@ -193,7 +193,7 @@ Migration: `api/src/database/migrations/1789000000000-CreateFiscalNotesTables.ts
 **Índices de `fiscal_notes`:**
 - `UQ_fiscal_notes_user_access_key_active`: `CREATE UNIQUE INDEX "UQ_fiscal_notes_user_access_key_active" ON "fiscal_notes" ("user_id", "access_key") WHERE "deleted_at" IS NULL`
 - `UQ_fiscal_notes_transaction_active`: `CREATE UNIQUE INDEX "UQ_fiscal_notes_transaction_active" ON "fiscal_notes" ("transaction_id") WHERE "deleted_at" IS NULL`
-- `idx_fiscal_notes_user_active`: `CREATE INDEX "idx_fiscal_notes_user_active" ON "fiscal_notes" ("user_id") WHERE "deleted_at" IS NULL`
+- `idx_fiscal_notes_user_id`: `CREATE INDEX "idx_fiscal_notes_user_id" ON "fiscal_notes" ("user_id")` (não parcial; cobre a FK `FK_fiscal_notes_user` `ON DELETE RESTRICT` inclusive em linhas soft-deletadas)
 - `idx_fiscal_notes_transaction_id`: `CREATE INDEX "idx_fiscal_notes_transaction_id" ON "fiscal_notes" ("transaction_id")` (cobre FK lookup inclusive para registros históricos)
 
 ### Tabela `fiscal_note_items`
@@ -380,7 +380,8 @@ Aceita `rawInput: string`:
 - API pública:
   - `canExecute(options: CircuitBreakerOptions): Promise<CircuitBreakerDecision>` (`{ allowed: boolean, state, retryAfterSeconds?: number, transitionedTo?: CircuitBreakerState }`);
   - `recordSuccess(options: CircuitBreakerOptions): Promise<{ previousState: CircuitBreakerState; currentState: CircuitBreakerState }>`;
-  - `recordFailure(options: CircuitBreakerOptions): Promise<{ previousState: CircuitBreakerState; currentState: CircuitBreakerState; opened: boolean; retryAfterSeconds?: number; consecutiveFailures: number; cooldownStage: number }>`.
+  - `recordFailure(options: CircuitBreakerOptions): Promise<{ previousState: CircuitBreakerState; currentState: CircuitBreakerState; opened: boolean; retryAfterSeconds?: number; consecutiveFailures: number; cooldownStage: number }>`;
+  - `releaseProbe(options: CircuitBreakerOptions): Promise<void>`: libera o lock `:probe` e, se o circuito estiver em `HALF_OPEN`, restaura o estado para `OPEN` preservando `consecutiveFailures`, `cooldownStage`, `openedAtMs` e `nextAttemptAtMs` (usado quando uma rejeição prévia de rate limit aborta uma sonda antes de chamar o provedor).
 - Comportamento:
   - `CLOSED`: permite execução; falha incrementa `consecutiveFailures`; ao atingir `failureThreshold` (default `5`), transita para `OPEN` com `cooldownStage = 0` (`60s`), `nextAttemptAtMs = now + 60_000`.
   - `OPEN`: enquanto `now < nextAttemptAtMs`, retorna `{ allowed: false, retryAfterSeconds: Math.ceil((nextAttemptAtMs - now) / 1000) }` em `< 5 ms`. Quando `now >= nextAttemptAtMs`, transita atomicamente para `HALF_OPEN` (usando lock/chave auxiliar `SET ... NX EX` curto para permitir sonda única controlada) e permite 1 requisição de sonda.
