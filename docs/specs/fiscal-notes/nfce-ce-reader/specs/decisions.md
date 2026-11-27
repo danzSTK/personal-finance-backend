@@ -101,3 +101,16 @@ Este documento registra as escolhas técnicas, alternativas avaliadas e impactos
   - Checar rate limit antes de `canExecute`: rejeitada porque queimaria cota do usuário/global mesmo quando o circuito já estivesse `OPEN` falhando rápido.
   - Aguardar expiração natural do TTL do lock `:probe` (20s–38s): rejeitada porque atrasa a recuperação da SEFAZ sem sequer tê-la sondado.
 - **Impacto:** O próximo usuário elegível após rejeição por rate limit em `HALF_OPEN` pode sondar a SEFAZ imediatamente, sem falso bloqueio até o TTL do lock expirar.
+
+## DEC-12 — Listagem Paginada Leve (`GET /fiscal-notes`) com `EXISTS` e Detalhe Direto (`GET /fiscal-notes/:id`)
+
+- **Decisão:**
+  - Expor `GET /fiscal-notes` retornando `ListFiscalNotesResponseDto` (`object: 'fiscal_note.list'`) com `data` leve (`object: 'fiscal_note.summary'`, incluindo `itemsCount` sem embutir arrays de itens/pagamentos), `meta` de paginação e `summary` agregado (`object: 'fiscal_note.summary_totals'`).
+  - Expor `GET /fiscal-notes/:id` retornando `FiscalNoteResponseDto` (`object: 'fiscal_note.item'`) completo filtrado por `(id, userId)`.
+  - Implementar busca `search` sobre `issuer_name` ou `fiscal_note_items.raw_description` via `EXISTS` (com escape de `\`, `%`, `_`) para nunca duplicar notas na paginação ou distorcer agregados do `summary`.
+  - Converter filtros `DateOnly` (`issuedFrom`/`issuedTo`) para limites `timestamptz` no offset `-03:00` (`[issuedFrom 00:00:00-03:00, nextDay(issuedTo) 00:00:00-03:00)`) sem aplicar função sobre a coluna `issued_at`, preservando o uso do índice composto parcial `idx_fiscal_notes_user_issued_at_active (user_id, issued_at DESC) WHERE deleted_at IS NULL`.
+- **Alternativas consideradas:**
+  - `LEFT JOIN fiscal_note_items` diretamente na query paginada: rejeitada porque multiplica linhas por item, exige `DISTINCT`/subquery extra e distorce `SUM(...)` do `summary`.
+  - Embutir `items[]` e `payments[]` na listagem paginada: rejeitada por bloat de payload e memória (uma nota de supermercado pode ter 50+ itens).
+  - Aplicar `DATE(issued_at AT TIME ZONE ...)` no `WHERE`: rejeitada por impedir o uso do índice B-Tree em `(user_id, issued_at DESC)`.
+- **Impacto:** Listagem rápida (2 queries por página, ou 1 se `total === 0`), paginação estável com desempate determinístico por `id`, zero N+1 e filtro de texto seguro contra SQL/LIKE wildcards.

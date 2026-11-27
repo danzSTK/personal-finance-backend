@@ -52,3 +52,13 @@ issue: 144
 - [x] Rodar migration e testar a API real localmente contra a NFC-e real da SEFAZ-CE como cliente autenticado (preview QR Code + preview chave 44d + import + list/get `hasFiscalNote` + 409 duplicada + unlink + link em despesa existente + soft delete sincronizado + logs Zero-PII + `/health`)
 - [x] Rodar todos os checks de CI em Node 24 (`format:check`, `lint:check`, `typecheck`, `build`, `test`, `test:e2e`, `test:integration`)
 - [x] Atualizar checklist final, fazer push e marcar PR pronta para review
+
+## Wave 7 — Listagem Paginada (`GET /fiscal-notes`) e Detalhe Direto (`GET /fiscal-notes/:id`)
+- [x] Atualizar spec (`requirements.md`, `design.md`, `tasks.md`, `decisions.md`) com `GET /fiscal-notes`, `GET /fiscal-notes/:id` e índice `idx_fiscal_notes_user_issued_at_active`
+- [x] Adicionar índice composto parcial `idx_fiscal_notes_user_issued_at_active` na migration `1789000000000-CreateFiscalNotesTables.ts`, em `FiscalNoteOrmEntity` e em `docs/database/schema.md`
+- [x] Adicionar constantes de listagem/ordenação e `RESPONSE_OBJECT_TYPES` (`FISCAL_NOTE_LIST`, `FISCAL_NOTE_SUMMARY`, `FISCAL_NOTE_SUMMARY_TOTALS`)
+- [x] Estender `IFiscalNoteRepository` e `FiscalNoteRepository` com `findActiveByIdAndUserId` e `list` (filtros `issuedFrom`/`issuedTo`, `issuerCnpj`, `sourceUf`, `minAmountCents`/`maxAmountCents`, `search` via `EXISTS` com escape LIKE, allowlist de ordenação com desempate por `id`, `itemsCount` e `summary`)
+- [x] Implementar `ListFiscalNotesUseCase`, `GetFiscalNoteUseCase`, DTOs HTTP (`ListFiscalNotesQueryDto`, `ListFiscalNotesResponseDto`, `FiscalNoteSummaryResponseDto`), rotas no `FiscalNotesController` e registro no `FiscalNotesModule`
+- [x] Cobrir com testes unitários, E2E (`api/test/fiscal-notes.e2e-spec.ts`) e integração PostgreSQL real (`api/test/fiscal-notes.integration-spec.ts`)
+- [x] Sincronizar documentação viva (`docs/fiscal-notes/**`, `docs/platform/response-objects/response-objects.md`, `docs/tests/**`, `api/src/modules/fiscal-notes/AGENTS.md`)
+- [x] Validar CI completo em Node 24, atualizar índice no banco local, testar ao vivo via HTTP e publicar na PR #146

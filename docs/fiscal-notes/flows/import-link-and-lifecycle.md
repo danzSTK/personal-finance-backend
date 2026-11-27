@@ -11,7 +11,7 @@ related:
 
 # Import, Link and Lifecycle
 
-Este documento descreve a persistência de `FiscalNote` na etapa de confirmação (`import` ou `link`), a consulta e remoção independente (`get` e `unlink`) e a sincronização transacional com o ciclo de vida de `Transaction`.
+Este documento descreve a persistência de `FiscalNote` na etapa de confirmação (`import` ou `link`), a listagem paginada e consultas diretas (`GET /fiscal-notes`, `GET /fiscal-notes/:id`, `GET /transactions/:id/fiscal-note`), o desvínculo independente (`DELETE`) e a sincronização transacional com o ciclo de vida de `Transaction`.
 
 **Regra de ouro de concorrência:** Toda resolução externa via `FiscalNoteQueryService.resolve` (cache Redis ou SEFAZ-CE) ocorre **antes** de abrir qualquer transação PostgreSQL, garantindo que conexões e locks de banco nunca fiquem retidos durante I/O HTTP externo.
 
@@ -44,9 +44,17 @@ Este documento descreve a persistência de `FiscalNote` na etapa de confirmaçã
    - Persiste `FiscalNote` + itens + pagamentos **sem alterar nenhum campo** da `Transaction` existente (`amountCents`, `date`, `description`, `accountId`, `categoryId`, `status` permanecem intactos).
 3. Registra métrica `operation: 'link'` e retorna `201 Created` (`fiscal_note.item`).
 
-## 3. Consulta e Desvínculo Independente
+## 3. Listagem Paginada, Consulta Direta e Desvínculo Independente
 
-- **Consulta (`GET /transactions/:id/fiscal-note`):** Valida acessibilidade da transação (`404 TRANSACTION_NOT_FOUND`) e busca a `FiscalNote` ativa com itens e pagamentos ordenados por `position ASC`. Se não houver nota ativa vinculada, retorna `404 FISCAL_NOTE_NOT_FOUND`.
+- **Listagem Paginada (`GET /fiscal-notes`):**
+  - Valida e normaliza filtros e paginação (`page >= 1`, `limit` `1..100`), rejeitando faixas inconsistentes (`issuedFrom > issuedTo` ou `minAmountCents > maxAmountCents`) com `400 FISCAL_NOTE_INVALID_INPUT`.
+  - Consulta apenas notas ativas (`deleted_at IS NULL`) pertencentes ao usuário autenticado (`userId`), utilizando o índice composto parcial `idx_fiscal_notes_user_issued_at_active` (`(user_id, issued_at DESC) WHERE deleted_at IS NULL`).
+  - Converte filtros civis `issuedFrom` e `issuedTo` (`DateOnly`) para limites `timestamptz` no fuso `-03:00` (`[issuedFrom 00:00:00.000-03:00, nextDay(issuedTo) 00:00:00.000-03:00)`) sem envolver `issued_at` em funções SQL, preservando o uso do índice B-Tree.
+  - Aplica filtros opcionais combináveis (`AND`): `issuerCnpj` (normalizado para 14 dígitos), `sourceUf` (2 dígitos), `minAmountCents`/`maxAmountCents` sobre `payable_amount_cents` e `search` (até `120` caracteres, trimado e com escape de `\`, `%` e `_`) em `issuer_name` ou `fiscal_note_items.raw_description` via `EXISTS` — evitando multiplicação de linhas na paginação e dupla contagem no `summary`.
+  - Ordena exclusivamente por allowlist (`issuedAt`, `payableAmountCents`, `createdAt` em `asc`/`desc`, padrão `issuedAt:desc`) com desempate determinístico por `id`.
+  - Retorna `200 OK` (`fiscal_note.list`) com itens leves (`fiscal_note.summary`, expondo `itemsCount` sem carregar arrays `items[]`/`payments[]`), metadados de paginação (`meta`) e totais agregados do recorte filtrado (`summary` / `fiscal_note.summary_totals`).
+- **Detalhe Direto (`GET /fiscal-notes/:id`):** Valida `:id` como UUID e busca a `FiscalNote` ativa filtrada por `(id, userId)` via `findActiveByIdAndUserId` (isolamento multi-tenant anti-IDOR). Se não existir, estiver soft-deletada ou pertencer a outro usuário, retorna `404 FISCAL_NOTE_NOT_FOUND`. Em caso positivo, retorna `200 OK` (`fiscal_note.item`) com `items` e `payments` ordenados por `position ASC`.
+- **Consulta por Transação (`GET /transactions/:id/fiscal-note`):** Valida acessibilidade da transação (`404 TRANSACTION_NOT_FOUND`) e busca a `FiscalNote` ativa com itens e pagamentos ordenados por `position ASC`. Se não houver nota ativa vinculada, retorna `404 FISCAL_NOTE_NOT_FOUND`.
 - **Desvínculo (`DELETE /transactions/:id/fiscal-note`):** Dentro de uma transação PostgreSQL, valida acessibilidade da transação e executa soft delete (`deleted_at = now()`) apenas na `FiscalNote` ativa (`404 FISCAL_NOTE_NOT_FOUND` se inexistente). A `Transaction` permanece intacta, liberando tanto a transação para receber outra nota quanto a `accessKey` para reimportação pelo mesmo usuário (`204 No Content`).
 
 ## 4. Integração com o Ciclo de Vida de `transactions`

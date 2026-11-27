@@ -30,7 +30,9 @@ Permitir que usuários autenticados da Danfy leiam uma **NFC-e** (Nota Fiscal de
 1. Novo módulo dedicado `api/src/modules/fiscal-notes/` em Clean Architecture + DDD, com arquitetura extensível por UF (`IFiscalNoteProvider` + registry) e provedor V1 **SEFAZ-CE (`UF = 23`)**.
 2. Componente reutilizável de **Circuit Breaker distribuído no Redis** em `api/src/shared/circuit-breaker/`.
 3. Migration aditiva (`expand`-only, compatível com deploy `N`/`N+1`) criando `fiscal_notes`, `fiscal_note_items` e `fiscal_note_payments` em PostgreSQL (3NF).
-4. Fluxo completo em 2 etapas via HTTP autenticado:
+4. Fluxo completo em 2 etapas e consulta de histórico via HTTP autenticado:
+   - `GET /fiscal-notes` — listagem paginada das notas fiscais ativas do usuário com filtros (`issuedFrom`, `issuedTo`, `issuerCnpj`, `sourceUf`, `minAmountCents`, `maxAmountCents`, `search`), ordenação allowlisted, itens leves com `itemsCount`, `meta` e `summary` agregado do recorte;
+   - `GET /fiscal-notes/:id` — consulta direta de uma nota fiscal ativa por ID com cabeçalho, itens e pagamentos ordenados;
    - `POST /fiscal-notes/preview` — validação local, cache Redis, consulta SEFAZ-CE (em cache miss), parsing sanitizado, retorno da prévia + status de duplicidade + sugestões para criação da despesa;
    - `POST /fiscal-notes/import` — criação atômica de nova `Transaction (EXPENSE)` + `FiscalNote` + itens + pagamentos;
    - `POST /transactions/:transactionId/fiscal-note` — vínculo de `FiscalNote` a uma `Transaction (EXPENSE)` já existente (sem sobrescrever campos da transação);
@@ -148,6 +150,30 @@ Permitir que usuários autenticados da Danfy leiam uma **NFC-e** (Nota Fiscal de
   - libera tanto a `Transaction` para receber outro vínculo quanto a `accessKey` para reimportação pelo usuário;
   - retorna `204 No Content`.
 
+### RF-06B — Listagem Paginada (`GET /fiscal-notes`) e Detalhe Direto (`GET /fiscal-notes/:id`)
+- `GET /fiscal-notes`:
+  - lista apenas notas fiscais ativas (`deleted_at IS NULL`) pertencentes ao usuário autenticado (`@CurrentUser()`);
+  - paginação: `page` (inteiro `>= 1`, padrão `1`) e `limit` (inteiro `1..100`, padrão `20`);
+  - ordenação (`sort`, allowlist fechada com desempate determinístico por `id`):
+    - `issuedAt:desc` *(padrão)*, `issuedAt:asc`;
+    - `payableAmountCents:desc`, `payableAmountCents:asc`;
+    - `createdAt:desc`, `createdAt:asc`;
+  - filtros opcionais combináveis (AND):
+    - `issuedFrom` / `issuedTo` (`DateOnly` `YYYY-MM-DD`, validando `issuedFrom <= issuedTo` — convertidos para limites `[início do dia em -03:00, início do dia seguinte em -03:00)` sem envolver `issued_at` em função SQL, preservando o uso de índice);
+    - `issuerCnpj` (aceita 14 dígitos ou CNPJ com máscara `./-` e espaços normalizados para 14 dígitos; rejeita formatos inválidos com `400`);
+    - `sourceUf` (2 dígitos numéricos, ex.: `23`);
+    - `minAmountCents` / `maxAmountCents` (inteiros `>= 0` filtrando `payable_amount_cents`, validando `minAmountCents <= maxAmountCents`);
+    - `search` (texto até 120 caracteres, trimado e com escape de `\`, `%` e `_`, case-insensitive): busca em `issuer_name` **ou** em `fiscal_note_items.raw_description` via `EXISTS` (sem duplicar linhas na paginação);
+  - se `issuedFrom > issuedTo` ou `minAmountCents > maxAmountCents`, rejeitar com `400 FISCAL_NOTE_INVALID_INPUT`;
+  - retorna `200 OK` com `ListFiscalNotesResponseDto` (`object: 'fiscal_note.list'`):
+    - `data`: lista leve de `FiscalNoteSummaryResponseDto` (`object: 'fiscal_note.summary'`) sem arrays de itens/pagamentos: `id`, `transactionId`, `accessKey`, `sourceUf`, `number`, `series`, `issuedAt`, `issuerName`, `issuerCnpj`, `grossAmountCents`, `discountAmountCents`, `payableAmountCents`, `taxAmountCents`, `itemsCount`, `createdAt`, `updatedAt`;
+    - `meta`: `{ total, page, limit, totalPages, hasNextPage, hasPreviousPage }`;
+    - `summary`: agregados do recorte filtrado (`object: 'fiscal_note.summary_totals'`): `totalNotes`, `totalGrossAmountCents`, `totalDiscountAmountCents`, `totalPayableAmountCents`, `totalTaxAmountCents`.
+- `GET /fiscal-notes/:id`:
+  - valida UUID em `:id` e busca nota ativa filtrada por `(id, userId)` (proteção contra IDOR);
+  - retorna `200 OK` com `FiscalNoteResponseDto` (`object: 'fiscal_note.item'`, cabeçalho + `items` + `payments` ordenados);
+  - se não existir, estiver deletada ou pertencer a outro usuário, retorna `404 FISCAL_NOTE_NOT_FOUND`.
+
 ### RF-07 — Integração com o Ciclo de Vida de `transactions`
 - `TransactionResponseDto` passa a incluir o campo booleano `hasFiscalNote: boolean`:
   - em `ListTransactionsUseCase`, preenchido via consulta em lote (`IN (...)`) sem gerar N+1;
@@ -218,3 +244,4 @@ Permitir que usuários autenticados da Danfy leiam uma **NFC-e** (Nota Fiscal de
 8. Tentativa de alterar `type` de uma despesa com nota ativa via `PATCH /transactions/:id` ou `PATCH /transactions/:id/confirm` é bloqueada com `409`.
 9. Proteções anti-SSRF, limite de 1 MB, timeout, retry único transitório, rate limits (HTTP + Redis usuário + global UF), Circuit Breaker progressivo + alertas Telegram (`CRITICAL`/`WARN`/`RESOLVED`) e logs Zero-PII validados por testes automatizados.
 10. `format:check`, `lint:check`, `typecheck`, `build`, testes unitários, E2E e integração (Testcontainers PostgreSQL + Redis) passam integralmente em Node 24.
+11. `GET /fiscal-notes` lista com paginação, ordenação allowlisted, filtros (`issuedFrom`/`issuedTo`, `issuerCnpj`, `sourceUf`, `minAmountCents`/`maxAmountCents`, `search` por estabelecimento ou descrição de item sem duplicar notas), `itemsCount` e `summary` agregado por usuário autenticado; e `GET /fiscal-notes/:id` retorna o detalhe completo da nota com isolamento multi-tenant (`404` para notas inexistentes, deletadas ou de outro usuário).

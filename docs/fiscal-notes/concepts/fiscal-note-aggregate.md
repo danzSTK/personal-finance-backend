@@ -20,10 +20,19 @@ O agregado existe como uma abstração separada de `Transaction` para isolar met
 ## Identidade, Ownership e Multi-Tenancy
 
 - **Identidade:** `id` (`uuid` gerado pela aplicação/banco).
-- **Ownership:** `userId` (`uuid` obrigatório referenciando `users.id` com `ON DELETE RESTRICT`), garantindo isolamento estrito por tenant em todas as leituras e mutações.
+- **Ownership:** `userId` (`uuid` obrigatório referenciando `users.id` com `ON DELETE RESTRICT`), garantindo isolamento estrito por tenant em todas as leituras e mutações (incluindo listagem `GET /fiscal-notes` filtrada por `userId` e detalhe direto `GET /fiscal-notes/:id` filtrado por `(id, userId)`).
 - **Unicidade por Usuário e Chave (`UQ_fiscal_notes_user_access_key_active`):** Um usuário não pode manter duas notas **ativas** (`deleted_at IS NULL`) com a mesma `access_key` de 44 dígitos. Usuários distintos podem importar e vincular a mesma `access_key` de forma independente.
 - **Unicidade por Transação (`UQ_fiscal_notes_transaction_active`):** Uma `Transaction` pode possuir no máximo uma `FiscalNote` **ativa** por vez (`deleted_at IS NULL`).
 - **Ciclo de Vida e Soft Delete:** A remoção ocorre via `deleted_at` (seja pelo desvínculo explícito ou sincronizada na exclusão da transação). Após o soft delete, tanto a `access_key` quanto a `transaction_id` ficam imediatamente livres para nova importação ou vínculo, preservando o registro histórico inativo.
+
+### Índices de `fiscal_notes` e Padrão de Consulta Leve
+
+- `UQ_fiscal_notes_user_access_key_active`: índice único parcial em `(user_id, access_key) WHERE deleted_at IS NULL`.
+- `UQ_fiscal_notes_transaction_active`: índice único parcial em `(transaction_id) WHERE deleted_at IS NULL`.
+- `idx_fiscal_notes_user_id`: índice em `(user_id)` (não parcial; cobre a FK `FK_fiscal_notes_user` inclusive em registros soft-deletados).
+- `idx_fiscal_notes_user_issued_at_active`: índice composto parcial em `(user_id, issued_at DESC) WHERE deleted_at IS NULL`, projetado para a listagem paginada `GET /fiscal-notes` ordenada por emissão decrescente e filtros de período em `issued_at`.
+- `idx_fiscal_notes_transaction_id`: índice em `(transaction_id)` (não parcial; cobre lookups da FK `FK_fiscal_notes_transaction`).
+- **Resumo Leve vs. Agregado Completo:** Na listagem paginada (`GET /fiscal-notes`), o módulo projeta um resumo leve (`fiscal_note.summary`) com `itemsCount` sem hidratar arrays de `FiscalNoteItem` e `FiscalNotePayment`, evitando bloat de payload e multiplicação de linhas; buscas textuais por descrição de item usam subconsulta `EXISTS` para preservar paginação e totais agregados exatos. O agregado completo (`items` e `payments`) é carregado apenas nas consultas individuais (`GET /fiscal-notes/:id` e `GET /transactions/:id/fiscal-note`).
 
 ## Privacidade (LGPD e Zero-PII)
 

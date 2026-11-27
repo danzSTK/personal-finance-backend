@@ -4,12 +4,14 @@
 
 - Arquivo: `api/test/fiscal-notes.integration-spec.ts`
 - Categoria: integração.
-- Objetivo: validar a persistência real de `fiscal_notes`, `fiscal_note_items` e `fiscal_note_payments` no PostgreSQL (incluindo migration `up/down/up`, índices parciais únicos, concorrência `23505`, multi-tenancy e soft delete sincronizado com `transactions`), o comportamento real no Redis (cache hit com Circuit Breaker aberto, rate limiter Lua por usuário e global por UF, abertura/cooldown progressivo/recuperação do `CircuitBreakerService`) e o fluxo HTTP completo do `SefazCeProvider` contra servidor HTTP stub local efêmero.
+- Objetivo: validar a persistência e consulta real de `fiscal_notes`, `fiscal_note_items` e `fiscal_note_payments` no PostgreSQL (incluindo migration `up/down/up`, índices parciais únicos e índice composto `idx_fiscal_notes_user_issued_at_active`, listagem paginada com filtros/ordenação/`EXISTS`/`summary`, busca direta por `(id, userId)`, concorrência `23505`, multi-tenancy e soft delete sincronizado com `transactions`), o comportamento real no Redis (cache hit com Circuit Breaker aberto, rate limiter Lua por usuário e global por UF, abertura/cooldown progressivo/recuperação do `CircuitBreakerService`) e o fluxo HTTP completo do `SefazCeProvider` contra servidor HTTP stub local efêmero.
 - Fora de escopo: chamadas reais à SEFAZ-CE na internet, envio real ao Telegram Bot API e processo Worker/BullMQ.
 
 ## Comportamentos comprovados
 
-- migration `CreateFiscalNotesTables1789000000000` executa `up`, `down` e `up` em PostgreSQL 16 real preservando constraints `CHK_*`, FKs e trigger `trg_fiscal_notes_updated_at`;
+- migration `CreateFiscalNotesTables1789000000000` executa `up`, `down` e `up` em PostgreSQL 16 real preservando constraints `CHK_*`, FKs, trigger `trg_fiscal_notes_updated_at` e o índice parcial composto `idx_fiscal_notes_user_issued_at_active` verificado em `pg_indexes`;
+- `FiscalNoteRepository.list` em PostgreSQL real valida paginação e ordenação determinística (com desempate por `id`), limites de data civil em `-03:00` (`issuedFrom`/`issuedTo`), filtros combináveis (`issuerCnpj`, `sourceUf`, `minAmountCents`, `maxAmountCents`), busca `search` via `EXISTS` com escape de `%`, `_` e `\` sem duplicação de linhas nem dupla contagem no `summary`, contagem `itemsCount`, totais agregados em `summary`, exclusão de registros soft-deletados e isolamento multi-tenant;
+- `FiscalNoteRepository.findActiveByIdAndUserId` em PostgreSQL real retorna a nota ativa com `items` e `payments` ordenados, excluindo registros soft-deletados e isolando notas de outros usuários;
 - índices parciais `UQ_fiscal_notes_user_access_key_active` e `UQ_fiscal_notes_transaction_active` bloqueiam duplicidade ativa e permitem reimportação após soft delete e importação da mesma chave por usuários distintos;
 - concorrência real com violação `23505` é convertida em `409 FISCAL_NOTE_ALREADY_IMPORTED` ou `409 TRANSACTION_ALREADY_HAS_FISCAL_NOTE` com `details`;
 - `DeleteTransactionUseCase` realiza soft delete sincronizado da `FiscalNote` na mesma transação PostgreSQL e `UpdateTransactionUseCase` bloqueia mudança de `type` com nota ativa;

@@ -555,6 +555,7 @@ Representa os dados fiscais estruturados e sanitizados (sem HTML bruto e sem dad
 | `UQ_fiscal_notes_user_access_key_active` | `(user_id, access_key) WHERE deleted_at IS NULL`, unique | Impede importação duplicada da mesma chave pelo mesmo usuário enquanto ativa, liberando reimportação após soft delete e mantendo multi-tenancy entre usuários. |
 | `UQ_fiscal_notes_transaction_active` | `transaction_id WHERE deleted_at IS NULL`, unique | Garante no máximo uma nota fiscal ativa por transação. |
 | `idx_fiscal_notes_user_id` | `user_id` | Cobre a FK `FK_fiscal_notes_user` (`ON DELETE RESTRICT`) incluindo notas soft-deletadas e consultas por usuário. |
+| `idx_fiscal_notes_user_issued_at_active` | `(user_id, issued_at DESC) WHERE deleted_at IS NULL` | Otimiza listagens paginadas ativas ordenadas por `issued_at DESC` e filtros por intervalo de datas de emissão. |
 | `idx_fiscal_notes_transaction_id` | `transaction_id` | Cobre lookups de FK e consultas por transação (incluindo histórico). |
 
 ### Triggers

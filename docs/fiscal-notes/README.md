@@ -2,7 +2,7 @@
 area: fiscal-notes
 type: index
 status: current
-last_reviewed: 2026-11-26
+last_reviewed: 2026-11-27
 related:
   - ../README.md
   - ../transactions/README.md
@@ -15,7 +15,7 @@ related:
 
 `fiscal-notes` é o módulo responsável pela leitura, validação, consulta externa resiliente, sanitização LGPD e persistência de **NFC-e** (Nota Fiscal de Consumidor Eletrônica, modelo `65`) vinculada a despesas (`EXPENSE`) na plataforma Danfy.
 
-O fluxo ocorre em duas etapas explícitas via HTTP autenticado: primeiro o usuário pré-visualiza a nota (a partir da URL/payload do QR Code ou da chave de acesso de 44 dígitos) para inspecionar estabelecimento, itens, pagamentos, status de duplicidade e transação sugerida; em seguida, confirma a importação criando uma nova despesa atomicamente ou vincula a nota a uma despesa existente sem sobrescrever os valores financeiros já registrados pelo usuário.
+O fluxo ocorre em duas etapas explícitas via HTTP autenticado: primeiro o usuário pré-visualiza a nota (a partir da URL/payload do QR Code ou da chave de acesso de 44 dígitos) para inspecionar estabelecimento, itens, pagamentos, status de duplicidade e transação sugerida; em seguida, confirma a importação criando uma nova despesa atomicamente ou vincula a nota a uma despesa existente sem sobrescrever os valores financeiros já registrados pelo usuário. Após a persistência, o usuário também pode consultar o histórico paginado leve com filtros, ordenação e totais agregados (`GET /fiscal-notes`) ou inspecionar o detalhe completo de uma nota por ID (`GET /fiscal-notes/:id`).
 
 Arquiteturalmente, o módulo preserva duas fronteiras estritas: (1) desacoplamento acíclico com `transactions` por meio de `FiscalNotesCoreModule` e portas bidirecionais de aplicação, mantendo I/O HTTP externo sempre fora de transações PostgreSQL; e (2) política **Zero-PII / LGPD**, descartando integralmente dados do bloco `Consumidor` e jamais armazenando HTML/XML bruto da SEFAZ. A arquitetura de provedores é plugável por UF (`IFiscalNoteProvider` + `IFiscalNoteProviderRegistry`), iniciando pela **SEFAZ-CE (`UF = 23`)**.
 
@@ -27,7 +27,7 @@ Arquiteturalmente, o módulo preserva duas fronteiras estritas: (1) desacoplamen
 
 ### Fluxos
 - [Preview and Resilience](./flows/preview-and-resilience.md) — Fluxo de pré-visualização, cache hit com bypass do Circuit Breaker, rate limiter em 2 camadas no Redis, Circuit Breaker progressivo, retry transitório, limite de 1 MB e observabilidade.
-- [Import, Link and Lifecycle](./flows/import-link-and-lifecycle.md) — Importação atômica, vínculo em despesa existente sem sobrescrita, consulta, desvínculo via soft delete, concorrência `23505` e ciclo de vida sincronizado com `transactions`.
+- [Import, Link and Lifecycle](./flows/import-link-and-lifecycle.md) — Importação atômica, vínculo em despesa existente sem sobrescrita, listagem paginada e detalhe direto (`GET /fiscal-notes`, `GET /fiscal-notes/:id`), consulta por transação, desvínculo via soft delete, concorrência `23505` e ciclo de vida sincronizado com `transactions`.
 
 ### Decisões
 - [HTML Scraping SEFAZ-CE Without Raw Storage](./decisions/html-scraping-sefaz-ce-without-raw-storage.md) — Uso de `cheerio/slim` sobre HTML da SEFAZ-CE sem armazenar HTML bruto nem dados de consumidor, e exclusão da NF-e modelo `55` no MVP.
@@ -42,11 +42,11 @@ Arquiteturalmente, o módulo preserva duas fronteiras estritas: (1) desacoplamen
 
 ### Implementado
 - [x] `CircuitBreakerModule` e `CircuitBreakerService` distribuídos no Redis (`api/src/shared/circuit-breaker/`).
-- [x] Migration `1789000000000-CreateFiscalNotesTables.ts` com `fiscal_notes`, `fiscal_note_items` e `fiscal_note_payments`.
+- [x] Migration `1789000000000-CreateFiscalNotesTables.ts` com `fiscal_notes`, `fiscal_note_items` e `fiscal_note_payments`, incluindo o índice parcial composto `idx_fiscal_notes_user_issued_at_active` (`(user_id, issued_at DESC) WHERE deleted_at IS NULL`).
 - [x] Domínio (`FiscalNote`, `FiscalNoteItem`, `FiscalNotePayment`, `FiscalNoteInput` com mod-11 e anti-SSRF).
 - [x] Provedor `SefazCeProvider` (`SefazCeHttpClient` + `SefazCeHtmlParser` com `cheerio/slim`) e `FiscalNoteProviderRegistry`.
 - [x] Cache Redis (`RedisFiscalNoteCache`), rate limiter Lua (`RedisFiscalNoteRateLimiter`) e `FiscalNoteQueryService` com métricas e alertas.
-- [x] Casos de uso (`Preview`, `Import`, `Link`, `Get`, `Unlink`) e controllers HTTP em `/fiscal-notes/*` e `/transactions/:id/fiscal-note`.
+- [x] Casos de uso (`Preview`, `Import`, `Link`, `List`, `Get`, `GetTransactionFiscalNote`, `Unlink`) e controllers HTTP em `/fiscal-notes` (listagem, detalhe, preview, import) e `/transactions/:id/fiscal-note`.
 - [x] Integração com `transactions` (`hasFiscalNote`, soft delete sincronizado na mesma transação e bloqueio de troca de `type`).
 - [x] Suítes automatizadas unitárias, E2E (`api/test/fiscal-notes.e2e-spec.ts`) e de integração (`api/test/fiscal-notes.integration-spec.ts`).
 

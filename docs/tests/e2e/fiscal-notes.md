@@ -4,12 +4,14 @@
 
 - Arquivo: `api/test/fiscal-notes.e2e-spec.ts`
 - Categoria: E2E HTTP isolado.
-- Objetivo: validar o contrato HTTP de `FiscalNotesController`, `TransactionFiscalNoteController` e `TransactionsController`, guarda de autenticação (`TestSessionGuard`), validação de DTOs, status codes, `object` discriminators (`fiscal_note.preview`, `fiscal_note.import`, `fiscal_note.item`), `details` estruturados em `409`, header `Retry-After` em `429`/`503`, `hasFiscalNote` em `TransactionResponseDto` e isolamento de `/health/liveness`.
+- Objetivo: validar o contrato HTTP de `FiscalNotesController`, `TransactionFiscalNoteController` e `TransactionsController`, guarda de autenticação (`TestSessionGuard`), validação de DTOs de corpo/query/parâmetros, status codes, `object` discriminators (`fiscal_note.list`, `fiscal_note.summary`, `fiscal_note.summary_totals`, `fiscal_note.preview`, `fiscal_note.import`, `fiscal_note.item`), `details` estruturados em `409`, header `Retry-After` em `429`/`503`, `hasFiscalNote` em `TransactionResponseDto` e isolamento de `/health/liveness`.
 - Fora de escopo: PostgreSQL real, Redis real, chamadas externas à SEFAZ-CE, `OriginGuard`/`EmailVerificationStatusGuard`/`ThrottlerGuard` reais e validação criptográfica de JWT.
 
 ## Comportamentos comprovados
 
-- requisições sem sessão válida são rejeitadas com `401 UNAUTHORIZED` antes de invocar os use cases;
+- requisições sem sessão válida são rejeitadas com `401 UNAUTHORIZED` antes de invocar os use cases (incluindo `GET /fiscal-notes` e `GET /fiscal-notes/:id`);
+- `GET /fiscal-notes` retorna `200 OK` com `object: 'fiscal_note.list'`, `data` (`fiscal_note.summary` sem `items[]`/`payments[]`), `meta` de paginação e `summary` (`fiscal_note.summary_totals`), repassando filtros (`issuedFrom`/`issuedTo`, `issuerCnpj`, `sourceUf`, `minAmountCents`/`maxAmountCents`, `search`), ordenação (`sort`) e paginação (`page`/`limit`), além de rejeitar faixas inválidas com `400 FISCAL_NOTE_INVALID_INPUT` e parâmetros de query inválidos com `400 VALIDATION_ERROR`;
+- `GET /fiscal-notes/:id` retorna `200 OK` com `object: 'fiscal_note.item'`, rejeita UUID inválido com `400 VALIDATION_ERROR` e retorna `404 FISCAL_NOTE_NOT_FOUND` quando inexistente, deletada ou inacessível;
 - `POST /fiscal-notes/preview` retorna `200 OK` com `object: 'fiscal_note.preview'`, `alreadyImported`, `cacheHit` e `suggestedTransaction`;
 - `POST /fiscal-notes/import` retorna `201 Created` com `object: 'fiscal_note.import'`, `transaction.hasFiscalNote: true` e `fiscalNote` (`object: 'fiscal_note.item'`);
 - `POST /transactions/:id/fiscal-note`, `GET /transactions/:id/fiscal-note` e `DELETE /transactions/:id/fiscal-note` respeitam `201`, `200` (`fiscal_note.item`) e `204`;

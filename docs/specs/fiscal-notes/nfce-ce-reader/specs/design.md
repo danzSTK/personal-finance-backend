@@ -194,6 +194,7 @@ Migration: `api/src/database/migrations/1789000000000-CreateFiscalNotesTables.ts
 - `UQ_fiscal_notes_user_access_key_active`: `CREATE UNIQUE INDEX "UQ_fiscal_notes_user_access_key_active" ON "fiscal_notes" ("user_id", "access_key") WHERE "deleted_at" IS NULL`
 - `UQ_fiscal_notes_transaction_active`: `CREATE UNIQUE INDEX "UQ_fiscal_notes_transaction_active" ON "fiscal_notes" ("transaction_id") WHERE "deleted_at" IS NULL`
 - `idx_fiscal_notes_user_id`: `CREATE INDEX "idx_fiscal_notes_user_id" ON "fiscal_notes" ("user_id")` (não parcial; cobre a FK `FK_fiscal_notes_user` `ON DELETE RESTRICT` inclusive em linhas soft-deletadas)
+- `idx_fiscal_notes_user_issued_at_active`: `CREATE INDEX "idx_fiscal_notes_user_issued_at_active" ON "fiscal_notes" ("user_id", "issued_at" DESC) WHERE "deleted_at" IS NULL` (otimiza a listagem paginada `GET /fiscal-notes` ordenada por `issued_at DESC` e filtros por período)
 - `idx_fiscal_notes_transaction_id`: `CREATE INDEX "idx_fiscal_notes_transaction_id" ON "fiscal_notes" ("transaction_id")` (cobre FK lookup inclusive para registros históricos)
 
 ### Tabela `fiscal_note_items`
@@ -255,15 +256,19 @@ Conforme `AGENTS.md` (`### Avoidable magic strings`):
      - `sefazCircuitBreaker: (uf: string) => \`fiscal-notes:sefaz:cb:${uf}\``
      - `sefazParserFailure: (uf: string) => \`fiscal-notes:sefaz:parser:${uf}\``
      - `sefazGlobalRateLimit: (uf: string) => \`fiscal-notes:sefaz:global-rl:${uf}\``
-     - `unknownQrHost: (host: string) => \`fiscal-notes:qr:unknown-host:${host}\``
+     - `unknownQrHost: (uf: string) => \`fiscal-notes:qr:unknown-host:${uf}\``
    - `FiscalNoteDbConstraints`: `UQ_fiscal_notes_user_access_key_active`, `UQ_fiscal_notes_transaction_active` (usados para detectar `23505` sem string literal solta);
    - `SEFAZ_CE_PARSER_VERSION = 'sefaz-ce-html-v1'`, `SEFAZ_CE_ALLOWED_HOSTS = ['nfce.sefaz.ce.gov.br'] as const`, `SEFAZ_CE_PATHS = { QRCODE_V2: '/nfce/api/notasFiscal/qrcodev2/', QRCODE_V3: '/nfce/api/notasFiscal/qrcodev3/' } as const`, `SEFAZ_CE_TIMEZONE_OFFSET = '-03:00'`;
+   - Constantes de listagem paginada (`FISCAL_NOTE_LIST_DEFAULT_PAGE = 1`, `FISCAL_NOTE_LIST_DEFAULT_LIMIT = 20`, `FISCAL_NOTE_LIST_MAX_LIMIT = 100`, `FISCAL_NOTE_LIST_SEARCH_MAX_LENGTH = 120`, `FiscalNoteListSorts`, `FISCAL_NOTE_LIST_SORT_VALUES`, `FISCAL_NOTE_LIST_DEFAULT_SORT = 'issuedAt:desc'`);
    - Defaults de throttle/rate-limit/HTTP/cache (`FISCAL_NOTES_HTTP_THROTTLE_LIMIT = 10`, `FISCAL_NOTES_HTTP_THROTTLE_TTL_MS = 60_000`, `FISCAL_NOTES_MAX_RESPONSE_BYTES = 1_048_576`, `FISCAL_NOTES_DEFAULT_TIMEOUT_MS = 7000`, `FISCAL_NOTES_DEFAULT_RETRY_BACKOFF_MS = 400`, `FISCAL_NOTES_DEFAULT_CACHE_TTL_SECONDS = 1200`, etc.).
 3. **`api/src/common/models/constants/response-object.constants.ts`**:
    - Adicionar:
      - `FISCAL_NOTE_PREVIEW: 'fiscal_note.preview'`
      - `FISCAL_NOTE_IMPORT: 'fiscal_note.import'`
      - `FISCAL_NOTE_ITEM: 'fiscal_note.item'`
+     - `FISCAL_NOTE_LIST: 'fiscal_note.list'`
+     - `FISCAL_NOTE_SUMMARY: 'fiscal_note.summary'`
+     - `FISCAL_NOTE_SUMMARY_TOTALS: 'fiscal_note.summary_totals'`
 4. **`api/src/common/utils/cache-keys.factory.ts`**:
    - Adicionar namespace `fiscalNotes`:
      - `parsed: (accessKey: string) => \`fiscal-notes:parsed:v1:${accessKey}\``
@@ -426,6 +431,8 @@ Todos os endpoints ficam sob o prefixo global `/api/v1` e herdam `OriginGuard`, 
 
 | Método & Rota | Throttle | Status | Objeto de Resposta | Descrição |
 | --- | --- | --- | --- | --- |
+| `GET /fiscal-notes` | padrão | `200` | `fiscal_note.list` | Lista paginada leve (`fiscal_note.summary`) das notas ativas do usuário com filtros combináveis (`issuedFrom`/`issuedTo`, `issuerCnpj`, `sourceUf`, `minAmountCents`/`maxAmountCents`, `search`), ordenação allowlisted e `summary` (`fiscal_note.summary_totals`) |
+| `GET /fiscal-notes/:id` | padrão | `200` | `fiscal_note.item` | Retorna detalhe completo de uma `FiscalNote` ativa do usuário autenticado por UUID com `items` e `payments` ordenados |
 | `POST /fiscal-notes/preview` | `10 / 60s` | `200` | `fiscal_note.preview` | Valida entrada, consulta cache/SEFAZ, retorna prévia sanitizada + `alreadyImported` + `suggestedTransaction` |
 | `POST /fiscal-notes/import` | `10 / 60s` | `201` | `fiscal_note.import` | Cria nova `Transaction (EXPENSE)` + `FiscalNote` + itens + pagamentos atomicamente |
 | `POST /transactions/:id/fiscal-note` | `10 / 60s` | `201` | `fiscal_note.item` | Vincula `FiscalNote` + itens + pagamentos a uma `EXPENSE` existente sem alterá-la |
