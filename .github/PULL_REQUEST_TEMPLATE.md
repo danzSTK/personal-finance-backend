@@ -1,5 +1,12 @@
 > External code contributions are not currently open. This template is intended only for the maintainer and collaborators who received prior written authorization. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+## Issue vinculada
+
+<!-- Obrigatório quando a PR resolve uma issue: substitua #000 pelo número real (ex.: Closes #144). -->
+<!-- ATENÇÃO: como a branch padrão do repositório é `main` e PRs miram `develop`, garanta também o vínculo no painel lateral `Development` da Issue, vinculando a PR aberta logo após criá-la via GraphQL `addCloseIssueReferences` (ou GitHub UI). NÃO crie outra branch se o trabalho já estiver em um worktree/branch existente; use `gh issue develop <N> --base develop --name <branch>` apenas se ainda não existir branch criada. -->
+
+Closes #<numero-da-issue>
+
 ## Resumo
 
 <!-- Explique objetivamente o que esta PR altera e por quê. -->

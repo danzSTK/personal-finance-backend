@@ -36,6 +36,12 @@ Use identifiers estáveis separados por módulo/shape:
 - `transaction_summary.type`
 - `transaction_summary.overview`
 - `account.list`
+- `fiscal_note.list` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_LIST`) — `ListFiscalNotesResponseDto` (`GET /api/v1/fiscal-notes`)
+- `fiscal_note.summary` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_SUMMARY`) — `FiscalNoteSummaryResponseDto` (itens de `GET /api/v1/fiscal-notes`)
+- `fiscal_note.summary_totals` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_SUMMARY_TOTALS`) — `ListFiscalNotesSummaryDto` (campo `summary` de `GET /api/v1/fiscal-notes`)
+- `fiscal_note.preview` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_PREVIEW`)
+- `fiscal_note.import` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_IMPORT`)
+- `fiscal_note.item` (`RESPONSE_OBJECT_TYPES.FISCAL_NOTE_ITEM`)
 
 O identifier descreve o shape, não uma classe TypeScript interna.
 

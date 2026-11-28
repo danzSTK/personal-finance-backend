@@ -1,3 +1,4 @@
+import { FiscalNoteTransactionLifecyclePort } from '@/modules/fiscal-notes/application/ports';
 import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import {
   GetTransactionUseCaseInput,
@@ -12,6 +13,7 @@ export class GetTransactionUseCase {
   constructor(
     private readonly transactionRepository: ITransactionRepository,
     private readonly attachmentRepository: ITransactionAttachmentRepository,
+    private readonly fiscalNoteLifecyclePort: FiscalNoteTransactionLifecyclePort,
   ) {}
   async execute(input: GetTransactionUseCaseInput): Promise<GetTransactionUseCaseOutput> {
     const transaction = await this.transactionRepository.findByIdAndUserId(input.transactionId, input.userId);
@@ -20,8 +22,12 @@ export class GetTransactionUseCase {
       throw new TransactionNotFoundError();
     }
 
-    const attachmentsCount = await this.attachmentRepository.countActiveByTransactionId(input.transactionId);
+    const [attachmentsCount, hasFiscalNote] = await Promise.all([
+      this.attachmentRepository.countActiveByTransactionId(input.transactionId),
+      this.fiscalNoteLifecyclePort.hasActiveByTransactionId(input.transactionId),
+    ]);
     transaction.setAttachmentsCount(attachmentsCount);
+    transaction.setHasFiscalNote(hasFiscalNote);
 
     return transaction;
   }

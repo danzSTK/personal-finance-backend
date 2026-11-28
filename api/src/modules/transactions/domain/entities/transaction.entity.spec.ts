@@ -100,6 +100,54 @@ describe('Transaction', () => {
     expect(() => transfer.delete()).toThrow(TransactionCannotDeleteTransferError);
   });
 
+  it('defaults hasFiscalNote to false in create/reconstitute and supports fiscal note only for EXPENSE', () => {
+    const expense = createTransaction({ type: TransactionType.EXPENSE });
+    const income = createTransaction({ type: TransactionType.INCOME });
+    const transfer = createTransaction({ type: TransactionType.TRANSFER, destinationAccountId });
+    const adjustment = createTransaction({
+      type: TransactionType.ADJUSTMENT,
+      direction: TransactionDirection.INCREASE,
+      description: 'Ajuste',
+    });
+
+    expect(expense.hasFiscalNote).toBe(false);
+    expense.setHasFiscalNote(true);
+    expect(expense.hasFiscalNote).toBe(true);
+    expense.setHasFiscalNote(false);
+    expect(expense.hasFiscalNote).toBe(false);
+
+    expect(expense.supportsFiscalNote()).toBe(true);
+    expect(income.supportsFiscalNote()).toBe(false);
+    expect(transfer.supportsFiscalNote()).toBe(false);
+    expect(adjustment.supportsFiscalNote()).toBe(false);
+    expect(Transaction.supportsFiscalNoteForType(TransactionType.EXPENSE)).toBe(true);
+    expect(Transaction.supportsFiscalNoteForType(TransactionType.INCOME)).toBe(false);
+    expect(Transaction.supportsFiscalNoteForType(TransactionType.TRANSFER)).toBe(false);
+    expect(Transaction.supportsFiscalNoteForType(TransactionType.ADJUSTMENT)).toBe(false);
+
+    const now = new Date('2026-06-23T12:00:00.000Z');
+    const reconstituted = Transaction.reconstitute(
+      {
+        userId,
+        accountId,
+        destinationAccountId: null,
+        categoryId,
+        type: TransactionType.EXPENSE,
+        status: TransactionStatus.EFFECTIVE,
+        amountCents: 1990,
+        date: toDateOnly('2026-06-23'),
+        effectiveAt: now,
+        description: 'Mercado',
+        direction: null,
+        deletedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+      transactionId,
+    );
+    expect(reconstituted.hasFiscalNote).toBe(false);
+  });
+
   function createTransaction(overrides: Partial<Parameters<typeof Transaction.create>[0]> = {}): Transaction {
     const now = new Date('2026-06-23T12:00:00.000Z');
     const status = overrides.status ?? TransactionStatus.EFFECTIVE;

@@ -15,6 +15,12 @@ export const RESPONSE_OBJECT_TYPES = {
   AUTH_PASSWORD_CHANGE: 'auth.password_change',
   AUTH_PASSWORD_CHANGE_STATUS: 'auth.password_change_status',
   AUTH_PROVIDER_EMAIL_LINK: 'auth_provider.email_link',
+  FISCAL_NOTE_PREVIEW: 'fiscal_note.preview',
+  FISCAL_NOTE_IMPORT: 'fiscal_note.import',
+  FISCAL_NOTE_ITEM: 'fiscal_note.item',
+  FISCAL_NOTE_LIST: 'fiscal_note.list',
+  FISCAL_NOTE_SUMMARY: 'fiscal_note.summary',
+  FISCAL_NOTE_SUMMARY_TOTALS: 'fiscal_note.summary_totals',
 } as const;
 
 export type ResponseObjectType = (typeof RESPONSE_OBJECT_TYPES)[keyof typeof RESPONSE_OBJECT_TYPES];

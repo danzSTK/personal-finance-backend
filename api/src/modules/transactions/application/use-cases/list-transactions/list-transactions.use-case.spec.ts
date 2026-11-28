@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { TRANSACTION_LIST_DEFAULT_LIMIT, TRANSACTION_LIST_DEFAULT_PAGE } from '@/common/models/constants';
 import { TransactionDirection, TransactionStatus, TransactionType } from '@/common/models/enums';
 import { DateOnlyString } from '@/common/utils/date-only';
+import { FiscalNoteTransactionLifecyclePort } from '@/modules/fiscal-notes/application/ports';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
 import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
@@ -15,6 +15,7 @@ describe('ListTransactionsUseCase', () => {
   let useCase: ListTransactionsUseCase;
   let transactionRepository: jest.Mocked<Pick<ITransactionRepository, 'list'>>;
   let attachmentRepository: jest.Mocked<Pick<ITransactionAttachmentRepository, 'countActiveByTransactionIds'>>;
+  let fiscalNoteLifecyclePort: jest.Mocked<Pick<FiscalNoteTransactionLifecyclePort, 'findActiveTransactionIds'>>;
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -24,6 +25,10 @@ describe('ListTransactionsUseCase', () => {
 
     attachmentRepository = {
       countActiveByTransactionIds: jest.fn().mockResolvedValue(new Map()),
+    };
+
+    fiscalNoteLifecyclePort = {
+      findActiveTransactionIds: jest.fn().mockResolvedValue(new Set()),
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,6 +40,10 @@ describe('ListTransactionsUseCase', () => {
         {
           provide: ITransactionAttachmentRepository,
           useValue: attachmentRepository,
+        },
+        {
+          provide: FiscalNoteTransactionLifecyclePort,
+          useValue: fiscalNoteLifecyclePort,
         },
       ],
     }).compile();
@@ -109,24 +118,29 @@ describe('ListTransactionsUseCase', () => {
       });
     });
 
-    it('populates attachmentsCount on returned transaction items', async () => {
-      const tx = createTransaction();
-      tx.setAttachmentsCount = jest.fn();
+    it('populates attachmentsCount and hasFiscalNote in batch on returned transaction items', async () => {
+      const txWithNote = createTransaction('2f9f2b7d-881e-41bd-9cde-27f7e10f30f0');
+      const txWithoutNote = createTransaction('3f9f2b7d-881e-41bd-9cde-27f7e10f30f1');
       transactionRepository.list.mockResolvedValue({
-        items: [tx],
-        total: 1,
+        items: [txWithNote, txWithoutNote],
+        total: 2,
         summary: {
           pendingCents: 0,
           effectiveCents: 1000,
           totalCents: 1000,
         },
       });
-      attachmentRepository.countActiveByTransactionIds.mockResolvedValue(new Map([[tx.id, 2]]));
+      attachmentRepository.countActiveByTransactionIds.mockResolvedValue(new Map([[txWithNote.id, 2]]));
+      fiscalNoteLifecyclePort.findActiveTransactionIds.mockResolvedValue(new Set([txWithNote.id]));
 
-      await useCase.execute({ userId, page: 1, limit: 10 });
+      const output = await useCase.execute({ userId, page: 1, limit: 10 });
 
-      expect(attachmentRepository.countActiveByTransactionIds).toHaveBeenCalledWith([tx.id]);
-      expect(tx.setAttachmentsCount).toHaveBeenCalledWith(2);
+      expect(attachmentRepository.countActiveByTransactionIds).toHaveBeenCalledWith([txWithNote.id, txWithoutNote.id]);
+      expect(fiscalNoteLifecyclePort.findActiveTransactionIds).toHaveBeenCalledWith([txWithNote.id, txWithoutNote.id]);
+      expect(output.items[0].attachmentsCount).toBe(2);
+      expect(output.items[0].hasFiscalNote).toBe(true);
+      expect(output.items[1].attachmentsCount).toBe(0);
+      expect(output.items[1].hasFiscalNote).toBe(false);
     });
 
     it('passes filters, pagination and explicit sort to the repository', async () => {
@@ -168,7 +182,7 @@ describe('ListTransactionsUseCase', () => {
     });
   });
 
-  function createTransaction(): Transaction {
+  function createTransaction(id = '2f9f2b7d-881e-41bd-9cde-27f7e10f30f0'): Transaction {
     const now = new Date('2026-06-23T12:00:00.000Z');
 
     return Transaction.create(
@@ -188,7 +202,7 @@ describe('ListTransactionsUseCase', () => {
         createdAt: now,
         updatedAt: now,
       },
-      '2f9f2b7d-881e-41bd-9cde-27f7e10f30f0',
+      id,
     );
   }
 });

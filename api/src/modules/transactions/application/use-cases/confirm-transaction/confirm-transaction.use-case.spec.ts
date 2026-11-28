@@ -1,11 +1,15 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { TransactionType } from '@/common/models/enums';
 import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
+import { FiscalNoteTransactionLifecyclePort } from '@/modules/fiscal-notes/application/ports';
 import { TransactionAlreadyEffectiveError, TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import { TransactionReferenceValidator } from '@/modules/transactions/application/services/transaction-reference-validator.service';
 import { ConfirmTransactionUseCase } from '@/modules/transactions/application/use-cases/confirm-transaction/confirm-transaction.use-case';
 import { Transaction } from '@/modules/transactions/domain/entities/transaction.entity';
-import { TransactionTypeDoesNotSupportAttachmentsError } from '@/modules/transactions/domain/errors';
+import {
+  TransactionTypeDoesNotSupportAttachmentsError,
+  TransactionTypeDoesNotSupportFiscalNoteError,
+} from '@/modules/transactions/domain/errors';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
 import { ITransactionRepository } from '@/modules/transactions/domain/repositories/transaction.repository.interface';
 import { DataSource, EntityManager } from 'typeorm';
@@ -25,6 +29,7 @@ describe('ConfirmTransactionUseCase', () => {
   let attachmentRepository: jest.Mocked<ITransactionAttachmentRepository>;
   let accountBalanceLockPort: jest.Mocked<AccountBalanceLockPort>;
   let referenceValidator: jest.Mocked<TransactionReferenceValidator>;
+  let fiscalNoteLifecyclePort: jest.Mocked<FiscalNoteTransactionLifecyclePort>;
 
   const createMockTransaction = (overrides?: { type?: TransactionType; isEffective?: boolean }) =>
     ({
@@ -36,9 +41,11 @@ describe('ConfirmTransactionUseCase', () => {
       type: overrides?.type ?? TransactionType.EXPENSE,
       isEffective: overrides?.isEffective ?? false,
       confirm: jest.fn(),
+      setHasFiscalNote: jest.fn(),
     }) as unknown as Transaction;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     manager = {} as unknown as jest.Mocked<EntityManager>;
 
     dataSource = {
@@ -78,12 +85,19 @@ describe('ConfirmTransactionUseCase', () => {
       }),
     } as unknown as jest.Mocked<TransactionReferenceValidator>;
 
+    fiscalNoteLifecyclePort = {
+      hasActiveByTransactionId: jest.fn().mockResolvedValue(false),
+      findActiveTransactionIds: jest.fn(),
+      softDeleteByTransactionId: jest.fn(),
+    } as unknown as jest.Mocked<FiscalNoteTransactionLifecyclePort>;
+
     useCase = new ConfirmTransactionUseCase(
       dataSource,
       transactionRepository,
       attachmentRepository,
       accountBalanceLockPort,
       referenceValidator,
+      fiscalNoteLifecyclePort,
     );
   });
 
@@ -116,7 +130,47 @@ describe('ConfirmTransactionUseCase', () => {
     );
     expect(tx.confirm).toHaveBeenCalledWith({ categoryId: technicalCategoryId });
     expect(transactionRepository.save).toHaveBeenCalledWith(tx, { manager });
+    expect(fiscalNoteLifecyclePort.hasActiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
+    expect(tx.setHasFiscalNote).toHaveBeenCalledWith(false);
   });
+
+  it('sets hasFiscalNote=true when confirming an EXPENSE with an active fiscal note', async () => {
+    const tx = createMockTransaction({ type: TransactionType.EXPENSE });
+    transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(tx);
+    fiscalNoteLifecyclePort.hasActiveByTransactionId.mockResolvedValue(true);
+
+    await useCase.execute({
+      userId,
+      transactionId,
+    });
+
+    expect(tx.setHasFiscalNote).toHaveBeenCalledWith(true);
+    expect(transactionRepository.save).toHaveBeenCalledWith(tx, { manager });
+  });
+
+  it.each([TransactionType.INCOME, TransactionType.TRANSFER, TransactionType.ADJUSTMENT])(
+    'blocks confirming and converting EXPENSE with active fiscal note to %s',
+    async nextType => {
+      const tx = createMockTransaction({ type: TransactionType.EXPENSE });
+      transactionRepository.findByIdAndUserIdForUpdate.mockResolvedValue(tx);
+      fiscalNoteLifecyclePort.hasActiveByTransactionId.mockResolvedValue(true);
+
+      await expect(
+        useCase.execute({
+          userId,
+          transactionId,
+          patch: {
+            type: nextType,
+            destinationAccountId: nextType === TransactionType.TRANSFER ? destinationAccountId : undefined,
+          },
+        }),
+      ).rejects.toThrow(TransactionTypeDoesNotSupportFiscalNoteError);
+
+      expect(fiscalNoteLifecyclePort.hasActiveByTransactionId).toHaveBeenCalledWith(transactionId, { manager });
+      expect(accountBalanceLockPort.lockAccountsForBalanceMutation).not.toHaveBeenCalled();
+      expect(transactionRepository.save).not.toHaveBeenCalled();
+    },
+  );
 
   it('blocks confirming and converting to TRANSFER when transaction has active attachments', async () => {
     const tx = createMockTransaction({ type: TransactionType.EXPENSE });

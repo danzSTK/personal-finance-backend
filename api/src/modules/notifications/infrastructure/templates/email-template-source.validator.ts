@@ -80,7 +80,7 @@ export class EmailTemplateSourceValidator {
       throw new Error(`Email template ${reference} contains a forbidden HTML element.`);
     }
 
-    const images = html.match(/<img\b[\s\S]*?>/gi) ?? [];
+    const images: ReadonlyArray<string> = html.match(/<img\b[\s\S]*?>/gi) ?? [];
     const imageWithoutAlt = images.some(image => !/\balt="[^"]*"/i.test(image));
 
     if (imageWithoutAlt) {
@@ -97,7 +97,7 @@ export class EmailTemplateSourceValidator {
       throw new Error(`Email template ${reference} contains a non-HTTPS or local image source.`);
     }
 
-    const links = html.match(/<a\b[\s\S]*?>/gi) ?? [];
+    const links: ReadonlyArray<string> = html.match(/<a\b[\s\S]*?>/gi) ?? [];
     const invalidLinkTarget = links.some(link => {
       const target = link.match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2];
 

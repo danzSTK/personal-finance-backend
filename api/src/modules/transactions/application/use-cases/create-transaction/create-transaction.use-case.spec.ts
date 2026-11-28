@@ -23,6 +23,7 @@ describe('CreateTransactionUseCase', () => {
   let referenceValidator: jest.Mocked<TransactionReferenceValidator>;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     manager = {} as unknown as jest.Mocked<EntityManager>;
 
     dataSource = {
@@ -128,5 +129,40 @@ describe('CreateTransactionUseCase', () => {
       { manager },
     );
     expect(transactionRepository.save).toHaveBeenCalledWith(result, { manager });
+  });
+
+  it('reuses external EntityManager without opening a nested dataSource.transaction when options.manager is provided', async () => {
+    const externalManager = { external: true } as unknown as EntityManager;
+
+    const result = await useCase.execute(
+      {
+        userId,
+        accountId,
+        categoryId,
+        type: TransactionType.EXPENSE,
+        status: TransactionStatus.EFFECTIVE,
+        amountCents: 3141,
+        date: transactionDate,
+        description: 'NFC-e Supermercado',
+      },
+      { manager: externalManager },
+    );
+
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(accountBalanceLockPort.lockAccountsForBalanceMutation).toHaveBeenCalledWith(
+      { userId, accountIds: [accountId] },
+      { manager: externalManager },
+    );
+    expect(referenceValidator.validate).toHaveBeenCalledWith(
+      {
+        userId,
+        accountId,
+        destinationAccountId: null,
+        categoryId,
+        type: TransactionType.EXPENSE,
+      },
+      { manager: externalManager },
+    );
+    expect(transactionRepository.save).toHaveBeenCalledWith(result, { manager: externalManager });
   });
 });

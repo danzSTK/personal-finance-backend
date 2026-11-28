@@ -17,7 +17,7 @@ import {
   PasswordChangeStateUnavailableError,
 } from '@/modules/auth/application/errors';
 import { ArgumentsHost, BadRequestException, Logger } from '@nestjs/common';
-import { MailError } from '@/shared/mail';
+import { MailError } from '@/shared/mail/errors';
 import { OperationalAlertService } from '@/shared/observability/alerts/operational-alert.service';
 import {
   ObservabilityLogEvents,
@@ -25,6 +25,26 @@ import {
   OperationalAlertSeverities,
 } from '@/shared/observability/constants/observability.constants';
 import { PasswordByteLimitExceededError } from '@/common/domain/errors';
+import {
+  FiscalNoteAlreadyImportedError,
+  FiscalNoteCancelledOrDeniedError,
+  FiscalNoteNotFoundError,
+  FiscalNoteParseFailedError,
+  FiscalNoteRateLimitExceededError,
+  FiscalNoteResponseTooLargeError,
+  FiscalNoteSefazNotFoundError,
+  SefazTemporarilyUnavailableError,
+  SefazTimeoutError,
+  TransactionAlreadyHasFiscalNoteError,
+} from '@/modules/fiscal-notes/application/errors';
+import { FiscalNoteErrorCodes } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
+import {
+  FiscalNoteHomologationNotAllowedError,
+  FiscalNoteInvalidInputError,
+  FiscalNoteUnsupportedUfError,
+  InvalidFiscalNoteError,
+} from '@/modules/fiscal-notes/domain/errors';
+import { DomainError } from '@/shared/domain';
 
 describe('AppExceptionFilter', () => {
   const request = {
@@ -319,6 +339,101 @@ describe('AppExceptionFilter', () => {
 
       expect(response.status).toHaveBeenCalledWith(400);
       expect(notify).not.toHaveBeenCalled();
+    });
+
+    it('propagates ApplicationError details for FiscalNoteAlreadyImportedError and TransactionAlreadyHasFiscalNoteError (409)', () => {
+      const filter = new AppExceptionFilter();
+
+      filter.catch(new FiscalNoteAlreadyImportedError('tx-existing', 'fn-existing'), host);
+
+      expect(response.setHeader).not.toHaveBeenCalled();
+      expect(response.status).toHaveBeenCalledWith(409);
+      expect(response.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 409,
+          code: FiscalNoteErrorCodes.FISCAL_NOTE_ALREADY_IMPORTED,
+          details: {
+            existingTransactionId: 'tx-existing',
+            existingFiscalNoteId: 'fn-existing',
+          },
+        }),
+      );
+
+      filter.catch(new TransactionAlreadyHasFiscalNoteError('fn-attached'), host);
+
+      expect(response.status).toHaveBeenCalledWith(409);
+      expect(response.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 409,
+          code: FiscalNoteErrorCodes.TRANSACTION_ALREADY_HAS_FISCAL_NOTE,
+          details: {
+            existingFiscalNoteId: 'fn-attached',
+          },
+        }),
+      );
+    });
+
+    it('sets Retry-After header for FiscalNoteRateLimitExceededError (429) and SefazTemporarilyUnavailableError (503)', () => {
+      const filter = new AppExceptionFilter();
+
+      filter.catch(new FiscalNoteRateLimitExceededError(42), host);
+
+      expect(response.setHeader).toHaveBeenCalledWith('Retry-After', '42');
+      expect(response.status).toHaveBeenCalledWith(429);
+      expect(response.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 429,
+          code: FiscalNoteErrorCodes.FISCAL_NOTE_RATE_LIMIT_EXCEEDED,
+          details: {
+            retryAfterSeconds: 42,
+          },
+        }),
+      );
+
+      filter.catch(new SefazTemporarilyUnavailableError(120), host);
+
+      expect(response.setHeader).toHaveBeenCalledWith('Retry-After', '120');
+      expect(response.status).toHaveBeenCalledWith(503);
+      expect(response.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 503,
+          code: FiscalNoteErrorCodes.SEFAZ_TEMPORARILY_UNAVAILABLE,
+          details: {
+            retryAfterSeconds: 120,
+          },
+        }),
+      );
+    });
+
+    it('maps remaining fiscal note and transaction fiscal note error codes to expected HTTP statuses', () => {
+      const filter = new AppExceptionFilter();
+      class TransactionTypeDoesNotSupportFiscalNoteStubError extends DomainError {
+        readonly code = 'TRANSACTION_TYPE_DOES_NOT_SUPPORT_FISCAL_NOTE';
+        constructor() {
+          super('Only EXPENSE transactions support fiscal notes.');
+        }
+      }
+      const transactionTypeError = new TransactionTypeDoesNotSupportFiscalNoteStubError();
+
+      const cases: Array<[unknown, number]> = [
+        [new FiscalNoteInvalidInputError(), 400],
+        [new InvalidFiscalNoteError('Invalid'), 400],
+        [new FiscalNoteNotFoundError(), 404],
+        [new FiscalNoteSefazNotFoundError(), 404],
+        [transactionTypeError, 409],
+        [new FiscalNoteUnsupportedUfError('35'), 422],
+        [new FiscalNoteHomologationNotAllowedError(), 422],
+        [new FiscalNoteCancelledOrDeniedError(), 422],
+        [new FiscalNoteParseFailedError(), 502],
+        [new FiscalNoteResponseTooLargeError(), 502],
+        [new SefazTimeoutError(), 504],
+      ];
+
+      for (const [error, expectedStatus] of cases) {
+        response.status.mockClear();
+        filter.catch(error, host);
+        expect(response.status).toHaveBeenCalledWith(expectedStatus);
+      }
     });
   });
 });

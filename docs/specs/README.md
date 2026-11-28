@@ -33,6 +33,10 @@ As specs registram requisitos, desenho, tarefas e decisões de mudanças relevan
 
 - [Email verification](./auth/email-verification/specs/requirements.md)
 
+## Fiscal Notes
+
+- [Leitura e importação de NFC-e (SEFAZ-CE)](./fiscal-notes/nfce-ce-reader/specs/requirements.md)
+
 ## Notifications
 
 - [Welcome email](./notifications/welcome-email/specs/requirements.md)

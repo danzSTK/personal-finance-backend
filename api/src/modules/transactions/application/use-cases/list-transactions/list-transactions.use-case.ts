@@ -3,6 +3,7 @@ import {
   TRANSACTION_LIST_DEFAULT_PAGE,
   TRANSACTION_LIST_DEFAULT_SORT,
 } from '@/common/models/constants';
+import { FiscalNoteTransactionLifecyclePort } from '@/modules/fiscal-notes/application/ports';
 import {
   ListTransactionsUseCaseInput,
   ListTransactionsUseCaseOutput,
@@ -16,6 +17,7 @@ export class ListTransactionsUseCase {
   constructor(
     private readonly transactionRepository: ITransactionRepository,
     private readonly attachmentRepository: ITransactionAttachmentRepository,
+    private readonly fiscalNoteLifecyclePort: FiscalNoteTransactionLifecyclePort,
   ) {}
 
   async execute(input: ListTransactionsUseCaseInput): Promise<ListTransactionsUseCaseOutput> {
@@ -37,9 +39,13 @@ export class ListTransactionsUseCase {
 
     if (items.length > 0) {
       const transactionIds = items.map(item => item.id);
-      const activeCounts = await this.attachmentRepository.countActiveByTransactionIds(transactionIds);
+      const [activeCounts, fiscalNoteTransactionIds] = await Promise.all([
+        this.attachmentRepository.countActiveByTransactionIds(transactionIds),
+        this.fiscalNoteLifecyclePort.findActiveTransactionIds(transactionIds),
+      ]);
       items.forEach(item => {
         item.setAttachmentsCount(activeCounts.get(item.id) ?? 0);
+        item.setHasFiscalNote(fiscalNoteTransactionIds.has(item.id));
       });
     }
     const totalPages = total === 0 ? 0 : Math.ceil(total / limit);

@@ -1,5 +1,6 @@
 import { AccountBalanceLockPort } from '@/modules/accounts/application/ports/account-balance-lock.port';
 import { IAssetRepository } from '@/modules/assets/domain/repositories';
+import { FiscalNoteTransactionLifecyclePort } from '@/modules/fiscal-notes/application/ports';
 import { TransactionNotFoundError } from '@/modules/transactions/application/errors';
 import { DeleteTransactionUseCaseInput } from '@/modules/transactions/application/use-cases/delete-transaction/delete-transaction.dto';
 import { ITransactionAttachmentRepository } from '@/modules/transactions/domain/repositories/transaction-attachment.repository.interface';
@@ -17,6 +18,7 @@ export class DeleteTransactionUseCase {
     private readonly attachmentRepository: ITransactionAttachmentRepository,
     private readonly assetRepository: IAssetRepository,
     private readonly accountBalanceLockPort: AccountBalanceLockPort,
+    private readonly fiscalNoteLifecyclePort: FiscalNoteTransactionLifecyclePort,
   ) {}
 
   async execute(input: DeleteTransactionUseCaseInput): Promise<void> {
@@ -47,6 +49,7 @@ export class DeleteTransactionUseCase {
       );
 
       await this.transactionRepository.save(transaction, options);
+      await this.fiscalNoteLifecyclePort.softDeleteByTransactionId(input.transactionId, input.userId, options);
 
       const attachments = await this.attachmentRepository.findByTransactionId(input.transactionId, options);
 

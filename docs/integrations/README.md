@@ -62,3 +62,5 @@ Para métodos mutáveis, configure `CSRF_ALLOWED_ORIGINS` com as origens do fron
 - [Categories architecture](../categories/README.md)
 - [Transactions integration](./transactions/README.md)
 - [Transactions architecture](../transactions/README.md)
+- [Fiscal notes integration](./fiscal-notes/README.md)
+- [Fiscal notes architecture](../fiscal-notes/README.md)

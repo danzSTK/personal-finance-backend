@@ -98,8 +98,14 @@ Base:
 ```ts
 export abstract class ApplicationError extends Error {
   abstract readonly code: string;
+
+  get details(): Record<string, unknown> | null {
+    return null;
+  }
 }
 ```
+
+Subclasses podem sobrescrever `details` para retornar metadados estruturados seguros ao cliente (como IDs conflitantes em erros `409`). Para erros que exigem tempo de espera explícito (`429`, `503`), estenda `RetryAfterApplicationError`, que expõe `details: { retryAfterSeconds }` e instrui o `AppExceptionFilter` a definir o header HTTP `Retry-After`.
 
 Local:
 
@@ -197,3 +203,25 @@ api/src/common/dto/platform-error.response.dto.ts
 ```
 
 Use esse DTO nas respostas `400`, `401`, `404`, `409` e `500` quando o endpoint puder retornar erro padronizado.
+
+## Códigos de `fiscal-notes` e Vínculo com `transactions`
+
+O catálogo completo de erros e contratos HTTP de NFC-e está em [HTTP and Error Contracts](../fiscal-notes/reference/http-and-error-contracts.md):
+
+| Código | HTTP Status | Origem / Observação |
+| --- | --- | --- |
+| `FISCAL_NOTE_INVALID_INPUT` | `400` | `DomainError` — entrada vazia/malformada, modelo != `65` ou DV mod-11 inválido |
+| `INVALID_FISCAL_NOTE` | `400` | `DomainError` — violação de invariante da entidade `FiscalNote`, item ou pagamento |
+| `FISCAL_NOTE_NOT_FOUND` | `404` | `ApplicationError` — transação sem nota fiscal ativa vinculada |
+| `FISCAL_NOTE_SEFAZ_NOT_FOUND` | `404` | `ApplicationError` — nota não encontrada ou QR inválido na SEFAZ |
+| `FISCAL_NOTE_ALREADY_IMPORTED` | `409` | `ApplicationError` — `details: { existingTransactionId, existingFiscalNoteId }` |
+| `TRANSACTION_ALREADY_HAS_FISCAL_NOTE` | `409` | `ApplicationError` — `details: { existingFiscalNoteId }` |
+| `TRANSACTION_TYPE_DOES_NOT_SUPPORT_FISCAL_NOTE` | `409` | `DomainError` (`transactions`) — vínculo ou troca de `type` não-`EXPENSE` com nota ativa |
+| `FISCAL_NOTE_UNSUPPORTED_UF` | `422` | `DomainError` — UF sem provedor suportado na V1 |
+| `FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED` | `422` | `DomainError` — ambiente de homologação rejeitado |
+| `FISCAL_NOTE_CANCELLED_OR_DENIED` | `422` | `ApplicationError` — nota cancelada ou denegada na SEFAZ |
+| `FISCAL_NOTE_RATE_LIMIT_EXCEEDED` | `429` | `RetryAfterApplicationError` — `details: { retryAfterSeconds }` + header `Retry-After` |
+| `FISCAL_NOTE_PARSE_FAILED` | `502` | `ApplicationError` — erro estrutural/integridade no parsing da SEFAZ |
+| `FISCAL_NOTE_RESPONSE_TOO_LARGE` | `502` | `ApplicationError` — resposta da SEFAZ acima de 1 MB |
+| `SEFAZ_TEMPORARILY_UNAVAILABLE` | `503` | `RetryAfterApplicationError` — `details: { retryAfterSeconds }` + header `Retry-After` |
+| `SEFAZ_TIMEOUT` | `504` | `ApplicationError` — timeout na consulta à SEFAZ |

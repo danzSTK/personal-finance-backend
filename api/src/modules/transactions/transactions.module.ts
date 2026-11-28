@@ -1,6 +1,9 @@
 import { AccountsModule } from '@/modules/accounts/accounts.module';
 import { AssetsCoreModule } from '@/modules/assets/assets-core.module';
 import { CategoriesModule } from '@/modules/categories/categories.module';
+import { FiscalNotesCoreModule } from '@/modules/fiscal-notes/fiscal-notes-core.module';
+import { TransactionFiscalNotePort } from '@/modules/transactions/application/ports/transaction-fiscal-note.port';
+import { TransactionFiscalNoteAdapter } from '@/modules/transactions/application/services/transaction-fiscal-note.adapter';
 import { TransactionReferenceValidator } from '@/modules/transactions/application/services/transaction-reference-validator.service';
 import { AddTransactionAttachmentsUseCase } from '@/modules/transactions/application/use-cases/add-transaction-attachments/add-transaction-attachments.use-case';
 import { ConfirmTransactionUseCase } from '@/modules/transactions/application/use-cases/confirm-transaction/confirm-transaction.use-case';
@@ -38,6 +41,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     AccountsModule,
     CategoriesModule,
     AssetsCoreModule,
+    FiscalNotesCoreModule,
     FileDetectionModule,
     ObjectStorageModule,
   ],
@@ -54,6 +58,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     {
       provide: TransactionAttachmentJobQueueProducer,
       useClass: BullmqTransactionAttachmentJobQueueProducer,
+    },
+    {
+      provide: TransactionFiscalNotePort,
+      useClass: TransactionFiscalNoteAdapter,
     },
     TransactionReferenceValidator,
     TransactionAttachmentImageValidator,
@@ -73,6 +81,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     ITransactionRepository,
     ITransactionAttachmentRepository,
     TransactionAttachmentJobQueueProducer,
+    TransactionFiscalNotePort,
     CreateTransactionUseCase,
     CreateBalanceAdjustmentUseCase,
     ListTransactionsUseCase,

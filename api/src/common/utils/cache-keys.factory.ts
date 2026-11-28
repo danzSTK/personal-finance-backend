@@ -58,4 +58,12 @@ export const CacheKeys = {
     alertCooldown: (alertKey: string): string => `obs:alert:cooldown:${alertKey}`,
     metricCounter: (metricName: string, bucket: string): string => `obs:metric:${metricName}:${bucket}`,
   },
+
+  fiscalNotes: {
+    parsed: (accessKey: string): string => `fiscal-notes:parsed:v1:${accessKey}`,
+    rateLimitUser1m: (userId: string): string => `fiscal-notes:rl:sefaz:user:${userId}:1m`,
+    rateLimitUser1h: (userId: string): string => `fiscal-notes:rl:sefaz:user:${userId}:1h`,
+    rateLimitGlobal1m: (uf: string): string => `fiscal-notes:rl:sefaz:global:${uf}:1m`,
+    circuitBreaker: (uf: string): string => `fiscal-notes:cb:v1:${uf}`,
+  },
 };

@@ -166,6 +166,26 @@ Erros de DTO usam `VALIDATION_ERROR`.
 | `ATTACHMENT_FILE_TOO_LARGE`                     | `413` | Arquivo do anexo excede o limite máximo de 5 MB              |
 | `ATTACHMENT_DIMENSIONS_EXCEEDED`                | `422` | Resolução da imagem excede o teto de 60 Megapixels           |
 
+## Fiscal Notes
+
+| Code | Status | Quando |
+| --- | ---: | --- |
+| `FISCAL_NOTE_INVALID_INPUT` | `400` | Entrada vazia, `> 1024` chars, URL não HTTP/HTTPS, parâmetro `p` ausente/malformado, chave != 44 dígitos, modelo != `65`, DV mod-11 inválido ou faixas inválidas na listagem (`issuedFrom > issuedTo` ou `minAmountCents > maxAmountCents`) |
+| `INVALID_FISCAL_NOTE` | `400` | Violação de invariante de domínio em `FiscalNote`, `FiscalNoteItem` ou `FiscalNotePayment` |
+| `FISCAL_NOTE_NOT_FOUND` | `404` | Nota fiscal inexistente, soft-deletada ou de outro usuário em `GET /fiscal-notes/:id`, ou transação sem nota fiscal ativa em `GET`/`DELETE /transactions/:id/fiscal-note` |
+| `FISCAL_NOTE_SEFAZ_NOT_FOUND` | `404` | SEFAZ retornou erro de nota inexistente ou QR Code inválido |
+| `FISCAL_NOTE_ALREADY_IMPORTED` | `409` | Usuário já possui `FiscalNote` ativa com a mesma `accessKey` (`details: { existingTransactionId, existingFiscalNoteId }`) |
+| `TRANSACTION_ALREADY_HAS_FISCAL_NOTE` | `409` | Transação já possui `FiscalNote` ativa vinculada (`details: { existingFiscalNoteId }`) |
+| `TRANSACTION_TYPE_DOES_NOT_SUPPORT_FISCAL_NOTE` | `409` | Tentativa de vincular nota a transação não-`EXPENSE` ou de mudar `type` de uma transação com nota ativa |
+| `FISCAL_NOTE_UNSUPPORTED_UF` | `422` | UF extraída da chave não é suportada na V1 (`uf !== '23'`) |
+| `FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED` | `422` | Nota emitida em ambiente de homologação (`ambiente = 2`) |
+| `FISCAL_NOTE_CANCELLED_OR_DENIED` | `422` | Nota cancelada ou denegada segundo retorno da SEFAZ |
+| `FISCAL_NOTE_RATE_LIMIT_EXCEEDED` | `429` | Usuário excedeu cota SEFAZ em cache miss (`5/1m` ou `30/1h`; respeitar `Retry-After` e `details.retryAfterSeconds`) |
+| `FISCAL_NOTE_PARSE_FAILED` | `502` | Resposta inesperada da SEFAZ, HTML quebrado ou falha de integridade pós-parsing |
+| `FISCAL_NOTE_RESPONSE_TOO_LARGE` | `502` | Resposta HTTP da SEFAZ excedeu o limite rígido de 1 MB |
+| `SEFAZ_TEMPORARILY_UNAVAILABLE` | `503` | Circuit Breaker `OPEN`, cota global por UF excedida ou falha/5xx da SEFAZ (respeitar `Retry-After` e `details.retryAfterSeconds`) |
+| `SEFAZ_TIMEOUT` | `504` | Timeout HTTP na SEFAZ após tentativa inicial e 1 retry |
+
 ## Regras Para O Frontend
 
 - Use `code` para decidir UI, fallback e mensagens específicas.
@@ -173,5 +193,5 @@ Erros de DTO usam `VALIDATION_ERROR`.
 - Não dependa de texto exato em `message`.
 - Para `401`, tente refresh/session flow quando aplicável.
 - Para `409`, trate como conflito de regra de negócio, não como falha técnica.
-- Para erros `429` da alteração de senha ou do reenvio de verificação, respeite o header `Retry-After` ou
+- Para erros `429` ou `503` que retornem espera explícita (alteração de senha, reenvio de verificação, `FISCAL_NOTE_RATE_LIMIT_EXCEEDED` e `SEFAZ_TEMPORARILY_UNAVAILABLE`), respeite o header `Retry-After` ou
   `details.retryAfterSeconds`; ambos usam segundos inteiros.

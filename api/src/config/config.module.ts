@@ -1,4 +1,5 @@
 import { ProcessRoles } from '@/common/models/constants/process-role.constants';
+import fiscalNotesConfig, { fiscalNotesEnvSchema } from '@/config/fiscal-notes.config';
 import mailConfig from '@/config/mail.config';
 import notificationsConfig from '@/config/notifications.config';
 import objectStorageConfig from '@/config/object-storage.config';
@@ -67,12 +68,14 @@ export const getEmailVerificationConfigInvariantError = (value: Record<string, u
         queueConfig,
         workerConfig,
         observabilityConfig,
+        fiscalNotesConfig,
       ],
       envFilePath: join(process.cwd(), '..', '.env'),
       isGlobal: true,
       validationSchema: Joi.object({
         PROCESS_ROLE: Joi.string().valid(ProcessRoles.API, ProcessRoles.WORKER).default(ProcessRoles.API),
         ...postgresEnvSchema,
+        ...fiscalNotesEnvSchema,
 
         JWT_ACCESS_SECRET: Joi.when('PROCESS_ROLE', {
           is: ProcessRoles.API,

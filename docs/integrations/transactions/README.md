@@ -50,6 +50,7 @@ O `userId` sempre vem da sessão autenticada. O frontend nunca deve enviar `user
   "description": "Mercado",
   "direction": null,
   "attachmentsCount": 0,
+  "hasFiscalNote": false,
   "createdAt": "2026-06-23T12:00:00.000Z",
   "updatedAt": "2026-06-23T12:00:00.000Z"
 }
@@ -105,8 +106,16 @@ Após `DELETE /transactions/:id`, remova a transaction da lista local ou recarre
 
 Transações dos tipos `INCOME` e `EXPENSE` podem conter até 3 comprovantes associados (imagens PNG, JPEG ou WebP de até 5 MB).
 
-- **Na listagem e no detalhe (`GET /transactions` e `GET /transactions/:id`):** o backend retorna apenas `attachmentsCount: number` (0 a 3).
+- **Na listagem e no detalhe (`GET /transactions` e `GET /transactions/:id`):** sobre anexos, o backend retorna apenas `attachmentsCount: number` (0 a 3).
 - **Para abrir a galeria:** utilize [GET /transactions/:id/attachments](./list-transaction-attachments.md). O endpoint retorna o array completo com URLs assinadas válidas por 5 minutos e indica `cacheMaxAgeSeconds = 240` (4 minutos) para configuração de `staleTime` no TanStack Query.
 - **Adicionar:** use [POST /transactions/:id/attachments](./add-transaction-attachments.md) com `multipart/form-data`.
 - **Remover:** use [DELETE /transactions/:id/attachments/:attachmentId](./delete-transaction-attachment.md).
 - **Reordenar:** use [PATCH /transactions/:id/attachments/positions](./reorder-transaction-attachments.md).
+
+## Nota fiscal vinculada (NFC-e)
+
+Transações do tipo `EXPENSE` podem possuir uma nota fiscal eletrônica de consumidor (`FiscalNote`) ativa vinculada.
+
+- **Na listagem e no detalhe (`GET /transactions` e `GET /transactions/:id`):** o backend retorna `hasFiscalNote: boolean` (`true` quando existe nota fiscal ativa vinculada; `false` caso contrário), sem embutir os itens ou pagamentos da nota no payload da transação.
+- **Para consultar os detalhes completos da nota:** quando `hasFiscalNote` for `true`, utilize `GET /transactions/:id/fiscal-note`.
+- **Fluxo completo (pré-visualização, importação, vínculo, listagem e desvínculo):** consulte [Fiscal notes integration](../fiscal-notes/README.md).

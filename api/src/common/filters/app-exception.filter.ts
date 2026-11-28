@@ -1,3 +1,5 @@
+import { FiscalNoteErrorCodes } from '@/modules/fiscal-notes/domain/constants/fiscal-notes.constants';
+import { TRANSACTION_TYPE_DOES_NOT_SUPPORT_FISCAL_NOTE_CODE } from '@/modules/transactions/domain/errors';
 import { ApplicationError, RetryAfterApplicationError } from '@/shared/application';
 import { DomainError } from '@/shared/domain';
 import { OperationalAlertService } from '@/shared/observability/alerts/operational-alert.service';
@@ -83,9 +85,24 @@ const ERROR_STATUS_BY_CODE: Record<string, HttpStatus> = {
   TRANSACTION_NOT_FOUND: HttpStatus.NOT_FOUND,
   TRANSACTION_UPDATE_EMPTY: HttpStatus.CONFLICT,
   TRANSACTION_TYPE_DOES_NOT_SUPPORT_ATTACHMENTS: HttpStatus.CONFLICT,
+  [TRANSACTION_TYPE_DOES_NOT_SUPPORT_FISCAL_NOTE_CODE]: HttpStatus.CONFLICT,
   TRANSACTION_ATTACHMENT_FILES_EMPTY: HttpStatus.BAD_REQUEST,
   TRANSACTION_ATTACHMENT_LIMIT_EXCEEDED: HttpStatus.CONFLICT,
   TRANSACTION_ATTACHMENT_NOT_FOUND: HttpStatus.NOT_FOUND,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_INVALID_INPUT]: HttpStatus.BAD_REQUEST,
+  [FiscalNoteErrorCodes.INVALID_FISCAL_NOTE]: HttpStatus.BAD_REQUEST,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_SEFAZ_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_ALREADY_IMPORTED]: HttpStatus.CONFLICT,
+  [FiscalNoteErrorCodes.TRANSACTION_ALREADY_HAS_FISCAL_NOTE]: HttpStatus.CONFLICT,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_UNSUPPORTED_UF]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_HOMOLOGATION_NOT_ALLOWED]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_CANCELLED_OR_DENIED]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_RATE_LIMIT_EXCEEDED]: HttpStatus.TOO_MANY_REQUESTS,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_PARSE_FAILED]: HttpStatus.BAD_GATEWAY,
+  [FiscalNoteErrorCodes.FISCAL_NOTE_RESPONSE_TOO_LARGE]: HttpStatus.BAD_GATEWAY,
+  [FiscalNoteErrorCodes.SEFAZ_TEMPORARILY_UNAVAILABLE]: HttpStatus.SERVICE_UNAVAILABLE,
+  [FiscalNoteErrorCodes.SEFAZ_TIMEOUT]: HttpStatus.GATEWAY_TIMEOUT,
   USER_EMAIL_ALREADY_EXISTS: HttpStatus.CONFLICT,
   USERNAME_ALREADY_EXISTS: HttpStatus.CONFLICT,
   USER_NOT_FOUND: HttpStatus.NOT_FOUND,
@@ -193,7 +210,7 @@ export class AppExceptionFilter implements ExceptionFilter {
         statusCode: ERROR_STATUS_BY_CODE[exception.code] ?? HttpStatus.BAD_REQUEST,
         code: exception.code,
         message: exception.message,
-        details: exception instanceof RetryAfterApplicationError ? exception.details : null,
+        details: exception instanceof ApplicationError ? exception.details : null,
         request,
       });
     }

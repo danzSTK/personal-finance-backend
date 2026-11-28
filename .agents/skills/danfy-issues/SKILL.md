@@ -95,3 +95,10 @@ Antes de abrir a issue:
 - preservar links úteis para specs, logs sanitizados, commits ou incidentes relacionados.
 
 Depois de publicar, informar número, título, labels e URL da issue.
+
+## Vínculo com Branch e Pull Request
+
+- Toda PR associada a uma issue deve incluir `Closes #<numero>` no corpo da PR.
+- Além do texto `Closes #<numero>`, **garanta o vínculo real no painel lateral `Development` da Issue** (priorizando vincular a PR aberta logo após criá-la via `addCloseIssueReferences` na API GraphQL do GitHub ou pela UI), pois PRs direcionadas a `develop` quando a branch padrão é `main` não são auto-vinculadas apenas pelo texto.
+- **Não** crie outra branch quando o trabalho já estiver em um worktree/branch existente; use `gh issue develop <N> --base develop --name <branch>` apenas se ainda não existir branch criada para a issue.
+- Antes de marcar a PR pronta ou concluir o merge em `develop`, verifique via `gh pr view <PR> --json closingIssuesReferences` se a issue consta vinculada e acompanhe o fechamento da issue ao concluir a entrega em `develop`.

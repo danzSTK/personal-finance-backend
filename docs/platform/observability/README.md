@@ -45,3 +45,22 @@ Consulte esta pasta quando a tarefa envolver:
 - Instrumentação de contadores/durações via `IMetricsRecorder` (`METRICS_RECORDER`).
 - Criação ou ajuste de alertas operacionais via `OperationalAlertService` (`alertKey`, severidades e cooldown).
 - Configuração de observabilidade e alertas via Telegram por ambiente.
+
+## Métricas e Alertas Registrados por Domínio
+
+### `fiscal-notes` (SEFAZ-CE)
+
+O módulo `fiscal-notes` instrumenta métricas via `IMetricsRecorder` e alertas operacionais via `OperationalAlertService` sem jamais incluir dados de `Consumidor`, HTML bruto ou chave de acesso completa (apenas `uf` e `maskAccessKeyForLog`):
+
+- **Métricas (`FiscalNoteMetricNames`):**
+  - `fiscal_notes.sefaz.query.total` (`uf`, `channel`, `outcome`)
+  - `fiscal_notes.sefaz.query.duration_ms` (`uf`, `channel`, `outcome`)
+  - `fiscal_notes.cache.lookup.total` (`uf`, `result`: `'hit' | 'miss'`)
+  - `fiscal_notes.operations.total` (`operation`: `'preview' | 'import' | 'link' | 'get' | 'unlink'`)
+- **Alertas Operacionais (`FiscalNoteLogEvents` / `FiscalNoteAlertKeys`):**
+  - `FISCAL_NOTE_SEFAZ_CB_OPENED` (`CRITICAL`, chave `fiscal-notes:sefaz:cb:{uf}`) — abertura do Circuit Breaker da UF após falhas consecutivas de infraestrutura ou parser.
+  - `FISCAL_NOTE_SEFAZ_CB_CLOSED` (`RESOLVED`, chave `fiscal-notes:sefaz:cb:{uf}`) — recuperação do Circuit Breaker na transição para `CLOSED`.
+  - `FISCAL_NOTE_SEFAZ_PARSER_FAILURE` (`CRITICAL`, chave `fiscal-notes:sefaz:parser:{uf}`) — falha estrutural ou de integridade no parser HTML da SEFAZ.
+  - `FISCAL_NOTE_SEFAZ_GLOBAL_RL_HIT` (`WARN`, chave `fiscal-notes:sefaz:global-rl:{uf}`) — cota global por minuto da UF atingida em cache miss.
+  - `FISCAL_NOTE_UNKNOWN_QR_HOST` (`WARN`, chave `fiscal-notes:qr:unknown-host:{uf}`, com `host` em `metadata`) — URL de QR Code com host fora da allowlist (requisição externa bloqueada pelo backend).
+- **Isolamento de `/health`:** o status do Circuit Breaker e a disponibilidade da SEFAZ **nunca** entram em `/health/liveness` ou `/health/readiness`.

@@ -28,6 +28,9 @@ Tabelas internas criadas pelo TypeORM, como a tabela de controle de migrations, 
 | `categories`      | Categorias financeiras e técnicas do usuário, incluindo receita, despesa, transferência, ajuste e investimento. |
 | `transactions`    | Movimentações financeiras registradas para usuário, conta e categoria.              |
 | `transaction_attachments` | Galeria e associação de comprovantes/anexos às transações.           |
+| `fiscal_notes`    | Notas fiscais eletrônicas de consumidor (`NFC-e`) sanitizadas e vinculadas a despesas. |
+| `fiscal_note_items` | Itens ordenados extraídos da NFC-e com quantidade e preço unitário de alta precisão. |
+| `fiscal_note_payments` | Meios de pagamento ordenados registrados na NFC-e.                              |
 | `assets`          | Metadados e ciclo de vida dos objetos armazenados no Object Storage.                 |
 | `email_messages`  | Intenções idempotentes de envio de e-mails transacionais.                           |
 | `outbox_messages` | Mensagens do transactional outbox para publicar eventos de domínio com resiliência. |
@@ -93,6 +96,7 @@ Representa a identidade principal do usuário. É a raiz que conecta autenticaç
 | `categories.user_id -> users.id` | `ON DELETE CASCADE` | Remove categorias quando o usuário é removido. |
 | `transactions.user_id -> users.id` | `ON DELETE CASCADE` | Remove transações quando o usuário é removido. |
 | `assets.user_id -> users.id` | `ON DELETE RESTRICT` | Exige que os objetos do usuário sejam tratados antes de remover sua identidade. |
+| `fiscal_notes.user_id -> users.id` | `ON DELETE RESTRICT` | Impede remoção física de usuário enquanto houver notas fiscais associadas. |
 | `users.avatar_asset_id -> assets.id` | `ON DELETE SET NULL` | Identifica o avatar atual sem fazer o módulo users armazenar dados do R2. |
 
 ### Triggers
@@ -496,6 +500,128 @@ Representa a associação da galeria entre uma transação financeira e os asset
 | --- | --- | --- |
 | `trg_transaction_attachments_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente. |
 
+## `fiscal_notes`
+
+Representa os dados fiscais estruturados e sanitizados (sem HTML bruto e sem dados do bloco `Consumidor`) de uma NFC-e vinculada a uma `Transaction` do tipo `EXPENSE`.
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identificador único da nota fiscal. |
+| `user_id` | `uuid` | `not null` | Proprietário da nota para isolamento multi-tenant. |
+| `transaction_id` | `uuid` | `not null` | Despesa (`EXPENSE`) à qual a nota está vinculada. |
+| `access_key` | `char(44)` | `not null` | Chave de acesso numérica de 44 dígitos da NFC-e. |
+| `source_uf` | `char(2)` | `not null` | Código IBGE numérico da UF emissora (ex.: `23` para CE). |
+| `number` | `varchar(20)` | `not null` | Número da NFC-e. |
+| `series` | `varchar(10)` | `not null` | Série da NFC-e. |
+| `issued_at` | `timestamptz` | `not null` | Instante exato da emissão em UTC. |
+| `protocol` | `varchar(64)` | `nullable` | Protocolo de autorização da SEFAZ. |
+| `issuer_name` | `varchar(255)` | `not null` | Razão social ou nome do estabelecimento emissor. |
+| `issuer_cnpj` | `char(14)` | `not null` | CNPJ do estabelecimento emissor (14 dígitos). |
+| `issuer_address` | `text` | `nullable` | Endereço textual do estabelecimento emissor. |
+| `gross_amount_cents` | `bigint` | `not null` | Valor bruto total em centavos. |
+| `discount_amount_cents` | `bigint` | `not null default 0` | Valor total de descontos em centavos. |
+| `payable_amount_cents` | `bigint` | `not null` | Valor líquido a pagar em centavos. |
+| `tax_amount_cents` | `bigint` | `not null default 0` | Valor aproximado de tributos em centavos. |
+| `change_amount_cents` | `bigint` | `nullable` | Valor do troco em centavos (`null` quando ausente ou `NaN` na SEFAZ). |
+| `xml_version` | `varchar(16)` | `nullable` | Versão do leiaute XML reportada na nota. |
+| `xslt_version` | `varchar(16)` | `nullable` | Versão XSLT reportada na nota. |
+| `parser_version` | `varchar(32)` | `not null` | Versão do parser responsável pela extração (ex.: `sefaz-ce-html-v1`). |
+| `created_at` | `timestamptz` | `not null default now()` | Criação do registro. |
+| `updated_at` | `timestamptz` | `not null default now()` | Última atualização do registro. |
+| `deleted_at` | `timestamptz` | `nullable` | Soft delete independente ou sincronizado com a exclusão da transação. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_fiscal_notes` | primary key | `id` | Garante identidade única da nota fiscal. |
+| `FK_fiscal_notes_user` | foreign key | `user_id -> users.id ON DELETE RESTRICT` | Garante ownership e impede exclusão física do usuário com notas. |
+| `FK_fiscal_notes_transaction` | foreign key | `transaction_id -> transactions.id ON DELETE RESTRICT` | Garante integridade referencial com a transação associada. |
+| `CHK_fiscal_notes_access_key_digits` | check | `access_key ~ '^[0-9]{44}$'` | Impõe exatamente 44 dígitos numéricos na chave de acesso. |
+| `CHK_fiscal_notes_source_uf_digits` | check | `source_uf ~ '^[0-9]{2}$'` | Impõe código IBGE numérico de 2 dígitos para a UF. |
+| `CHK_fiscal_notes_issuer_cnpj_digits` | check | `issuer_cnpj ~ '^[0-9]{14}$'` | Impõe CNPJ numérico de 14 dígitos. |
+| `CHK_fiscal_notes_gross_amount_cents` | check | `gross_amount_cents >= 0` | Impede valor bruto negativo. |
+| `CHK_fiscal_notes_discount_amount_cents` | check | `discount_amount_cents >= 0` | Impede desconto negativo. |
+| `CHK_fiscal_notes_payable_amount_cents` | check | `payable_amount_cents >= 0` | Impede valor a pagar negativo. |
+| `CHK_fiscal_notes_tax_amount_cents` | check | `tax_amount_cents >= 0` | Impede valor de tributos negativo. |
+| `CHK_fiscal_notes_change_amount_cents` | check | `change_amount_cents IS NULL OR change_amount_cents >= 0` | Impede troco negativo mantendo nulabilidade. |
+
+### Índices
+
+| Nome | Colunas/filtro | Utilidade |
+| --- | --- | --- |
+| `UQ_fiscal_notes_user_access_key_active` | `(user_id, access_key) WHERE deleted_at IS NULL`, unique | Impede importação duplicada da mesma chave pelo mesmo usuário enquanto ativa, liberando reimportação após soft delete e mantendo multi-tenancy entre usuários. |
+| `UQ_fiscal_notes_transaction_active` | `transaction_id WHERE deleted_at IS NULL`, unique | Garante no máximo uma nota fiscal ativa por transação. |
+| `idx_fiscal_notes_user_id` | `user_id` | Cobre a FK `FK_fiscal_notes_user` (`ON DELETE RESTRICT`) incluindo notas soft-deletadas e consultas por usuário. |
+| `idx_fiscal_notes_user_issued_at_active` | `(user_id, issued_at DESC) WHERE deleted_at IS NULL` | Otimiza listagens paginadas ativas ordenadas por `issued_at DESC` e filtros por intervalo de datas de emissão. |
+| `idx_fiscal_notes_transaction_id` | `transaction_id` | Cobre lookups de FK e consultas por transação (incluindo histórico). |
+
+### Triggers
+
+| Nome | Função | Utilidade |
+| --- | --- | --- |
+| `trg_fiscal_notes_updated_at` | `set_updated_at()` | Atualiza `updated_at` automaticamente em updates. |
+
+Mais detalhes de domínio estão em [Fiscal Notes](../fiscal-notes/README.md).
+
+## `fiscal_note_items`
+
+Representa os itens individuais extraídos de uma `fiscal_notes`, preservando a ordem original do cupom e precisão fracionária para quantidades e preços unitários.
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identificador único do item. |
+| `fiscal_note_id` | `uuid` | `not null` | Nota fiscal proprietária do item. |
+| `position` | `integer` | `not null` | Ordem sequencial do item na nota (iniciando em `1`). |
+| `raw_description` | `varchar(500)` | `not null` | Descrição original do produto/serviço no cupom. |
+| `store_code` | `varchar(64)` | `nullable` | Código interno do produto no estabelecimento. |
+| `unit` | `varchar(20)` | `not null` | Unidade comercial (`UN`, `KG`, `LT`, etc.). |
+| `quantity` | `numeric(12, 4)` | `not null` | Quantidade adquirida (suporta pesagem/fracionamento até 4 casas decimais). |
+| `unit_price` | `numeric(12, 4)` | `not null` | Valor unitário comercial do item. |
+| `total_price_cents` | `bigint` | `not null` | Valor total do item em centavos. |
+| `created_at` | `timestamptz` | `not null default now()` | Criação do registro. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_fiscal_note_items` | primary key | `id` | Garante identidade única do item. |
+| `FK_fiscal_note_items_fiscal_note` | foreign key | `fiscal_note_id -> fiscal_notes.id ON DELETE CASCADE` | Remove itens se a nota pai for expurgada fisicamente. |
+| `UQ_fiscal_note_items_fiscal_note_position` | unique | `(fiscal_note_id, position)` | Garante ordenação única por nota e indexa buscas por `(fiscal_note_id, position)`. |
+| `CHK_fiscal_note_items_position` | check | `position >= 1` | Garante posição 1-based positiva. |
+| `CHK_fiscal_note_items_quantity` | check | `quantity > 0` | Exige quantidade estritamente positiva. |
+| `CHK_fiscal_note_items_unit_price` | check | `unit_price >= 0` | Impede preço unitário negativo. |
+| `CHK_fiscal_note_items_total_price_cents` | check | `total_price_cents >= 0` | Impede total do item negativo. |
+
+## `fiscal_note_payments`
+
+Representa os meios de pagamento declarados na `fiscal_notes`.
+
+### Colunas
+
+| Coluna | Tipo | Nulo/default | Responsabilidade |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `default gen_random_uuid()` | Identificador único do pagamento. |
+| `fiscal_note_id` | `uuid` | `not null` | Nota fiscal proprietária do pagamento. |
+| `position` | `integer` | `not null` | Ordem sequencial do meio de pagamento na nota (iniciando em `1`). |
+| `method_label` | `varchar(120)` | `not null` | Rótulo do meio de pagamento (ex.: `Cartão de Débito`, `PIX`, `Dinheiro`). |
+| `amount_cents` | `bigint` | `not null` | Valor pago nesse meio em centavos. |
+| `created_at` | `timestamptz` | `not null default now()` | Criação do registro. |
+
+### Constraints
+
+| Nome | Tipo | Regra | Utilidade |
+| --- | --- | --- | --- |
+| `PK_fiscal_note_payments` | primary key | `id` | Garante identidade única do pagamento. |
+| `FK_fiscal_note_payments_fiscal_note` | foreign key | `fiscal_note_id -> fiscal_notes.id ON DELETE CASCADE` | Remove pagamentos se a nota pai for expurgada fisicamente. |
+| `UQ_fiscal_note_payments_fiscal_note_position` | unique | `(fiscal_note_id, position)` | Garante ordenação única por nota e indexa buscas por `(fiscal_note_id, position)`. |
+| `CHK_fiscal_note_payments_position` | check | `position >= 1` | Garante posição 1-based positiva. |
+| `CHK_fiscal_note_payments_amount_cents` | check | `amount_cents >= 0` | Impede valor pago negativo. |
+
 ## `assets`
 
 Representa o registro relacional dos objetos armazenados no Object Storage. Os bytes ficam no R2; esta tabela controla propriedade, finalidade, localização e ciclo de vida.
@@ -700,6 +826,7 @@ Usada por:
 - `trg_categories_updated_at`
 - `trg_transactions_updated_at`
 - `trg_transaction_attachments_updated_at`
+- `trg_fiscal_notes_updated_at`
 - `trg_assets_updated_at`
 - `trg_email_messages_updated_at`
 - `trg_outbox_messages_updated_at`
